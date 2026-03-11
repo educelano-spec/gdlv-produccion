@@ -1424,6 +1424,20 @@ function diasHabilesDesde(desde, n) {
 }
 
 function replanificarTodo() {
+  // ══════════════════════════════════════════════════════════
+  // ALGORITMO v2 — Planificación por insumos disponibles
+  //
+  // LÓGICA PRINCIPAL:
+  // · Orden base: prioridad → fecha de entrega (más urgente primero)
+  // · Por ÁREA: en cada día, se procesan todos los pedidos que tengan
+  //   insumos disponibles (de áreas anteriores), sin importar su posición
+  //   en la cola general. Un pedido "más atrás" puede arrancar antes en
+  //   un área si ya tiene insumos, mientras el pedido "más adelante" no.
+  // · finArea ya NO bloquea el día completo para el siguiente pedido.
+  //   En cambio, se comparte la capacidad del día entre todos los pedidos
+  //   que tengan insumos, respetando el orden base solo para desempatar.
+  // ══════════════════════════════════════════════════════════
+
   const priOrd = {ALTA:0, MEDIA:1, BAJA:2};
   const activos = pedidos
     .filter(p => p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO')
@@ -1437,25 +1451,29 @@ function replanificarTodo() {
 
   const NDIAS  = 120;
   const FECHAS = diasHabilesDesde(isoHoy(), NDIAS);
+  const N      = activos.length;
 
-  // cantP[pi][aId][di] — índices por ID de área (1-10)
+  // cantP[pi][aId][di] — unidades planificadas
   const cantP = activos.map(() =>
     Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)]))
   );
-  // Ocupación global por área+día
+  // Ocupación global por área+día (comparte capacidad entre pedidos)
   const ocup = Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)]));
 
-  // Pre-cargar producción real ya ingresada
-  // realAcum[pi][aId] = total producido real (incluyendo fechas pasadas fuera de FECHAS)
-  const realAcum = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
-  // diasBloq[pi][aId] = set de índices di donde ya hay real → no planificar más ese día
-  const diasBloq = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, new Set()])));
-  // urArea[pi][aId] = ultima fecha ISO con real confirmado para este pedido y área
-  const urArea = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, ''])));
-  // fechasConReal[pi] = Set de TODAS las fechas con real en cualquier area de este pedido
-  const fechasConReal = activos.map(() => new Set());
+  // realAcum[pi][aId] = total real producido (todas las fechas)
+  const realAcum   = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
+  // diasBloq[pi][aId] = índices di con real ya cargado → no replanificar encima
+  const diasBloq   = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, new Set()])));
+  // urArea[pi][aId] = última fecha ISO con real confirmado
+  const urArea     = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, ''])));
+  // ultimoGlobal[pi] = fecha más reciente con real pasado (< hoy)
+  const ultimoGlob = new Array(N).fill('');
+  // insumoDisp[pi][aId] = unidades ya disponibles como insumo para esa área (real de áreas previas)
+  // Se actualiza dinámicamente durante el loop de días
+  const insumoDisp = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
 
-  for (let pi = 0; pi < activos.length; pi++) {
+  // ── 1. Cargar producción real ──────────────────────────
+  for (let pi = 0; pi < N; pi++) {
     const ped = activos[pi];
     Object.entries(ped.realProd || {}).forEach(([k, qty]) => {
       const parts = k.split('_');
@@ -1464,183 +1482,161 @@ function replanificarTodo() {
       const fStr = parts.slice(1).join('_');
       const q    = num(qty);
       if (!q) return;
-      realAcum[pi][aId] += q;           // contar siempre para saber cuanto falta
+      realAcum[pi][aId] += q;
       if (fStr > (urArea[pi][aId]||'')) urArea[pi][aId] = fStr;
-      fechasConReal[pi].add(fStr);
-      // El real ya ocurrió — NO va a ocup[] para no bloquear capacidad futura
-      // Solo bloqueamos el día si la fecha es FUTURA (no hoy ni pasado)
+      if (fStr < isoHoy() && fStr > ultimoGlob[pi]) ultimoGlob[pi] = fStr;
       const di = FECHAS.indexOf(fStr);
-      if (di >= 0 && cantP[pi][aId]) {
-        diasBloq[pi][aId].add(di);        // bloquear siempre: no replanificar encima del real
-        if (fStr > isoHoy()) {            // solo afectar capacidad si es dia futuro
+      if (di >= 0) {
+        diasBloq[pi][aId].add(di);
+        if (fStr > isoHoy()) {
           cantP[pi][aId][di] += q;
           ocup[aId][di]      += q;
         }
       }
     });
 
-    // Propagar real hacia áreas dependientes anteriores:
-    // Si hay real en aId=5 (costura), implica que aId=4 (subli) ya produjo al menos esa cantidad.
-    // Cargamos el realAcum de cada área como "insumo ya disponible" en di=0 para las áreas previas,
-    // de modo que el planificador pueda calcular el saldo correctamente.
-    const ped2 = activos[pi];
+    // Propagar real de áreas posteriores hacia previas
     const depMap = { 5:[4,2], 6:[5], 7:[5], 8:[5,6,7], 9:[5,6,7], 10:[9,8] };
     Object.entries(depMap).forEach(([aIdStr, deps]) => {
       const aId = parseInt(aIdStr);
-      const realEsteArea = realAcum[pi][aId];
-      if (!realEsteArea) return;
+      const realEste = realAcum[pi][aId];
+      if (!realEste) return;
       deps.forEach(depId => {
-        if (!(ped2.areas||[]).includes(depId)) return;
-        if (realAcum[pi][depId] >= realEsteArea) return; // ya tiene suficiente real
-        // Si no hay real del área previa, asumir que produjo al menos lo mismo que esta área
-        const faltaDep = realEsteArea - realAcum[pi][depId];
-        // Cargar en di=0 como "ya producido antes de hoy"
+        if (!(ped.areas||[]).includes(depId)) return;
+        if (realAcum[pi][depId] >= realEste) return;
+        const falta = realEste - realAcum[pi][depId];
         if (cantP[pi][depId]) {
-          cantP[pi][depId][0] += faltaDep;
-          ocup[depId][0]      += faltaDep;
-          diasBloq[pi][depId].add(0);   // marcar di=0 del área previa también
-          realAcum[pi][depId] = realEsteArea;
+          cantP[pi][depId][0] += falta;
+          ocup[depId][0]      += falta;
+          diasBloq[pi][depId].add(0);
+          realAcum[pi][depId]  = realEste;
         }
       });
     });
+
+    // Inicializar insumoDisp con el real ya acumulado (insumos ya disponibles hoy)
+    // Para áreas independientes (1,2,3): insumo infinito
+    // Para áreas dependientes: real del área previa ya es insumo disponible
+    for (const aId of (ped.areas||[])) {
+      if ([1,2,3].includes(aId)) {
+        insumoDisp[pi][aId] = Infinity;
+      } else {
+        // Se calculará dinámicamente en el loop de días
+        insumoDisp[pi][aId] = 0;
+      }
+    }
   }
 
-  // finArea[aId] = primer di libre de esa área (el pedido anterior debe terminar antes)
-  // Garantiza: cada área termina un pedido COMPLETO antes de empezar el siguiente
-  const finArea = Object.fromEntries(AREAS.map(a => [a.id, 0]));
+  // ── 2. Loop día a día — para cada día, planificar TODOS los pedidos ──
+  // que tengan insumos disponibles, en orden de prioridad/urgencia
+  for (let di = 0; di < NDIAS; di++) {
+    const fDia = factorDia(FECHAS[di]);
+    if (!fDia) continue;
 
-  for (let pi = 0; pi < activos.length; pi++) {
-    const ped = activos[pi];
+    // Para cada área, procesar todos los pedidos que puedan avanzar HOY
+    for (const area of AREAS) {
+      if (!area.activa) continue;
+      const aId = area.id;
+      const ai  = getAreaIdx(aId);
+      if (ai < 0) continue;
 
-    // ultimoGlobal: fecha mas reciente con real ESTRICTAMENTE PASADA (< hoy)
-    // calculada sobre TODAS las fechas con real, no solo la ultima por area
-    let ultimoGlobal = '';
-    fechasConReal[pi].forEach(f => {
-      if (f < isoHoy() && f > ultimoGlobal) ultimoGlobal = f;
-    });
+      const capTotalDia = Math.max(0, Math.floor(area.cap * fDia));
 
-    // primerDiaSubli: relativo al ultimo real cargado, no a hoy
-    // Si ambos (CORTE+IMP) tienen real → SUBLI desde sig dia habil al mas reciente
-    // Si solo uno tiene real → SUBLI espera 2 dias habiles desde ese real
-    // Si ninguno → libre
-    const urC2 = urArea[pi][2] || '';
-    const urI3 = urArea[pi][3] || '';
-    let primerDiaSubli = '';
-    if (urC2 && urI3) {
-      primerDiaSubli = sigDiaHabil(urC2 > urI3 ? urC2 : urI3);
-    } else if (urC2 || urI3) {
-      const ultimo = urC2 || urI3;
-      primerDiaSubli = sigDiaHabil(sigDiaHabil(ultimo));
-    }
+      // Procesar pedidos en orden de prioridad (ya están ordenados en activos[])
+      for (let pi = 0; pi < N; pi++) {
+        const ped = activos[pi];
+        if (!(ped.areas||[]).includes(aId)) continue;
 
-    for (const aId of [...(ped.areas||[])].sort((a,b) => a-b)) {
-      const ai   = getAreaIdx(aId);          // índice en array AREAS
-      if (ai < 0 || !AREAS[ai].activa) continue;
+        const p = getPeso(ped.tipo, ai);
+        if (!p) continue; // área no aplica a este tipo de prenda
 
-      // peso=0 → área no aplica a este tipo de prenda → saltar
-      const p = getPeso(ped.tipo, ai);
-      if (!p) continue;
-
-      const capDiaBase = Math.max(1, Math.floor(AREAS[ai].cap / p));
-
-      // yaReal: producción real acumulada (puede incluir fechas antes de FECHAS[0])
-      // yaPlan: lo ya planificado dentro de FECHAS (excluye real, que ya está en cantP)
-      // restante: lo que falta producir = cant - todo lo ya contabilizado
-      const yaTotal = Math.max(realAcum[pi][aId], cantP[pi][aId].reduce((s,v) => s+v, 0));
-      let restante  = Math.max(0, ped.cant - yaTotal);
-
-      for (let di = 0; di < NDIAS && restante > 0; di++) {
-        // No empezar este pedido hasta que el anterior haya terminado en esta área
-        if (di < finArea[aId]) continue;
-        // No agregar más plan en días donde ya se cargó real
+        // Saltar días bloqueados por real
         if (diasBloq[pi][aId].has(di)) continue;
-        // Saltar dias pasados cerrados sin real confirmado propio
-        if (ultimoGlobal && FECHAS[di] <= ultimoGlobal) continue;
-        // SUBLIMACION: respetar primerDiaSubli
-        if (aId === 4 && primerDiaSubli && FECHAS[di] < primerDiaSubli) continue;
+        // Saltar días pasados sin real propio
+        if (ultimoGlob[pi] && FECHAS[di] <= ultimoGlob[pi]) continue;
 
-        // Factor del día: 0=feriado/dom (saltar), 0.4=sábado, 1=normal
-        const fDia = factorDia(FECHAS[di]);
-        if (!fDia) continue;
-        const capDia = Math.max(1, Math.floor(capDiaBase * fDia));
-        const capTotalDia = Math.max(0, Math.floor(AREAS[ai].cap * fDia));
-        const capDisp = Math.max(0, capTotalDia - ocup[aId][di]);
-        if (!capDisp) continue;
+        // Calcular insumo disponible acumulado para esta área en este día
+        // = lo que produjeron las áreas previas hasta di-1 (inclusive)
+        const calcInsumo = () => {
+          // Helper: total producido por area id hasta di-1
+          const acumHasta = (id) => {
+            let s = realAcum[pi][id] || 0;
+            for (let k = 0; k < di; k++) {
+              if (diasBloq[pi][id].has(k)) continue;
+              if (ultimoGlob[pi] && FECHAS[k] <= ultimoGlob[pi]) continue;
+              s += cantP[pi][id][k];
+            }
+            return s;
+          };
+          // Lo que ya produjo esta área hasta di-1
+          const yaEsta = acumHasta(aId);
 
-        // acum(id): real confirmado + plan proyectado hasta di-1
-        // Excluye: dias ya en diasBloq (sumados en realAcum) y dias pasados sin real propio
-        const acum = (id) => {
-          let s = realAcum[pi][id] || 0;
-          for (let k = 0; k < di; k++) {
-            if (diasBloq[pi][id].has(k)) continue;
-            if (ultimoGlobal && FECHAS[k] <= ultimoGlobal) continue;
-            s += cantP[pi][id][k];
+          if (aId === 4) {
+            // SUBLIMACIÓN: necesita MIN(corte, impresión)
+            const ids = [2,3].filter(id => (ped.areas||[]).includes(id));
+            if (!ids.length) return Infinity;
+            return Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
           }
-          return s;
+          if (aId === 5) {
+            // COSTURA: necesita sublimación (o corte si no hay subli)
+            const depId = (ped.areas||[]).includes(4) ? 4
+                        : (ped.areas||[]).includes(2) ? 2 : null;
+            if (!depId) return Infinity;
+            return Math.max(0, acumHasta(depId) - yaEsta);
+          }
+          if (aId === 6 || aId === 7) {
+            // SERIGRAFÍA / TRANSFER: necesita costura
+            if ((ped.areas||[]).includes(5)) return Math.max(0, acumHasta(5) - yaEsta);
+            return Infinity;
+          }
+          if (aId === 8) {
+            // CTRL CALIDAD
+            const ids = [5,6,7].filter(id => (ped.areas||[]).includes(id));
+            if (!ids.length) return Infinity;
+            return Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
+          }
+          if (aId === 9) {
+            // ASEO/EMPAQUE
+            const ids = [5,6,7].filter(id => (ped.areas||[]).includes(id));
+            if (ids.length) return Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
+            if ((ped.areas||[]).includes(8)) return Math.max(0, acumHasta(8) - yaEsta);
+            return Infinity;
+          }
+          if (aId === 10) {
+            if ((ped.areas||[]).includes(9)) return Math.max(0, acumHasta(9) - yaEsta);
+            return Infinity;
+          }
+          return Infinity; // áreas 1,2,3: sin dependencia
         };
 
-        let insumo = Infinity;
-        const yaAqui = acum(aId);
+        const insumo = calcInsumo();
+        if (insumo <= 0) continue; // sin insumos disponibles → este pedido no puede avanzar hoy
 
-        if (aId === 4) {
-          // SUBLIMACIÓN: MIN(acumCorte, acumImp) hasta di-1 − yaSubli
-          const ids = [2,3].filter(id => (ped.areas||[]).includes(id));
-          if (ids.length) insumo = Math.max(0, Math.min(...ids.map(acum)) - yaAqui);
-        }
-        else if (aId === 5) {
-          // COSTURA: acumSublim (o acumCorte) hasta di-1 − yaCostura
-          const depId = (ped.areas||[]).includes(4) ? 4
-                      : (ped.areas||[]).includes(2) ? 2 : null;
-          if (depId) insumo = Math.max(0, acum(depId) - yaAqui);
-        }
-        else if (aId === 6 || aId === 7) {
-          // SERIG/TRANSFER: acumCostura hasta di-1
-          if ((ped.areas||[]).includes(5)) insumo = Math.max(0, acum(5) - yaAqui);
-        }
-        else if (aId === 8) {
-          // CTRL CALIDAD: MIN de sus insumos (costura/serig/transfer)
-          const ids = [5,6,7].filter(id => (ped.areas||[]).includes(id));
-          if (ids.length) insumo = Math.max(0, Math.min(...ids.map(acum)) - yaAqui);
-        }
-        else if (aId === 9) {
-          // ASEO/EMPAQUE: misma fecha que CTRL CALIDAD — depende del mismo insumo, NO de acum(8)
-          const ids = [5,6,7].filter(id => (ped.areas||[]).includes(id));
-          if (ids.length) insumo = Math.max(0, Math.min(...ids.map(acum)) - yaAqui);
-          else if ((ped.areas||[]).includes(8)) insumo = Math.max(0, acum(8) - yaAqui);
-        }
-        else if (aId === 10) {
-          if ((ped.areas||[]).includes(9)) insumo = Math.max(0, acum(9) - yaAqui);
-        }
-        // aId 1,2,3: insumo = Infinity (independientes)
+        // Restante a producir
+        const yaTotalAcum = (() => {
+          let s = realAcum[pi][aId] || 0;
+          for (let k = 0; k <= di; k++) s += cantP[pi][aId][k];
+          return s;
+        })();
+        const restante = Math.max(0, ped.cant - yaTotalAcum);
+        if (restante <= 0) continue; // pedido ya completo en esta área
 
+        // Capacidad disponible del día en esta área
+        const capDisp = Math.max(0, capTotalDia - ocup[aId][di]);
+        if (capDisp <= 0) continue; // área llena para este día
+
+        const capDia = Math.max(1, Math.floor(area.cap / p * fDia));
         const qty = Math.min(insumo, capDia, capDisp, restante);
         if (qty > 0) {
           cantP[pi][aId][di] += qty;
           ocup[aId][di]      += qty;
-          restante            -= qty;
         }
-      }
-      // Actualizar finArea: determinar desde qué día puede arrancar el siguiente pedido
-      {
-        const ultimoDi = cantP[pi][aId].reduce((mx, v, i) => v > 0 ? i : mx, -1);
-        if (ultimoDi >= 0 && FECHAS[ultimoDi] > isoHoy()) {
-          // Solo bloquea días futuros — si el ultimo dia planificado es futuro
-          const fUltimo = factorDia(FECHAS[ultimoDi]);
-          const capDisponibleUltimoDia = Math.max(0, Math.floor(AREAS[ai].cap * fUltimo) - ocup[aId][ultimoDi]);
-          if (capDisponibleUltimoDia > 0) {
-            finArea[aId] = Math.max(finArea[aId], ultimoDi);
-          } else {
-            finArea[aId] = Math.max(finArea[aId], ultimoDi + 1);
-          }
-        }
-        // Si el pedido se completó via real (dias pasados), no mover finArea
-        // El siguiente pedido puede arrancar desde hoy (di=0)
       }
     }
   }
 
-  // Convertir a lista plana planif[]
-  for (let pi = 0; pi < activos.length; pi++) {
+  // ── 3. Convertir a lista plana planif[] ──────────────────
+  for (let pi = 0; pi < N; pi++) {
     const ped = activos[pi];
     for (const aId of (ped.areas||[])) {
       for (let di = 0; di < NDIAS; di++) {
