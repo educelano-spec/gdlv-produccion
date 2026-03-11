@@ -18,6 +18,7 @@
   </script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
 <link href='https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap' rel='stylesheet'>
 <style>
@@ -64,22 +65,6 @@ body{background:var(--bg);color:var(--t);font-family:'Barlow',sans-serif;min-hei
 
 /* ── METRICS ── */
 .mrow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
-/* Seguimiento de entregas */
-.seg-tabla{width:100%;border-collapse:collapse;font-size:12px;}
-.seg-tabla th{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--m);padding:7px 10px;border-bottom:2px solid var(--b);text-align:left;white-space:nowrap;}
-.seg-tabla td{padding:10px 10px;border-bottom:1px solid var(--b);vertical-align:middle;}
-.seg-tabla tr:last-child td{border-bottom:none;}
-.seg-tabla tr:hover td{background:var(--s2);}
-.seg-emoji{font-size:28px;line-height:1;display:block;text-align:center;}
-.seg-estado{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:3px;font-weight:700;letter-spacing:.04em;white-space:nowrap;}
-.seg-ok{background:rgba(45,138,78,.12);color:#1a6b35;}
-.seg-warn{background:rgba(200,150,10,.12);color:#7a5800;}
-.seg-risk{background:rgba(192,57,43,.12);color:#c0392b;}
-.seg-late{background:rgba(120,0,0,.15);color:#7a0000;}
-.seg-fecha{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;}
-.seg-diff{font-family:'DM Mono',monospace;font-size:11px;}
-.seg-bar-bg{background:var(--b);border-radius:3px;height:6px;width:100%;min-width:80px;}
-.seg-bar{height:6px;border-radius:3px;transition:width .3s;}
 .metric{background:var(--s);border:1px solid var(--b);border-radius:4px;padding:14px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow);}
 .metric::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
 .m-am::after{background:var(--ac);}.m-vd::after{background:var(--gr);}.m-rd::after{background:var(--rd);}.m-bl::after{background:var(--bl);}.m-or::after{background:var(--or);}
@@ -328,15 +313,6 @@ datalist{}
 <!-- ═══════════════════ RESUMEN ═══════════════════ -->
 <div class='view active' id='view-resumen'>
   <div class='mrow' id='mrow'></div>
-
-  <!-- SEGUIMIENTO DE ENTREGAS -->
-  <div class='card mb16' id='card-seguimiento'>
-    <div class='ctitle'>Seguimiento de Entregas — Planificado vs Comprometido
-      <div class='ctitle-r' style='font-family:DM Mono,monospace;font-size:10px;color:var(--m)'>Se actualiza con cada replanificación</div>
-    </div>
-    <div id='seguimiento-entregas'></div>
-  </div>
-
   <div class='g2 mb16'>
     <div class='card'>
       <div class='ctitle'>Estado de áreas — próximo slot libre</div>
@@ -367,83 +343,103 @@ datalist{}
 
 <!-- ═══════════════════ PEDIDOS ═══════════════════ -->
 <div class='view' id='view-pedidos'>
-
-  <!-- FORMULARIO NUEVO PEDIDO — ANCHO COMPLETO -->
-  <div class='card mb16'>
-    <div class='ctitle'>
-      Nuevo Pedido
-      <div class='ctitle-r'>
-        <button class='btn btn-sec btn-sm' onclick='limpiarForm()'>LIMPIAR</button>
+  <div class='g2r'>
+    <!-- FORMULARIO NUEVO PEDIDO -->
+    <div class='card mb16' style='grid-row:1'>
+      <div class='ctitle'>
+        Nuevo Pedido
+        <div class='ctitle-r'>
+          <button class='btn btn-sec btn-sm' onclick='limpiarForm()'>LIMPIAR</button>
+        </div>
       </div>
-    </div>
-    <div class='form-row' style='grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr'>
-      <div class='form-gr'>
-        <label class='flabel'>N° Pedido</label>
-        <input type='text' id='f-nro' placeholder='Auto-generado'>
+      <div class='form-row' style='grid-template-columns:1fr 1fr 1fr 1fr'>
+        <div class='form-gr'>
+          <label class='flabel'>N° Pedido</label>
+          <input type='text' id='f-nro' placeholder='Auto-generado'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>Cliente</label>
+          <input type='text' id='f-cliente' placeholder='Nombre del cliente'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>N° / Ref. Diseño</label>
+          <input type='text' id='f-diseno' placeholder='Ej: DSN-045'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>Tipo de Prenda</label>
+          <input type='text' id='f-tipo' list='tipos-lista' placeholder='Seleccionar o escribir...' oninput='onTipoInput(this)' autocomplete='off'>
+          <datalist id='tipos-lista'></datalist>
+        </div>
       </div>
-      <div class='form-gr'>
-        <label class='flabel'>Cliente</label>
-        <input type='text' id='f-cliente' placeholder='Nombre del cliente'>
+      <div class='form-row' style='grid-template-columns:1fr 1fr 1fr 1fr'>
+        <div class='form-gr'>
+          <label class='flabel'>Cantidad</label>
+          <input type='number' id='f-cant' placeholder='0' min='1'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>F. Ingreso</label>
+          <input type='date' id='f-ingreso'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>F. Entrega</label>
+          <input type='date' id='f-entrega'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>Prioridad</label>
+          <select id='f-prioridad'>
+            <option value='ALTA'>ALTA</option>
+            <option value='MEDIA' selected>MEDIA</option>
+            <option value='BAJA'>BAJA</option>
+          </select>
+        </div>
       </div>
-      <div class='form-gr'>
-        <label class='flabel'>N° / Ref. Diseño</label>
-        <input type='text' id='f-diseno' placeholder='Ej: DSN-045'>
+      <div class='form-row' style='grid-template-columns:1fr 1fr;margin-bottom:10px'>
+        <div class='form-gr'>
+          <label class='flabel'>Tela / Material <span style='font-size:9px;color:#7c4dff;font-family:DM Mono,monospace'>(area CORTE)</span></label>
+          <input type='text' id='f-tela' placeholder='Ej: Poliester 100%, Dry Fit' autocomplete='off'>
+        </div>
+        <div class='form-gr'>
+          <label class='flabel'>Perfil de impresion <span style='font-size:9px;color:#2979ff;font-family:DM Mono,monospace'>(area IMPRESION)</span></label>
+          <input type='text' id='f-perfil' placeholder='Ej: Sublimacion, DTF, Serigrafia' autocomplete='off'>
+        </div>
       </div>
-      <div class='form-gr'>
-        <label class='flabel'>Tipo de Prenda</label>
-        <input type='text' id='f-tipo' list='tipos-lista' placeholder='Seleccionar o escribir...' onblur='onTipoInput(this)' autocomplete='off'>
-        <datalist id='tipos-lista'></datalist>
-      </div>
-      <div class='form-gr'>
-        <label class='flabel'>Cantidad</label>
-        <input type='number' id='f-cant' placeholder='0' min='1'>
-      </div>
-      <div class='form-gr'>
-        <label class='flabel'>Prioridad</label>
-        <select id='f-prioridad'>
-          <option value='ALTA'>ALTA</option>
-          <option value='MEDIA' selected>MEDIA</option>
-          <option value='BAJA'>BAJA</option>
-        </select>
-      </div>
-    </div>
-    <div class='form-row' style='grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;margin-bottom:10px'>
-      <div class='form-gr'>
-        <label class='flabel'>F. Ingreso</label>
-        <input type='date' id='f-ingreso'>
-      </div>
-      <div class='form-gr'>
-        <label class='flabel'>F. Entrega</label>
-        <input type='date' id='f-entrega'>
-      </div>
-      <div class='form-gr'>
-        <label class='flabel'>Tela / Material <span style='font-size:9px;color:#7c4dff;font-family:DM Mono,monospace'>(CORTE)</span></label>
-        <input type='text' id='f-tela' placeholder='Ej: Poliester 100%' autocomplete='off'>
-      </div>
-      <div class='form-gr'>
-        <label class='flabel'>Perfil impresión <span style='font-size:9px;color:#2979ff;font-family:DM Mono,monospace'>(IMPRESION)</span></label>
-        <input type='text' id='f-perfil' placeholder='Ej: Sublimacion, DTF' autocomplete='off'>
-      </div>
-      <div class='form-gr' style='grid-column:span 2'>
+      <div class='form-gr' style='margin-bottom:10px'>
         <label class='flabel'>Notas</label>
         <input type='text' id='f-notas' placeholder='Observaciones del pedido'>
       </div>
-    </div>
-    <div class='form-row' style='grid-template-columns:1fr auto;align-items:end;margin-bottom:0'>
-      <div class='form-gr' style='margin-bottom:0'>
+      <div class='form-gr' style='margin-bottom:12px'>
         <label class='flabel'>Áreas que intervienen</label>
         <div class='areas-check' id='areas-check'></div>
       </div>
-      <div class='btn-row' style='margin:0;padding:0'>
+      <div class='btn-row'>
         <button class='btn btn-prim' id='btn-agregar' onclick='agregarPedido()' disabled style='opacity:0.4;cursor:not-allowed'>➕ AGREGAR PEDIDO</button>
         <button class='btn btn-sec' onclick='limpiarForm()'>LIMPIAR</button>
       </div>
     </div>
+
+    <!-- LISTADO DE PEDIDOS ACTIVOS -->
+    <div class='card' style='grid-row:1'>
+      <div class='ctitle'>Pedidos activos</div>
+      <div style='display:flex;gap:6px;margin-bottom:10px;'>
+        <select id='fil-estado' style='flex:1;margin:0;' onchange='renderPedidosList()'>
+          <option value=''>Todos los estados</option>
+          <option value='PENDIENTE'>Pendiente</option>
+          <option value='EN PROCESO'>En proceso</option>
+          <option value='ENTREGADO'>Entregado</option>
+          <option value='CANCELADO'>Cancelado</option>
+        </select>
+        <select id='fil-prior' style='flex:1;margin:0;' onchange='renderPedidosList()'>
+          <option value=''>Todas prioridades</option>
+          <option value='ALTA'>Alta</option>
+          <option value='MEDIA'>Media</option>
+          <option value='BAJA'>Baja</option>
+        </select>
+      </div>
+      <div class='plista' id='plista'></div>
+    </div>
   </div>
 
   <!-- TABLA COMPLETA ABAJO -->
-  <!-- plista oculto pero necesario para renderPedidosList() -->
-  <div id='plista' style='display:none'></div>
   <div class='card' style='margin-top:16px'>
     <div class='ctitle'>
       Todos los pedidos
@@ -797,7 +793,12 @@ datalist{}
 // ══════════════════════════════════════════════════════════
 // AUTENTICACIÓN
 // ══════════════════════════════════════════════════════════
-const AUTH_CREDS = {admin:'edugdlv2026', jefa:'liligdlv2026', supervisor:'supergdlv2026'};
+// Mapa: usuario seleccionado → email en Firebase Auth
+const AUTH_EMAIL_MAP = {
+  admin:      'admin@gdlv.com',
+  jefa:       'jefa@gdlv.com',
+  supervisor: 'supervisor@gdlv.com'
+};
 let AUTH_ROL = null;
 let AUTH_TRIES = 0;
 
@@ -810,23 +811,37 @@ function AUTH_login(){
   if(!u){ err.textContent='Seleccioná un usuario.'; return; }
   if(!p){ err.textContent='Ingresá la contraseña.'; return; }
   btn.disabled=true; btn.textContent='VERIFICANDO...'; err.textContent='\u00a0';
-  setTimeout(function(){
-    if(AUTH_CREDS[u] && p===AUTH_CREDS[u]){
+
+  const email = AUTH_EMAIL_MAP[u];
+  if(!email){ err.textContent='Usuario inválido.'; btn.disabled=false; btn.textContent='INGRESAR'; return; }
+
+  // Asegurarse que Firebase está inicializado antes de usar Auth
+  if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+
+  firebase.auth().signInWithEmailAndPassword(email, p)
+    .then(function(cred){
       AUTH_ROL = u;
-      AUTH_CREDS.admin=AUTH_CREDS.jefa=AUTH_CREDS.supervisor='';
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app-root').style.display='block';
       initDashboard();
       AUTH_applyRole(AUTH_ROL);
-    } else {
+    })
+    .catch(function(error){
       AUTH_TRIES++;
       document.getElementById('l-pass').value='';
-      if(AUTH_TRIES>=5){ err.textContent='Acceso bloqueado. Recargá la página.'; btn.textContent='BLOQUEADO'; return; }
-      err.textContent='Contraseña incorrecta. ('+(5-AUTH_TRIES)+' intentos restantes)';
       btn.disabled=false; btn.textContent='INGRESAR';
+      if(AUTH_TRIES>=5){ err.textContent='Acceso bloqueado. Recargá la página.'; btn.textContent='BLOQUEADO'; btn.disabled=true; return; }
+      if(error.code==='auth/wrong-password' || error.code==='auth/invalid-credential'){
+        err.textContent='Contraseña incorrecta. ('+(5-AUTH_TRIES)+' intentos restantes)';
+      } else if(error.code==='auth/user-not-found'){
+        err.textContent='Usuario no encontrado en el sistema.';
+      } else if(error.code==='auth/too-many-requests'){
+        err.textContent='Demasiados intentos. Esperá unos minutos.';
+      } else {
+        err.textContent='Error de autenticación. Intentá de nuevo.';
+      }
       document.getElementById('l-pass').focus();
-    }
-  }, 700);
+    });
 }
 
 function AUTH_applyRole(rol){
@@ -847,7 +862,7 @@ function AUTH_applyRole(rol){
     lb.style.cssText='padding:6px 14px;background:transparent;border:1px solid #d4cfc8;border-radius:2px;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:11px;letter-spacing:2px;cursor:pointer;color:#888;margin-left:16px;transition:all .15s;';
     lb.onmouseover=()=>{lb.style.color='#c0392b';lb.style.borderColor='#c0392b';};
     lb.onmouseout=()=>{lb.style.color='#888';lb.style.borderColor='#d4cfc8';};
-    lb.onclick=()=>{ if(confirm('¿Cerrar sesión?')) location.reload(); };
+    lb.onclick=()=>{ if(confirm('¿Cerrar sesión?')){ if(window.fbAuth) window.fbAuth.signOut().finally(()=>location.reload()); else location.reload(); } };
     hdr.appendChild(lb);
   }
   // Restricciones
@@ -1171,11 +1186,6 @@ function cargarEstado(){
     historial= JSON.parse(lsHist   || '[]');
     if(!pedidos.length) cargarDemoData();
   }
-  // Limpiar tipos basura si están presentes (se ejecuta silenciosamente en la primera carga)
-  // Se usa setTimeout para asegurar que AREAS esté lista antes de llamar limpiarTiposBasura
-  setTimeout(() => {
-    if(typeof limpiarTiposBasura === 'function') limpiarTiposBasura();
-  }, 100);
 }
 
 function guardarEstado(){
@@ -1209,7 +1219,7 @@ function resetearProduccionReal(){
   replanificarTodo();
   guardarEstado();
   renderPedidosList();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   toast('Producción real reseteada. Planificación recalculada.', 'ok');
 }
 
@@ -1260,7 +1270,7 @@ function importarJSON(){
         if(datos.pedNroCnt)    pedNroCnt    = datos.pedNroCnt;
         guardarEstado();
         replanificarTodo();
-        renderResumen(); renderSeguimiento();
+        renderResumen();
         renderPedidosList();
         renderFeriados();
         buildAreasCheck();
@@ -1379,7 +1389,7 @@ function showTab(id){
   if(id==='informes')renderInformes();
   if(id==='historial')renderHistorial();
   if(id==='configuracion')renderConfiguracion();
-  if(id==='resumen'){renderResumen(); renderSeguimiento();}
+  if(id==='resumen')renderResumen();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1650,139 +1660,6 @@ function replanificarTodo() {
 // ══════════════════════════════════════════════════════════
 // RENDER RESUMEN
 // ══════════════════════════════════════════════════════════
-function renderSeguimiento(){
-  const el = document.getElementById('seguimiento-entregas');
-  if(!el) return;
-
-  const activos = pedidos.filter(p => p && p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO');
-  if(!activos.length){
-    el.innerHTML = "<div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;padding:12px 0'>No hay pedidos activos.</div>";
-    return;
-  }
-
-  // Para cada pedido calcular la última fecha planificada (= fecha estimada de fin)
-  const hoy = isoHoy();
-
-  const filas = activos.map(ped => {
-    // Última fecha con planificación para este pedido
-    const planPed = planif.filter(r => r.pedId === ped.id);
-    const fechaEstim = planPed.length
-      ? planPed.reduce((max, r) => r.fecha > max ? r.fecha : max, '')
-      : null;
-
-    // Progreso real por área: promedio del % completado en cada área del pedido
-    // realProd tiene claves tipo "areaId_fecha" → agrupar por areaId
-    const realPorArea = {};
-    Object.entries(ped.realProd || {}).forEach(([k, v]) => {
-      const aId = parseInt(k.split('_')[0]);
-      if(!isNaN(aId)) realPorArea[aId] = (realPorArea[aId] || 0) + num(v);
-    });
-    // Áreas asignadas al pedido (excluye DISEÑO=1 y FACTURACION=10 del cálculo de avance)
-    const areasOp = (ped.areas || []).filter(id => id !== 1 && id !== 10);
-    let pct = 0, realTotal = 0;
-    if(ped.cant > 0 && areasOp.length > 0){
-      const pcts = areasOp.map(aId => {
-        const r = realPorArea[aId] || 0;
-        return Math.min(100, r / ped.cant * 100);
-      });
-      pct = Math.round(pcts.reduce((s,v)=>s+v,0) / pcts.length);
-      realTotal = Object.values(realPorArea).reduce((s,v)=>s+v,0);
-    }
-
-    // Diferencia entre fecha estimada y fecha comprometida
-    const entrega = ped.entrega || '';
-    let diffDias = null;
-    let estado = 'ok';
-    let emoji = '😊👍';
-    let estadoLabel = 'EN TIEMPO';
-    let estadoCls = 'seg-ok';
-
-    if(fechaEstim && entrega){
-      diffDias = diffD(fechaEstim, entrega); // positivo = terminamos ANTES, negativo = TARDE
-      if(diffDias >= 3){
-        estado='ok'; emoji='😊👍'; estadoLabel='EN TIEMPO'; estadoCls='seg-ok';
-      } else if(diffDias >= 0){
-        estado='warn'; emoji='😐⚠️'; estadoLabel='JUSTO'; estadoCls='seg-warn';
-      } else if(diffDias >= -5){
-        estado='risk'; emoji='😰😬'; estadoLabel='EN RIESGO'; estadoCls='seg-risk';
-      } else {
-        estado='late'; emoji='😭🚨'; estadoLabel='NO LLEGA'; estadoCls='seg-late';
-      }
-    } else if(!fechaEstim){
-      emoji='❓'; estadoLabel='SIN PLANIF.'; estadoCls='seg-warn';
-    }
-
-    // Color barra progreso
-    const barColor = pct >= 80 ? 'var(--gr)' : pct >= 40 ? 'var(--ac)' : 'var(--rd)';
-
-    // Desglose por área para mostrar bajo la barra
-    const desglose = areasOp.map(aId => {
-      const area = AREAS.find(a => a.id === aId);
-      const r = realPorArea[aId] || 0;
-      const p = ped.cant > 0 ? Math.min(100, Math.round(r / ped.cant * 100)) : 0;
-      const nombre = area ? area.nombre.substring(0,3) : '?';
-      const color = p >= 100 ? 'var(--gr)' : p > 0 ? 'var(--ac)' : 'var(--m)';
-      return nombre+':'+p+'%';
-    }).join(' · ');
-
-    return {ped, fechaEstim, entrega, diffDias, emoji, estadoLabel, estadoCls, pct, realTotal, barColor, desglose};
-  }).sort((a,b) => {
-    // Ordenar: más urgentes primero (late → risk → warn → ok)
-    const ord = {late:0, risk:1, warn:2, ok:3};
-    const oa = ord[a.estado] ?? 4;
-    const ob = ord[b.estado] ?? 4;
-    if(oa !== ob) return oa - ob;
-    return (a.entrega||'') > (b.entrega||'') ? 1 : -1;
-  });
-
-  el.innerHTML = `
-  <table class='seg-tabla'>
-    <thead><tr>
-      <th>ESTADO</th>
-      <th>PEDIDO</th>
-      <th>CLIENTE</th>
-      <th>DISEÑO</th>
-      <th>PRENDA</th>
-      <th>CANT.</th>
-      <th>PROGRESO REAL</th>
-      <th>FECHA COMPROMETIDA</th>
-      <th>FECHA ESTIMADA<br>(planificación)</th>
-      <th>DIFERENCIA</th>
-    </tr></thead>
-    <tbody>
-    ${filas.map(f => `
-      <tr>
-        <td style='text-align:center'>
-          <span class='seg-emoji'>${f.emoji}</span>
-          <span class='seg-estado ${f.estadoCls}'>${f.estadoLabel}</span>
-        </td>
-        <td><span style='font-family:DM Mono,monospace;font-weight:700;font-size:12px'>${f.ped.id}</span></td>
-        <td style='font-size:12px;font-weight:600'>${f.ped.cliente||'—'}</td>
-        <td style='font-family:DM Mono,monospace;font-size:11px;color:var(--ac)'>${f.ped.diseno||'—'}</td>
-        <td style='font-size:11px;color:var(--m)'>${f.ped.tipo||'—'}</td>
-        <td style='font-family:DM Mono,monospace;font-size:12px;font-weight:700;text-align:right'>${(f.ped.cant||0).toLocaleString()}</td>
-        <td style='min-width:120px'>
-          <div style='display:flex;align-items:center;gap:8px'>
-            <div class='seg-bar-bg' style='flex:1'><div class='seg-bar' style='width:${f.pct}%;background:${f.barColor}'></div></div>
-            <span style='font-family:DM Mono,monospace;font-size:11px;min-width:36px;text-align:right;color:${f.barColor};font-weight:700'>${f.pct}%</span>
-          </div>
-          <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;margin-top:2px'>${f.desglose}</div>
-        </td>
-        <td class='seg-fecha' style='color:var(--t)'>${f.entrega ? ds(pd(f.entrega)) : '—'}</td>
-        <td class='seg-fecha' style='color:${f.estadoCls==='seg-ok'?'var(--gr)':f.estadoCls==='seg-late'?'var(--rd)':'var(--ac)'}'>
-          ${f.fechaEstim ? ds(pd(f.fechaEstim)) : '<span style="color:var(--m);font-size:11px">Sin planificación</span>'}
-        </td>
-        <td class='seg-diff' style='text-align:center'>
-          ${f.diffDias !== null
-            ? `<span style='font-size:16px;font-weight:800;color:${f.diffDias>=3?"var(--gr)":f.diffDias>=0?"var(--ac)":"var(--rd)"}'>${f.diffDias >= 0 ? '+'+f.diffDias : f.diffDias}</span><br><span style='font-size:10px;color:var(--m)'>días</span>`
-            : '—'}
-        </td>
-      </tr>
-    `).join('')}
-    </tbody>
-  </table>`;
-}
-
 function renderResumen(){
   const activos=pedidos.filter(p=>p.estado!=='ENTREGADO'&&p.estado!=='CANCELADO');
   const enProc=pedidos.filter(p=>p.estado==='EN PROCESO').length;
@@ -1979,7 +1856,7 @@ function updateTiposDatalist(){
 function onTipoInput(el){
   const v=el.value.trim().toUpperCase();
   if(!v)return;
-  // Solo agregar si el tipo no existe en PESOS
+  // Si el tipo no existe en PESOS, agregarlo con peso 1
   if(!PESOS[v]){
     PESOS[v]=AREAS.map(()=>1);
     guardarEstado();
@@ -1987,27 +1864,6 @@ function onTipoInput(el){
     renderConfiguracion();
     toast('Tipo "'+v+'" agregado a Configuración con peso 1.0 en todas las áreas');
   }
-}
-
-// Limpia tipos que son prefijos parciales de otros tipos válidos
-function limpiarTiposBasura(){
-  const tiposValidos = Object.keys(PESOS);
-  const protegidos = ['REMERA'];
-  // Un tipo es "basura" si todos sus pesos son 1 y es prefijo estricto de otro tipo
-  const basura = tiposValidos.filter(t => {
-    if(protegidos.includes(t)) return false;
-    const pesos = PESOS[t];
-    const todosUno = Array.isArray(pesos) && pesos.every(p => p === 1);
-    if(!todosUno) return false;
-    return tiposValidos.some(otro => otro !== t && otro.startsWith(t) && otro.length > t.length);
-  });
-  if(!basura.length) return 0;
-  basura.forEach(t => { delete PESOS[t]; });
-  guardarEstado();
-  updateTiposDatalist();
-  renderConfiguracion();
-  toast('🧹 Se eliminaron ' + basura.length + ' tipos parciales automáticamente', 'ok');
-  return basura.length;
 }
 
 function agregarPedido(){
@@ -2044,7 +1900,7 @@ function agregarPedido(){
   toast('Pedido '+nro+' agregado');
   limpiarForm();
   renderPedidosList();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   mostrarNotifPedido(ped);
 }
 
@@ -2099,7 +1955,6 @@ function renderTablaPedidos(){
       <td style='font-size:11px;color:var(--m)'>${p.notas||''}</td>
       <td><div style='display:flex;gap:4px'>
         <button class='btn btn-sec btn-sm' onclick='abrirModal("${p.id}")'>VER</button>
-        <button class='btn btn-sec btn-sm' onclick='editarPedido("${p.id}")' title='Editar'>✎</button>
         <button class='btn btn-sec btn-sm' onclick='cambiarEstado("${p.id}")'>↻</button>
         <button class='btn btn-danger btn-sm' onclick='eliminarPedido("${p.id}")'>✕</button>
       </div></td>
@@ -2109,84 +1964,6 @@ function renderTablaPedidos(){
 
 function badgePrior(p){const m={ALTA:'background:rgba(192,57,43,.1);color:var(--rd);border:1px solid rgba(192,57,43,.3)',MEDIA:'background:rgba(200,150,10,.1);color:var(--ac);border:1px solid rgba(200,150,10,.3)',BAJA:'background:rgba(45,138,78,.1);color:var(--gr);border:1px solid rgba(45,138,78,.3)'};return m[p]||'';}
 function badgeEst(e){const m={'EN PROCESO':'background:rgba(37,99,168,.1);color:var(--bl);border:1px solid rgba(37,99,168,.3)','PENDIENTE':'background:var(--s2);color:var(--m);border:1px solid var(--b)','ENTREGADO':'background:rgba(45,138,78,.1);color:var(--gr);border:1px solid rgba(45,138,78,.3)','CANCELADO':'background:rgba(0,0,0,.05);color:var(--m);border:1px solid var(--b)'};return m[e]||'';}
-
-function editarPedido(id){
-  const p = pedidos.find(x => x.id === id);
-  if(!p) return;
-
-  // Crear modal inline
-  const existing = document.getElementById('modal-editar-ped');
-  if(existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'modal-editar-ped';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.innerHTML = `
-    <div style='background:var(--s);border:1px solid var(--b);border-radius:8px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden'>
-      <div style='background:var(--ac);padding:16px 20px;display:flex;align-items:center;justify-content:space-between'>
-        <span style='font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:16px;letter-spacing:1px;color:#fff'>EDITAR PEDIDO — ${id}</span>
-        <button onclick='document.getElementById("modal-editar-ped").remove()' style='background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1'>✕</button>
-      </div>
-      <div style='padding:20px;display:flex;flex-direction:column;gap:14px'>
-        <div>
-          <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--m);display:block;margin-bottom:5px'>CLIENTE</label>
-          <input id='ep-cliente' value='${p.cliente||''}' style='width:100%;padding:8px 10px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px;box-sizing:border-box'>
-        </div>
-        <div>
-          <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--m);display:block;margin-bottom:5px'>FECHA DE ENTREGA</label>
-          <input id='ep-entrega' type='date' value='${p.entrega||''}' style='width:100%;padding:8px 10px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px;box-sizing:border-box'>
-        </div>
-        <div>
-          <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--m);display:block;margin-bottom:5px'>PRIORIDAD</label>
-          <select id='ep-prior' style='width:100%;padding:8px 10px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px;box-sizing:border-box'>
-            <option value='ALTA' ${p.prioridad==='ALTA'?'selected':''}>ALTA</option>
-            <option value='MEDIA' ${p.prioridad==='MEDIA'?'selected':''}>MEDIA</option>
-            <option value='BAJA' ${p.prioridad==='BAJA'?'selected':''}>BAJA</option>
-          </select>
-        </div>
-        <div>
-          <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--m);display:block;margin-bottom:5px'>CANTIDAD</label>
-          <input id='ep-cant' type='number' value='${p.cant||0}' style='width:100%;padding:8px 10px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px;box-sizing:border-box'>
-        </div>
-        <div>
-          <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--m);display:block;margin-bottom:5px'>NOTAS</label>
-          <input id='ep-notas' value='${p.notas||''}' style='width:100%;padding:8px 10px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px;box-sizing:border-box'>
-        </div>
-        <div style='display:flex;gap:10px;margin-top:4px'>
-          <button onclick='guardarEdicionPedido("${id}")' style='flex:1;padding:10px;background:var(--ac);color:#fff;border:none;border-radius:4px;font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:14px;letter-spacing:1px;cursor:pointer'>GUARDAR CAMBIOS</button>
-          <button onclick='document.getElementById("modal-editar-ped").remove()' style='padding:10px 20px;background:transparent;color:var(--m);border:1.5px solid var(--b);border-radius:4px;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px;cursor:pointer'>CANCELAR</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  // Cerrar al click fuera
-  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
-}
-
-function guardarEdicionPedido(id){
-  const p = pedidos.find(x => x.id === id);
-  if(!p) return;
-  const cliente  = document.getElementById('ep-cliente')?.value.trim();
-  const entrega  = document.getElementById('ep-entrega')?.value;
-  const prior    = document.getElementById('ep-prior')?.value;
-  const cant     = parseInt(document.getElementById('ep-cant')?.value) || p.cant;
-  const notas    = document.getElementById('ep-notas')?.value.trim();
-  if(!entrega){ toast('La fecha de entrega es obligatoria','err'); return; }
-  p.cliente   = cliente || p.cliente;
-  p.entrega   = entrega;
-  p.prioridad = prior;
-  p.cant      = cant;
-  p.notas     = notas;
-  // Actualizar historial si existe
-  const h = historial.find(x => x.id === id);
-  if(h){ h.cliente=p.cliente; h.entrega=p.entrega; h.prioridad=p.prioridad; h.cant=p.cant; h.notas=p.notas; }
-  guardarEstado();
-  replanificarTodo();
-  renderPedidosList();
-  renderResumen(); renderSeguimiento();
-  document.getElementById('modal-editar-ped')?.remove();
-  toast('Pedido '+id+' actualizado','ok');
-}
 
 function cambiarEstado(id){
   const ped=pedidos.find(p=>p.id===id); if(!ped)return;
@@ -2199,7 +1976,7 @@ function cambiarEstado(id){
   if(ped.estado==='ENTREGADO')ped.entregadoEn=new Date().toISOString();
   guardarEstado();
   renderPedidosList();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   toast(id+' → '+ped.estado);
 }
 
@@ -2213,7 +1990,7 @@ function cambiarEstadoDirecto(id, nuevo){
   guardarEstado();
   replanificarTodo();
   renderPedidosList();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   abrirModal(id);
   toast(id+' → '+nuevo,'ok');
 }
@@ -2227,7 +2004,7 @@ function cambiarPrioridad(id, nueva){
   guardarEstado();
   replanificarTodo();
   renderPedidosList();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   abrirModal(id); // refrescar modal
   toast(id+' → prioridad '+nueva,'ok');
 }
@@ -2237,7 +2014,7 @@ function eliminarPedido(id){
   pedidos=pedidos.filter(p=>p.id!==id);
   replanificarTodo();
   renderPedidosList();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   toast('Pedido '+id+' eliminado');
 }
 
@@ -2708,7 +2485,7 @@ function cargarReal(input){
   replanificarTodo();
   guardarEstado();
   renderArea(aId);
-  renderResumen(); renderSeguimiento();
+  renderResumen();
 
   const totalR = Object.entries(ped.realProd)
     .filter(function(e){ return parseInt(e[0].split('_')[0]) === aId; })
@@ -3164,7 +2941,7 @@ function agregarFeriado(){
   guardarEstado();
   replanificarTodo();
   renderFeriados();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   fi.value='';if(di)di.value='';
   toast('Feriado '+fecha+' agregado — replanificado');
 }
@@ -3175,7 +2952,7 @@ function eliminarFeriado(fecha){
   guardarEstado();
   replanificarTodo();
   renderFeriados();
-  renderResumen(); renderSeguimiento();
+  renderResumen();
   toast('Feriado '+fecha+' quitado — replanificado');
 }
 
@@ -3594,7 +3371,7 @@ const fe=new Date();fe.setDate(fe.getDate()+30);
 document.getElementById('f-entrega').value=toS(fe);
 // Render inicial
 cargarContactos();
-renderResumen(); renderSeguimiento();
+renderResumen();
 
 
 
@@ -3703,6 +3480,7 @@ function initFirebase(){
   try {
     if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     window.fbDB = firebase.database();
+    window.fbAuth = firebase.auth();
 
     // Escuchar cambios en tiempo real de otros dispositivos
     window.fbDB.ref('estado').on('value', snap => {
@@ -3718,9 +3496,6 @@ function initFirebase(){
       if(data.feriados)     feriados   = new Set(data.feriados);
       if(data.feriadosDesc) feriadosDesc = data.feriadosDesc;
 
-      // Limpiar tipos basura (prefijos parciales) al recibir datos
-      if(data.pesos) limpiarTiposBasura();
-
       // Respaldar en localStorage
       localStorage.setItem('pp_areas',         JSON.stringify(AREAS));
       localStorage.setItem('pp_pesos',         JSON.stringify(PESOS));
@@ -3732,7 +3507,7 @@ function initFirebase(){
       // Re-renderizar
       replanificarTodo();
       renderPedidosList();
-      renderResumen(); renderSeguimiento();
+      renderResumen();
       if(typeof renderPlanificacion==='function') renderPlanificacion();
       if(typeof areaActiva!=='undefined' && areaActiva) renderArea(areaActiva);
 
