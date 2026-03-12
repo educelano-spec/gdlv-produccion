@@ -324,6 +324,7 @@ datalist{}
   <div class='tab' onclick="showTab('informes')">INFORMES</div>
   <div class='tab' onclick="showTab('historial')">HISTORIAL</div>
   <div class='tab' onclick="showTab('configuracion')">CONFIGURACIÓN</div>
+  <div class='tab' onclick="showTab('ideal')" style='color:#2d8a4e;font-weight:700'>📊 CAP. IDEAL</div>
 </div>
 
 <!-- ═══════════════════ RESUMEN ═══════════════════ -->
@@ -515,6 +516,46 @@ datalist{}
   <div class='card'>
     <div class='ctitle'>Cronograma diario de todas las áreas</div>
     <div id='plan-crono'></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ CAPACIDAD IDEAL ═══════════════════ -->
+<div class='view' id='view-ideal'>
+  <div class='card mb16' style='background:var(--s2);border-color:#2d8a4e44'>
+    <div class='ctitle' style='color:#2d8a4e'>📊 Planificación de Capacidad Ideal
+      <div class='ctitle-r'>
+        <button class='btn btn-sm' onclick='renderIdeal()' style='background:#2d8a4e;color:#fff;border-color:#2d8a4e'>⟳ RECALCULAR</button>
+      </div>
+    </div>
+    <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;line-height:1.8'>
+      Muestra qué capacidad mínima necesita cada área para cumplir <strong style='color:var(--t)'>todas las fechas de entrega</strong>.
+      Usá esto para decidir refuerzos, horas extras o renegociar fechas.
+    </div>
+  </div>
+
+  <!-- Diagnóstico de cuello de botella -->
+  <div id='ideal-diagnostico' class='mb16'></div>
+
+  <!-- Tabla de capacidad necesaria por área -->
+  <div class='card mb16'>
+    <div class='ctitle'>Capacidad necesaria vs actual por área</div>
+    <div id='ideal-tabla-cap'></div>
+  </div>
+
+  <!-- Planificación ideal por pedido -->
+  <div class='card mb16'>
+    <div class='ctitle'>¿Cuándo terminaría cada pedido con capacidad ideal?</div>
+    <div id='ideal-por-pedido'></div>
+  </div>
+
+  <!-- Escenarios de refuerzo -->
+  <div class='card'>
+    <div class='ctitle'>Escenarios de refuerzo — ¿Cuánto personal necesito?</div>
+    <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-bottom:12px'>
+      Estimado a <strong style='color:var(--t)' id='ideal-ud-persona-label'>15 ud/persona/día</strong> en costura.
+      <input type='range' id='ideal-slider' min='8' max='30' value='15' oninput='renderIdealEscenarios()' style='margin-left:12px;vertical-align:middle;width:120px'>
+    </div>
+    <div id='ideal-escenarios'></div>
   </div>
 </div>
 
@@ -814,15 +855,30 @@ function AUTH_login(){
   const btn = document.getElementById('l-btn');
   if(!u){ err.textContent='Seleccioná un usuario.'; return; }
   if(!p){ err.textContent='Ingresá la contraseña.'; return; }
-  btn.disabled=true; btn.textContent='VERIFICANDO...'; err.textContent='\u00a0';
+  btn.disabled=true; btn.textContent='VERIFICANDO...'; err.textContent=' ';
 
   const email = AUTH_EMAIL_MAP[u];
   if(!email){ err.textContent='Usuario inválido.'; btn.disabled=false; btn.textContent='INGRESAR'; return; }
 
-  if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  // Timeout 12s por si Firebase no responde
+  const loginTimeout = setTimeout(function(){
+    btn.disabled=false; btn.textContent='INGRESAR';
+    err.textContent='Sin respuesta del servidor. Verificá tu conexión a internet.';
+    document.getElementById('l-pass').focus();
+  }, 12000);
+
+  try {
+    if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  } catch(e) {
+    clearTimeout(loginTimeout);
+    btn.disabled=false; btn.textContent='INGRESAR';
+    err.textContent='Error al inicializar Firebase: ' + e.message;
+    return;
+  }
 
   firebase.auth().signInWithEmailAndPassword(email, p)
     .then(function(){
+      clearTimeout(loginTimeout);
       AUTH_ROL = u;
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app-root').style.display='block';
@@ -830,23 +886,25 @@ function AUTH_login(){
       AUTH_applyRole(AUTH_ROL);
     })
     .catch(function(error){
+      clearTimeout(loginTimeout);
       AUTH_TRIES++;
       document.getElementById('l-pass').value='';
       btn.disabled=false; btn.textContent='INGRESAR';
-      if(AUTH_TRIES>=5){ err.textContent='Acceso bloqueado. Recargá la página.'; btn.textContent='BLOQUEADO'; btn.disabled=true; return; }
+      if(AUTH_TRIES>=5){ err.textContent='Acceso bloqueado. Recarguá la página.'; btn.textContent='BLOQUEADO'; btn.disabled=true; return; }
       if(error.code==='auth/wrong-password' || error.code==='auth/invalid-credential'){
         err.textContent='Contraseña incorrecta. ('+(5-AUTH_TRIES)+' intentos restantes)';
       } else if(error.code==='auth/user-not-found'){
         err.textContent='Usuario no encontrado en el sistema.';
       } else if(error.code==='auth/too-many-requests'){
         err.textContent='Demasiados intentos. Esperá unos minutos.';
+      } else if(error.code==='auth/network-request-failed'){
+        err.textContent='Sin conexión a internet. Verificá tu red.';
       } else {
-        err.textContent='Error de autenticación. Intentá de nuevo.';
+        err.textContent='Error [' + (error.code||'desconocido') + ']. Intentá de nuevo.';
       }
       document.getElementById('l-pass').focus();
     });
 }
-
 function AUTH_applyRole(rol){
   // Badge
   const hmeta=document.querySelector('.hmeta');
@@ -1006,48 +1064,54 @@ function cargarPedidoDesdeVendedor(){
 // DATOS BASE Y CONSTANTES
 // ══════════════════════════════════════════════════════════
 const AREAS_DEF = [
-  {id:1, nombre:'DISEÑO',      color:'#26a69a', cap:1000, activa:true},
-  {id:2, nombre:'CORTE',       color:'#7c4dff', cap:400,  activa:true},
-  {id:3, nombre:'IMPRESION',   color:'#2979ff', cap:450,  activa:true},
-  {id:4, nombre:'SUBLIMACION', color:'#ff6d00', cap:450,  activa:true},
-  {id:5, nombre:'COSTURA',     color:'#c62828', cap:120,  activa:true},
-  {id:6, nombre:'SERIGRAFIA',  color:'#00897b', cap:100,  activa:true},
-  {id:7, nombre:'TRANSFER',    color:'#d84315', cap:100,  activa:true},
-  {id:8, nombre:'CTRL CALIDAD',color:'#546e7a', cap:250,  activa:true},
-  {id:9, nombre:'ASEO/EMPAQUE',color:'#37474f', cap:250,  activa:true},
-  {id:10,nombre:'FACTURACION', color:'#2e7d32', cap:9999, activa:true},
+  {id:1, nombre:'DISEÑO',        color:'#26a69a', cap:1000, activa:true},
+  {id:2, nombre:'CORTE',         color:'#7c4dff', cap:400,  activa:true},
+  {id:3, nombre:'IMPRESION',     color:'#2979ff', cap:450,  activa:true},
+  {id:4, nombre:'SUBLIMACION',   color:'#ff6d00', cap:450,  activa:true},
+  {id:5, nombre:'COSTURA',       color:'#c62828', cap:120,  activa:true},
+  {id:6, nombre:'SERIGRAFIA',    color:'#00897b', cap:100,  activa:true},
+  {id:7, nombre:'TRANSFER',      color:'#d84315', cap:100,  activa:true},
+  {id:8, nombre:'CTRL CALIDAD',  color:'#546e7a', cap:250,  activa:true},
+  {id:9, nombre:'ASEO/EMPAQUE',  color:'#37474f', cap:250,  activa:true},
+  {id:10,nombre:'FACTURACION',   color:'#2e7d32', cap:9999, activa:true},
+  {id:11,nombre:'COSTURA EXT',   color:'#ad1457', cap:220,  activa:false},
 ];
 const DEPS = {
-  4:[2,3],    // SUBLIMACION espera CORTE+IMPRESION
-  5:[4,2],    // COSTURA espera SUBLIMACION (o CORTE si no aplica SUBLIM)
-  6:[5],      // SERIGRAFIA espera COSTURA
-  7:[5],      // TRANSFER espera COSTURA
-  8:[5,6,7],  // CTRL CALIDAD espera COSTURA+SERIG+TRANSF
-  9:[8],      // EMPAQUE espera CTRL
-  10:[9],     // FACTURACION espera EMPAQUE
+  4:[2,3],      // SUBLIMACION espera CORTE+IMPRESION
+  5:[4,2],      // COSTURA interna espera SUBLIMACION (o CORTE)
+  11:[4,2],     // COSTURA EXT: misma dependencia que COSTURA interna
+  6:[5,11],     // SERIGRAFIA espera COSTURA (interna o externa)
+  7:[5,11],     // TRANSFER espera COSTURA (interna o externa)
+  8:[5,6,7,11], // CTRL CALIDAD espera COSTURA+SERIG+TRANSF (incluye ext)
+  9:[8],        // EMPAQUE espera CTRL CALIDAD
+  10:[9],       // FACTURACION espera EMPAQUE
 };
 const DEPS_DESC = {
   4:'CORTE + IMPRESIÓN completados',
   5:'SUBLIMACIÓN (si aplica) o CORTE',
-  6:'COSTURA',7:'COSTURA',
+  11:'SUBLIMACIÓN (si aplica) o CORTE',
+  6:'COSTURA (interna o externa)',
+  7:'COSTURA (interna o externa)',
   8:'COSTURA + SERIGRAFÍA/TRANSFER (los que apliquen)',
-  9:'CTRL. CALIDAD',10:'ASEO/EMPAQUE',
+  9:'CTRL. CALIDAD',
+  10:'ASEO/EMPAQUE',
 };
 // PRENDA ESTÁNDAR = REMERA (peso 1.0 en todas las áreas)
 // Todos los pesos son relativos a la remera.
 // Ej: SUDADERA peso 2.0 en COSTURA = produce la mitad que remeras.
 // Podés renombrar los tipos en Configuración según tu producción real.
 const PESOS_DEF = {
-  'CAMISETA BASICA SUBLIMADA': [1,  1,   1,   1,   1,   1,   1,   1,   1,   1  ],
-  'REMERA BASICA ALGODÓN':     [1,  1,   0,   0,   1,   1.3, 1.2, 1,   1,   1  ],
-  'POLO':                      [1.2,1.3, 1.5, 1.5, 1.5, 1.5, 1.5, 1,   1,   1  ],
-  'SUDADERA':                  [1.5,1.5, 1.5, 2,   2,   2,   2,   1.2, 1.2, 1  ],
-  'BUZO':                      [1.5,1.5, 1.5, 2,   2,   2,   2,   1.2, 1.2, 1  ],
-  'CAMPERA':                   [2,  2,   1.8, 2.5, 2.5, 2.5, 2.5, 1.5, 1.5, 1  ],
-  'PANTALON':                  [1.5,1.8, 1,   1,   2,   1.5, 1.5, 1.2, 1.2, 1  ],
-  'SHORT':                     [1,  1.3, 1,   1,   1.5, 1,   1,   1,   1,   1  ],
-  'VESTIDO':                   [2,  2,   1.5, 2,   2.5, 2,   2,   1.5, 1.5, 1  ],
-  'OTRO':                      [1.5,1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1  ],
+  // índices:                     [DIS, COR, IMP, SUB, COS, SER, TRA, CCL, EMP, FAC, COSEXT]
+  'CAMISETA BASICA SUBLIMADA':    [1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1  ],
+  'REMERA BASICA ALGODÓN':        [1,   1,   0,   0,   1,   1.3, 1.2, 1,   1,   1,   1  ],
+  'POLO':                         [1.2, 1.3, 1.5, 1.5, 1.5, 1.5, 1.5, 1,   1,   1,   1.5],
+  'SUDADERA':                     [1.5, 1.5, 1.5, 2,   2,   2,   2,   1.2, 1.2, 1,   2  ],
+  'BUZO':                         [1.5, 1.5, 1.5, 2,   2,   2,   2,   1.2, 1.2, 1,   2  ],
+  'CAMPERA':                      [2,   2,   1.8, 2.5, 2.5, 2.5, 2.5, 1.5, 1.5, 1,   2.5],
+  'PANTALON':                     [1.5, 1.8, 1,   1,   2,   1.5, 1.5, 1.2, 1.2, 1,   2  ],
+  'SHORT':                        [1,   1.3, 1,   1,   1.5, 1,   1,   1,   1,   1,   1.5],
+  'VESTIDO':                      [2,   2,   1.5, 2,   2.5, 2,   2,   1.5, 1.5, 1,   2.5],
+  'OTRO':                         [1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1,   1.5],
 };
 
 // ══════════════════════════════════════════════════════════
@@ -1382,7 +1446,7 @@ function toast(msg,tipo='ok'){
 // ══════════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════════
-const TABS=['resumen','pedidos','calendario','planificacion','areas','simulador','informes','historial','configuracion'];
+const TABS=['resumen','pedidos','calendario','planificacion','areas','simulador','informes','historial','configuracion','ideal'];
 function showTab(id){
   TABS.forEach((t,i)=>{
     document.querySelectorAll('.tab')[i]?.classList.toggle('active',t===id);
@@ -1398,6 +1462,7 @@ function showTab(id){
   if(id==='historial')renderHistorial();
   if(id==='configuracion')renderConfiguracion();
   if(id==='resumen'){renderResumen(); renderSeguimiento();}
+  if(id==='ideal')renderIdeal();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1425,17 +1490,16 @@ function diasHabilesDesde(desde, n) {
 
 function replanificarTodo() {
   // ══════════════════════════════════════════════════════════
-  // ALGORITMO v2 — Planificación por insumos disponibles
+  // ALGORITMO v3 — Planificación por insumos disponibles
   //
-  // LÓGICA PRINCIPAL:
-  // · Orden base: prioridad → fecha de entrega (más urgente primero)
-  // · Por ÁREA: en cada día, se procesan todos los pedidos que tengan
-  //   insumos disponibles (de áreas anteriores), sin importar su posición
-  //   en la cola general. Un pedido "más atrás" puede arrancar antes en
-  //   un área si ya tiene insumos, mientras el pedido "más adelante" no.
-  // · finArea ya NO bloquea el día completo para el siguiente pedido.
-  //   En cambio, se comparte la capacidad del día entre todos los pedidos
-  //   que tengan insumos, respetando el orden base solo para desempatar.
+  // CADENA CORRECTA:
+  //   DISEÑO → CORTE → IMPRESIÓN → SUBLIMACIÓN → COSTURA(int/ext)
+  //   → SERIGRAFÍA/TRANSFER → CTRL CALIDAD → ASEO/EMPAQUE → FACTURACIÓN
+  //
+  // REGLAS ESPECIALES:
+  //   · FACTURACIÓN: siempre 1 solo día (al terminar EMPAQUE 100%)
+  //   · COSTURA EXT (id=11): misma posición que COSTURA interna, activa por pedido
+  //   · CTRL CALIDAD y EMPAQUE son SECUENCIALES (no paralelos)
   // ══════════════════════════════════════════════════════════
 
   const priOrd = {ALTA:0, MEDIA:1, BAJA:2};
@@ -1457,20 +1521,14 @@ function replanificarTodo() {
   const cantP = activos.map(() =>
     Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)]))
   );
-  // Ocupación global por área+día (comparte capacidad entre pedidos)
+  // Ocupación global por área+día
   const ocup = Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)]));
-
-  // realAcum[pi][aId] = total real producido (todas las fechas)
-  const realAcum   = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
-  // diasBloq[pi][aId] = índices di con real ya cargado → no replanificar encima
-  const diasBloq   = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, new Set()])));
-  // urArea[pi][aId] = última fecha ISO con real confirmado
-  const urArea     = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, ''])));
-  // ultimoGlobal[pi] = fecha más reciente con real pasado (< hoy)
+  // realAcum[pi][aId] = total real producido acumulado
+  const realAcum = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
+  // diasBloq[pi][aId] = días con real cargado → no replanificar encima
+  const diasBloq = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, new Set()])));
+  const urArea   = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, ''])));
   const ultimoGlob = new Array(N).fill('');
-  // insumoDisp[pi][aId] = unidades ya disponibles como insumo para esa área (real de áreas previas)
-  // Se actualiza dinámicamente durante el loop de días
-  const insumoDisp = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
 
   // ── 1. Cargar producción real ──────────────────────────
   for (let pi = 0; pi < N; pi++) {
@@ -1495,9 +1553,10 @@ function replanificarTodo() {
       }
     });
 
-    // Propagar real de áreas posteriores hacia previas
-    const depMap = { 5:[4,2], 6:[5], 7:[5], 8:[5,6,7], 9:[5,6,7], 10:[9,8] };
-    Object.entries(depMap).forEach(([aIdStr, deps]) => {
+    // Propagar real de áreas posteriores hacia previas (consistencia)
+    // Cadena: 11→[4,2], 5→[4,2], 6→[5,11], 7→[5,11], 8→[5,6,7,11], 9→[8], 10→[9]
+    const depMapProp = { 11:[4,2], 5:[4,2], 6:[5,11], 7:[5,11], 8:[5,6,7,11], 9:[8], 10:[9] };
+    Object.entries(depMapProp).forEach(([aIdStr, deps]) => {
       const aId = parseInt(aIdStr);
       const realEste = realAcum[pi][aId];
       if (!realEste) return;
@@ -1513,27 +1572,13 @@ function replanificarTodo() {
         }
       });
     });
-
-    // Inicializar insumoDisp con el real ya acumulado (insumos ya disponibles hoy)
-    // Para áreas independientes (1,2,3): insumo infinito
-    // Para áreas dependientes: real del área previa ya es insumo disponible
-    for (const aId of (ped.areas||[])) {
-      if ([1,2,3].includes(aId)) {
-        insumoDisp[pi][aId] = Infinity;
-      } else {
-        // Se calculará dinámicamente en el loop de días
-        insumoDisp[pi][aId] = 0;
-      }
-    }
   }
 
-  // ── 2. Loop día a día — para cada día, planificar TODOS los pedidos ──
-  // que tengan insumos disponibles, en orden de prioridad/urgencia
+  // ── 2. Loop día a día ──────────────────────────────────
   for (let di = 0; di < NDIAS; di++) {
     const fDia = factorDia(FECHAS[di]);
     if (!fDia) continue;
 
-    // Para cada área, procesar todos los pedidos que puedan avanzar HOY
     for (const area of AREAS) {
       if (!area.activa) continue;
       const aId = area.id;
@@ -1542,33 +1587,29 @@ function replanificarTodo() {
 
       const capTotalDia = Math.max(0, Math.floor(area.cap * fDia));
 
-      // Procesar pedidos en orden de prioridad (ya están ordenados en activos[])
       for (let pi = 0; pi < N; pi++) {
         const ped = activos[pi];
         if (!(ped.areas||[]).includes(aId)) continue;
 
         const p = getPeso(ped.tipo, ai);
-        if (!p) continue; // área no aplica a este tipo de prenda
+        if (!p) continue;
 
-        // Saltar días bloqueados por real
         if (diasBloq[pi][aId].has(di)) continue;
-        // Saltar días pasados sin real propio
         if (ultimoGlob[pi] && FECHAS[di] <= ultimoGlob[pi]) continue;
 
-        // Calcular insumo disponible acumulado para esta área en este día
-        // = lo que produjeron las áreas previas hasta di-1 (inclusive)
+        // ── Helper: unidades acumuladas de un área hasta di-1 ──
+        const acumHasta = (id) => {
+          let s = realAcum[pi][id] || 0;
+          for (let k = 0; k < di; k++) {
+            if (diasBloq[pi][id].has(k)) continue;
+            if (ultimoGlob[pi] && FECHAS[k] <= ultimoGlob[pi]) continue;
+            s += cantP[pi][id][k];
+          }
+          return s;
+        };
+
+        // ── Insumo disponible según área ──
         const calcInsumo = () => {
-          // Helper: total producido por area id hasta di-1
-          const acumHasta = (id) => {
-            let s = realAcum[pi][id] || 0;
-            for (let k = 0; k < di; k++) {
-              if (diasBloq[pi][id].has(k)) continue;
-              if (ultimoGlob[pi] && FECHAS[k] <= ultimoGlob[pi]) continue;
-              s += cantP[pi][id][k];
-            }
-            return s;
-          };
-          // Lo que ya produjo esta área hasta di-1
           const yaEsta = acumHasta(aId);
 
           if (aId === 4) {
@@ -1577,53 +1618,73 @@ function replanificarTodo() {
             if (!ids.length) return Infinity;
             return Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
           }
-          if (aId === 5) {
-            // COSTURA: necesita sublimación (o corte si no hay subli)
+          if (aId === 5 || aId === 11) {
+            // COSTURA interna o externa: necesita sublimación (o corte si no hay subli)
             const depId = (ped.areas||[]).includes(4) ? 4
                         : (ped.areas||[]).includes(2) ? 2 : null;
             if (!depId) return Infinity;
             return Math.max(0, acumHasta(depId) - yaEsta);
           }
           if (aId === 6 || aId === 7) {
-            // SERIGRAFÍA / TRANSFER: necesita costura
-            if ((ped.areas||[]).includes(5)) return Math.max(0, acumHasta(5) - yaEsta);
-            return Infinity;
+            // SERIGRAFÍA / TRANSFER: necesita costura interna O externa (la que tenga el pedido)
+            const cosIds = [5,11].filter(id => (ped.areas||[]).includes(id));
+            if (!cosIds.length) return Infinity;
+            // Usar la que más haya producido (puede tener ambas)
+            const maxCos = Math.max(...cosIds.map(acumHasta));
+            return Math.max(0, maxCos - yaEsta);
           }
           if (aId === 8) {
-            // CTRL CALIDAD
-            const ids = [5,6,7].filter(id => (ped.areas||[]).includes(id));
-            if (!ids.length) return Infinity;
-            return Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
+            // CTRL CALIDAD: espera el mínimo de costura(s)+serig+transfer que apliquen
+            // Si tiene serigrafía o transfer, espera que terminen
+            const finalesIds = [5,6,7,11].filter(id => (ped.areas||[]).includes(id));
+            if (!finalesIds.length) return Infinity;
+            return Math.max(0, Math.min(...finalesIds.map(acumHasta)) - yaEsta);
           }
           if (aId === 9) {
-            // ASEO/EMPAQUE
-            const ids = [5,6,7].filter(id => (ped.areas||[]).includes(id));
-            if (ids.length) return Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
+            // ASEO/EMPAQUE: espera CTRL CALIDAD (secuencial, no paralelo)
             if ((ped.areas||[]).includes(8)) return Math.max(0, acumHasta(8) - yaEsta);
+            // Si no tiene ctrl calidad, espera costura directamente
+            const cosIds = [5,11].filter(id => (ped.areas||[]).includes(id));
+            if (cosIds.length) return Math.max(0, Math.min(...cosIds.map(acumHasta)) - yaEsta);
             return Infinity;
           }
           if (aId === 10) {
+            // FACTURACIÓN: espera que EMPAQUE esté 100% completo
+            // → Se maneja separado abajo, aquí solo chequeo básico
             if ((ped.areas||[]).includes(9)) return Math.max(0, acumHasta(9) - yaEsta);
             return Infinity;
           }
           return Infinity; // áreas 1,2,3: sin dependencia
         };
 
+        // ── FACTURACIÓN: manejo especial — siempre 1 único día ──
+        if (aId === 10) {
+          // Solo planificar cuando EMPAQUE completó el 100% del pedido
+          const depId = (ped.areas||[]).includes(9) ? 9 : null;
+          if (depId && acumHasta(depId) < ped.cant) continue; // esperar
+
+          // Ya están todas las unidades en empaque: planificar todo de una vez
+          let yaFact = realAcum[pi][10] || 0;
+          for (let k = 0; k <= di; k++) yaFact += cantP[pi][10][k];
+          const restFact = Math.max(0, ped.cant - yaFact);
+          if (restFact <= 0) continue;
+          // No se usa capDisp ni capDia: cap=9999 siempre alcanza
+          cantP[pi][10][di] += restFact;
+          ocup[10][di]      += restFact;
+          continue;
+        }
+
         const insumo = calcInsumo();
-        if (insumo <= 0) continue; // sin insumos disponibles → este pedido no puede avanzar hoy
+        if (insumo <= 0) continue;
 
-        // Restante a producir
-        const yaTotalAcum = (() => {
-          let s = realAcum[pi][aId] || 0;
-          for (let k = 0; k <= di; k++) s += cantP[pi][aId][k];
-          return s;
-        })();
+        // Restante a producir en esta área
+        let yaTotalAcum = realAcum[pi][aId] || 0;
+        for (let k = 0; k <= di; k++) yaTotalAcum += cantP[pi][aId][k];
         const restante = Math.max(0, ped.cant - yaTotalAcum);
-        if (restante <= 0) continue; // pedido ya completo en esta área
+        if (restante <= 0) continue;
 
-        // Capacidad disponible del día en esta área
         const capDisp = Math.max(0, capTotalDia - ocup[aId][di]);
-        if (capDisp <= 0) continue; // área llena para este día
+        if (capDisp <= 0) continue;
 
         const capDia = Math.max(1, Math.floor(area.cap / p * fDia));
         const qty = Math.min(insumo, capDia, capDisp, restante);
@@ -1953,30 +2014,21 @@ function renderProgresoGlobal(){
 const AREAS_DEFAULT_ON = [8, 9, 10]; // CTRL CALIDAD, ASEO/EMPAQUE, FACTURACION
 function buildAreasCheck(areasPresel){
   const c=document.getElementById('areas-check'); if(!c)return;
+  // Mostrar todas las áreas incluyendo COSTURA EXT (id=11) aunque activa=false globalmente
   const areasOk = (AREAS && AREAS.length) ? AREAS : AREAS_DEF;
-  // areasPresel: array de ids a marcar (viene de pedido vendedor)
-  // si no se pasa, usar AREAS_DEFAULT_ON
   const onIds = areasPresel ? [...areasPresel, ...AREAS_DEFAULT_ON] : AREAS_DEFAULT_ON;
-  c.innerHTML=areasOk.map(a=>`
-    <div class='ac-item${onIds.includes(a.id)?" on":""}' id='ac-${a.id}' onclick='toggleAC(${a.id})'>
+  c.innerHTML=areasOk.map(a=>{
+    const esExt = a.id === 11;
+    const badge = esExt ? `<span style='font-size:8px;background:#ad145722;color:#ad1457;padding:1px 4px;border-radius:2px;margin-left:3px'>EXT</span>` : '';
+    return `<div class='ac-item${onIds.includes(a.id)?" on":""}' id='ac-${a.id}' onclick='toggleAC(${a.id})' title='${esExt?"Costura tercerizada (220 ud/día) — se suma a costura interna si ambas están activas":""}'>
       <div class='ac-dot' id='acdot-${a.id}' style='background:${a.color}'></div>
-      <span>${a.nombre}</span>
-    </div>`).join('');
+      <span>${a.nombre}${badge}</span>
+    </div>`;
+  }).join('');
   actualizarBtnAgregar();
 }
 
-function toggleAC(id){
-  const el=document.getElementById('ac-'+id);
-  el.classList.toggle('on');
-  actualizarBtnAgregar();
-}
-function actualizarBtnAgregar(){
-  const btn=document.getElementById('btn-agregar'); if(!btn)return;
-  // Debe haber al menos 1 area productiva seleccionada (no solo 8,9,10)
-  const prodSelec=AREAS.filter(a=>![8,9,10].includes(a.id)&&document.getElementById('ac-'+a.id)?.classList.contains('on'));
-  if(prodSelec.length>0){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}
-  else{btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='not-allowed';}
-}
+function toggleAC(id){\n  const el=document.getElementById('ac-'+id);\n  el.classList.toggle('on');\n  // COSTURA interna (5) y COSTURA EXT (11) se pueden usar juntas o separadas\n  // Si activás COSTURA EXT y COSTURA interna no estaba on, no forzar nada\n  // Pero si el usuario activa una, mostrar tooltip de que son sumables\n  actualizarBtnAgregar();\n}\nfunction actualizarBtnAgregar(){\n  const btn=document.getElementById('btn-agregar'); if(!btn)return;\n  // Debe haber al menos 1 area productiva seleccionada (excluir 8,9,10,11 de esta validación)\n  const prodSelec=AREAS.filter(a=>![8,9,10].includes(a.id)&&document.getElementById('ac-'+a.id)?.classList.contains('on'));\n  if(prodSelec.length>0){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}\n  else{btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='not-allowed';}\n}
 
 function getAreasSeleccionadas(){
   return AREAS.filter(a=>document.getElementById('ac-'+a.id)?.classList.contains('on')).map(a=>a.id);
@@ -3789,6 +3841,317 @@ guardarEstado = function(){
     }).catch(e=>{ _fbIgnoreNext=false; console.warn('Firebase write error:',e); });
   }
 };
+
+// ══════════════════════════════════════════════════════════
+// CAPACIDAD IDEAL — Planificación inversa
+// Calcula qué capacidad necesita cada área para cumplir fechas
+// ══════════════════════════════════════════════════════════
+
+function renderIdeal() {
+  const priOrd = {ALTA:0, MEDIA:1, BAJA:2};
+  const activos = pedidos
+    .filter(p => p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO')
+    .sort((a,b) => {
+      const po = (priOrd[a.prioridad??a.prio]??1) - (priOrd[b.prioridad??b.prio]??1);
+      return po !== 0 ? po : diffD(b.entrega||'9999-12-31', a.entrega||'9999-12-31');
+    });
+
+  if (!activos.length) {
+    document.getElementById('ideal-diagnostico').innerHTML = "<div style='color:var(--m);font-family:DM Mono,monospace;font-size:12px;padding:16px'>No hay pedidos activos.</div>";
+    return;
+  }
+
+  const hoy = isoHoy();
+  const NDIAS = 120;
+  const FECHAS = diasHabilesDesde(hoy, NDIAS);
+
+  // ── Calcular carga total por área ──────────────────────
+  // Para cada área: suma de unidades a producir de todos los pedidos que la incluyen
+  const cargaArea = Object.fromEntries(AREAS.map(a => [a.id, 0]));
+  const pedsPorArea = Object.fromEntries(AREAS.map(a => [a.id, []]));
+
+  for (const ped of activos) {
+    const ai_list = (ped.areas||[]);
+    for (const aId of ai_list) {
+      const ai = getAreaIdx(aId);
+      if (ai < 0) continue;
+      const p = getPeso(ped.tipo, ai);
+      if (!p) continue;
+      // Restar producción real ya hecha
+      let yaReal = 0;
+      Object.entries(ped.realProd||{}).forEach(([k,v]) => {
+        if (parseInt(k.split('_')[0]) === aId) yaReal += num(v);
+      });
+      const restante = Math.max(0, ped.cant - yaReal);
+      if (restante > 0) {
+        cargaArea[aId] += restante;
+        pedsPorArea[aId].push({...ped, restante});
+      }
+    }
+  }
+
+  // ── Calcular días hábiles hasta cada fecha de entrega ──
+  const diasHastaEntrega = (f) => {
+    if (!f) return 999;
+    let dias = 0, cur = hoy;
+    while (cur < f && dias < 200) {
+      const nxt = addD(cur,1);
+      if (factorDia(nxt) > 0) dias++;
+      cur = nxt;
+    }
+    return dias;
+  };
+
+  // ── Capacidad mínima necesaria por área ────────────────
+  // Para cada área: calcular cuántas ud/día necesita para terminar a tiempo
+  // Considera el pedido más urgente como restricción principal
+  const capNecesaria = {};
+  const analisisPorArea = [];
+
+  for (const area of AREAS) {
+    if (!area.activa) continue;
+    const aId = area.id;
+    const carga = cargaArea[aId];
+    if (!carga) continue;
+
+    const capActual = area.cap;
+
+    // Días hasta el pedido más urgente de esta área
+    const pedsEnArea = pedsPorArea[aId];
+    if (!pedsEnArea.length) continue;
+
+    const masUrgente = pedsEnArea.reduce((min, p) =>
+      (p.entrega||'9999') < (min.entrega||'9999') ? p : min, pedsEnArea[0]);
+
+    const diasDisp = Math.max(1, diasHastaEntrega(masUrgente.entrega));
+    const diasDispTotal = FECHAS.length;
+
+    // Cap necesaria para terminar TODO dentro de los dias disponibles
+    const capNecTotal = Math.ceil(carga / diasDispTotal);
+    // Cap necesaria para terminar el pedido más urgente a tiempo
+    const capNecUrgente = Math.ceil(masUrgente.restante / diasDisp);
+    // Cap necesaria real = max de ambas
+    const capNec = Math.max(capNecTotal, capNecUrgente);
+
+    capNecesaria[aId] = capNec;
+
+    const deficit = capNec - capActual;
+    const pct = Math.round(capNec / capActual * 100);
+    const diasConCapActual = Math.ceil(carga / capActual);
+
+    analisisPorArea.push({
+      area, aId, carga, capActual, capNec, deficit, pct,
+      diasConCapActual, diasDisp, masUrgente,
+      estado: deficit <= 0 ? 'ok' : deficit < capActual * 0.3 ? 'warn' : 'risk'
+    });
+  }
+
+  // Ordenar por déficit descendente (el más crítico primero)
+  analisisPorArea.sort((a,b) => b.deficit - a.deficit);
+
+  // ── Cuello de botella principal ────────────────────────
+  const critico = analisisPorArea.find(a => a.deficit > 0) || analisisPorArea[0];
+
+  // ── Render diagnóstico ─────────────────────────────────
+  const totalUnidades = activos.reduce((s,p) => s + Math.max(0, p.cant - Object.entries(p.realProd||{}).reduce((sr,[k,v])=>sr+num(v),0)), 0);
+  const conRetraso = activos.filter(p => {
+    if (!p.entrega) return false;
+    const d = diasHastaEntrega(p.entrega);
+    const areaBottleneck = (p.areas||[]).find(aId => capNecesaria[aId] > (AREAS.find(a=>a.id===aId)||{}).cap);
+    return areaBottleneck !== undefined;
+  });
+
+  document.getElementById('ideal-diagnostico').innerHTML = `
+    <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:4px'>
+      <div class='card' style='border-color:#c62828;text-align:center;padding:16px'>
+        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>CUELLO DE BOTELLA</div>
+        <div style='font-size:22px;font-weight:700;color:#c62828'>${critico ? critico.area.nombre : '—'}</div>
+        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>${critico ? `${critico.capActual} ud/día actual vs ${critico.capNec} necesario` : 'Sin déficit'}</div>
+      </div>
+      <div class='card' style='text-align:center;padding:16px'>
+        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>TOTAL PENDIENTE</div>
+        <div style='font-size:22px;font-weight:700;color:var(--t)'>${totalUnidades.toLocaleString()}</div>
+        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>${activos.length} pedidos activos</div>
+      </div>
+      <div class='card' style='border-color:#c8960a;text-align:center;padding:16px'>
+        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>PEDIDOS EN RIESGO</div>
+        <div style='font-size:22px;font-weight:700;color:#c8960a'>${conRetraso.length}</div>
+        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>de ${activos.length} no llegarían a tiempo</div>
+      </div>
+      ${critico && critico.deficit > 0 ? `
+      <div class='card' style='border-color:#c62828;text-align:center;padding:16px'>
+        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>DÉFICIT ${critico.area.nombre}</div>
+        <div style='font-size:22px;font-weight:700;color:#c62828'>+${critico.deficit} ud/día</div>
+        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>${Math.round(critico.pct - 100)}% más de capacidad</div>
+      </div>` : ''}
+    </div>
+  `;
+
+  // ── Render tabla capacidad por área ───────────────────
+  const colores = {ok:'#2d8a4e', warn:'#c8960a', risk:'#c62828'};
+  const iconos  = {ok:'✅', warn:'⚠️', risk:'🚨'};
+
+  let html = `<div style='overflow-x:auto'><table class='tbl'>
+    <thead><tr>
+      <th>ÁREA</th><th>CARGA TOTAL</th><th>CAP. ACTUAL</th><th>CAP. NECESARIA</th>
+      <th>DÉFICIT</th><th>DÍAS CON CAP. ACTUAL</th><th>ESTADO</th>
+    </tr></thead><tbody>`;
+
+  for (const a of analisisPorArea) {
+    const color = colores[a.estado];
+    const icono = iconos[a.estado];
+    const barPct = Math.min(100, Math.round(a.capActual / a.capNec * 100));
+    html += `<tr>
+      <td><strong>${a.area.nombre}</strong></td>
+      <td style='font-family:DM Mono,monospace'>${a.carga.toLocaleString()} ud</td>
+      <td style='font-family:DM Mono,monospace'>${a.capActual} ud/día</td>
+      <td style='font-family:DM Mono,monospace;color:${color};font-weight:700'>${a.capNec} ud/día</td>
+      <td style='font-family:DM Mono,monospace;color:${a.deficit>0?'#c62828':'#2d8a4e'};font-weight:700'>
+        ${a.deficit > 0 ? '+'+a.deficit+' 🔴' : 'OK ✅'}
+      </td>
+      <td>
+        <div style='display:flex;align-items:center;gap:8px'>
+          <div style='flex:1;height:6px;background:var(--b);border-radius:3px;min-width:80px'>
+            <div style='height:6px;border-radius:3px;background:${color};width:${barPct}%'></div>
+          </div>
+          <span style='font-family:DM Mono,monospace;font-size:11px;color:${a.diasConCapActual > 60 ? '#c62828' : 'var(--t)'}'>
+            ${a.diasConCapActual} días hab.
+          </span>
+        </div>
+      </td>
+      <td style='color:${color};font-weight:700;font-size:13px'>${icono} ${a.estado.toUpperCase()}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  document.getElementById('ideal-tabla-cap').innerHTML = html;
+
+  // ── Render planificación ideal por pedido ──────────────
+  // Para cada pedido: calcular fecha estimada de fin con cap actual vs cap ideal
+  let htmlPed = `<div style='overflow-x:auto'><table class='tbl'>
+    <thead><tr>
+      <th>PEDIDO</th><th>CLIENTE</th><th>CANT</th><th>ENTREGA</th>
+      <th>FIN ESTIMADO (cap actual)</th><th>FIN CON CAP IDEAL</th><th>DIFERENCIA</th><th>ESTADO</th>
+    </tr></thead><tbody>`;
+
+  for (const ped of activos) {
+    if (!ped.entrega) continue;
+
+    // Buscar en planif cuándo termina este pedido con cap actual
+    const lineasPed = planif.filter(l => l.pedId === ped.id);
+    let finActual = '—';
+    if (lineasPed.length) {
+      const ultimaFecha = lineasPed.reduce((mx, l) => l.fecha > mx ? l.fecha : mx, '');
+      finActual = ultimaFecha ? ultimaFecha.split('-').reverse().join('/') : '—';
+    }
+
+    // Calcular fin ideal: si hubiera cap suficiente, ¿cuántos días necesitaría?
+    // Área cuello de botella para este pedido
+    let diasIdeal = 0;
+    for (const aId of (ped.areas||[])) {
+      const ai = getAreaIdx(aId);
+      if (ai < 0) continue;
+      const p = getPeso(ped.tipo, ai);
+      if (!p) continue;
+      let yaReal = 0;
+      Object.entries(ped.realProd||{}).forEach(([k,v]) => {
+        if (parseInt(k.split('_')[0]) === aId) yaReal += num(v);
+      });
+      const restante = Math.max(0, ped.cant - yaReal);
+      const capNec = capNecesaria[aId] || AREAS.find(a=>a.id===aId)?.cap || 1;
+      const diasEsteArea = Math.ceil(restante / capNec);
+      diasIdeal = Math.max(diasIdeal, diasEsteArea);
+    }
+
+    // Fecha fin ideal = hoy + diasIdeal días hábiles
+    let finIdeal = hoy;
+    let diasContados = 0;
+    while (diasContados < diasIdeal) {
+      finIdeal = addD(finIdeal, 1);
+      if (factorDia(finIdeal) > 0) diasContados++;
+    }
+    const finIdealStr = finIdeal.split('-').reverse().join('/');
+
+    const llegaraAtiempo = finIdeal <= ped.entrega;
+    const finActualDate = lineasPed.length ? lineasPed.reduce((mx,l) => l.fecha > mx ? l.fecha : mx, '') : '';
+    const retrasoActual = finActualDate ? diffD(ped.entrega, finActualDate) : null;
+
+    const estadoColor = llegaraAtiempo ? '#2d8a4e' : '#c62828';
+    const estadoTexto = llegaraAtiempo ? '✅ A tiempo' : '🚨 En riesgo';
+
+    htmlPed += `<tr>
+      <td><strong style='color:var(--ac)'>${ped.id}</strong></td>
+      <td>${ped.cliente||'—'}</td>
+      <td style='font-family:DM Mono,monospace'>${(ped.cant||0).toLocaleString()}</td>
+      <td style='font-family:DM Mono,monospace;color:${ped.entrega < hoy ? '#c62828' : 'var(--t)'}'>
+        ${(ped.entrega||'').split('-').reverse().join('/')}
+      </td>
+      <td style='font-family:DM Mono,monospace;color:${retrasoActual>0?'#c62828':'var(--m)'}'>${finActual}
+        ${retrasoActual > 0 ? `<span style='color:#c62828;font-size:10px'> (+${retrasoActual}d)</span>` : ''}
+      </td>
+      <td style='font-family:DM Mono,monospace;color:${estadoColor};font-weight:600'>${finIdealStr}</td>
+      <td style='font-family:DM Mono,monospace;font-size:11px;color:var(--m)'>${diasIdeal} días háb.</td>
+      <td style='color:${estadoColor};font-weight:700'>${estadoTexto}</td>
+    </tr>`;
+  }
+  htmlPed += '</tbody></table></div>';
+  document.getElementById('ideal-por-pedido').innerHTML = htmlPed;
+
+  // Guardar datos para escenarios
+  window._idealData = { analisisPorArea, activos };
+  renderIdealEscenarios();
+}
+
+function renderIdealEscenarios() {
+  const slider = document.getElementById('ideal-slider');
+  if (!slider || !window._idealData) return;
+  const udPersona = parseInt(slider.value);
+  document.getElementById('ideal-ud-persona-label').textContent = udPersona + ' ud/persona/día';
+
+  const { analisisPorArea } = window._idealData;
+  const conDeficit = analisisPorArea.filter(a => a.deficit > 0);
+
+  if (!conDeficit.length) {
+    document.getElementById('ideal-escenarios').innerHTML =
+      "<div style='color:#2d8a4e;font-family:DM Mono,monospace;font-size:12px;padding:12px'>✅ La capacidad actual es suficiente para todos los pedidos.</div>";
+    return;
+  }
+
+  // Escenarios: cap actual, +25%, +50%, necesario
+  const escenarios = [
+    { label: 'Capacidad actual', factor: 1.0, color: '#c62828' },
+    { label: '+25% (horas extra)', factor: 1.25, color: '#c8960a' },
+    { label: '+50% (refuerzo parcial)', factor: 1.5, color: '#2563a8' },
+    { label: 'Capacidad ideal (mínima para cumplir)', factor: null, color: '#2d8a4e' },
+  ];
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">';
+
+  for (const esc of escenarios) {
+    html += `<div class='card' style='border-color:${esc.color}44;padding:14px'>
+      <div style='font-size:10px;font-family:DM Mono,monospace;color:${esc.color};letter-spacing:1px;margin-bottom:10px;font-weight:700'>${esc.label.toUpperCase()}</div>`;
+
+    for (const a of conDeficit) {
+      const capEsc = esc.factor !== null
+        ? Math.round(a.capActual * esc.factor)
+        : a.capNec;
+      const personas = Math.ceil(capEsc / udPersona);
+      const refuerzo = personas - Math.ceil(a.capActual / udPersona);
+      const diasFin = Math.ceil(a.carga / capEsc);
+      html += `
+        <div style='margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--b)'>
+          <div style='font-size:12px;font-weight:700;color:var(--t)'>${a.area.nombre}</div>
+          <div style='font-size:11px;font-family:DM Mono,monospace;color:var(--m);line-height:1.8'>
+            ${capEsc} ud/día · ~${personas} personas
+            ${refuerzo > 0 ? `<span style='color:${esc.color}'> (+${refuerzo} refuerzo)</span>` : ''}
+            <br>Termina todo en ${diasFin} días háb.
+          </div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('ideal-escenarios').innerHTML = html;
+}
 
 </script>
 </body>
