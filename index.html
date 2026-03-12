@@ -326,6 +326,7 @@ datalist{}
   <div class='tab' onclick="showTab('configuracion')">CONFIGURACIÓN</div>
   <div class='tab' onclick="showTab('ideal')" style='color:#2d8a4e;font-weight:700'>📊 CAP. IDEAL</div>
   <div class='tab' onclick="showTab('alertas')" style='color:#c62828;font-weight:700' id='tab-alertas'>🚨 ALERTAS</div>
+  <div class='tab' onclick="showTab('contador')" style='color:#ff6d00;font-weight:700'>📟 CONTADOR</div>
 </div>
 
 <!-- ═══════════════════ RESUMEN ═══════════════════ -->
@@ -427,7 +428,7 @@ datalist{}
         <label class='flabel'>Perfil impresión <span style='font-size:9px;color:#2979ff;font-family:DM Mono,monospace'>(IMPRESION)</span></label>
         <input type='text' id='f-perfil' placeholder='Ej: Sublimacion, DTF' autocomplete='off'>
       </div>
-      <div class='form-gr' style='grid-column:span 2'>
+      <div class='form-gr'>
         <label class='flabel'>Notas</label>
         <input type='text' id='f-notas' placeholder='Observaciones del pedido'>
       </div>
@@ -724,6 +725,67 @@ datalist{}
   </div>
   <div id='alertas-resumen' style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px'></div>
   <div id='alertas-lista'></div>
+</div>
+
+<!-- ═══════════════════ CONTADOR DE PRODUCCIÓN ═══════════════════ -->
+<div class='view' id='view-contador'>
+  <div style='display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap'>
+    <div style='font-size:16px;font-weight:700;color:#ff6d00'>📟 Contador de Producción</div>
+    <div style='display:flex;gap:6px;margin-left:auto;flex-wrap:wrap'>
+      <button class='period-btn on' id='cnt-btn-dia' onclick='setCntPeriodo("dia",this)'>HOY</button>
+      <button class='period-btn' id='cnt-btn-semana' onclick='setCntPeriodo("semana",this)'>SEMANA</button>
+      <button class='period-btn' id='cnt-btn-mes' onclick='setCntPeriodo("mes",this)'>MES</button>
+      <button class='period-btn' id='cnt-btn-anio' onclick='setCntPeriodo("anio",this)'>AÑO</button>
+      <button class='period-btn' id='cnt-btn-todo' onclick='setCntPeriodo("todo",this)'>TODO</button>
+    </div>
+  </div>
+  <!-- KPIs totales -->
+  <div class='inf-kpi' id='cnt-kpi' style='margin-bottom:16px'></div>
+  <!-- Tabla por área -->
+  <div class='card mb16'>
+    <div class='ctitle'>📊 Producción por área en el período</div>
+    <div style='overflow-x:auto'>
+      <table class='tbl' id='cnt-tabla-area'>
+        <thead><tr>
+          <th>ÁREA</th><th>UNIDADES</th><th>% DEL TOTAL</th>
+          <th>DÍAS CON PROD.</th><th>PROM. DIARIO</th><th>MEJOR DÍA</th>
+        </tr></thead>
+        <tbody id='cnt-tbody-area'></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- Acumulado por día (últimos 30) -->
+  <div class='g2 mb16'>
+    <div class='card'>
+      <div class='ctitle'>📅 Acumulado diario <span id='cnt-subtit-dia' style='font-size:10px;color:var(--m);font-weight:400'></span></div>
+      <div id='cnt-barras-dia' style='max-height:300px;overflow-y:auto'></div>
+    </div>
+    <div class='card'>
+      <div class='ctitle'>📆 Acumulado semanal</div>
+      <div id='cnt-barras-semana'></div>
+    </div>
+  </div>
+  <!-- Mensual y comparativo -->
+  <div class='g2 mb16'>
+    <div class='card'>
+      <div class='ctitle'>🗓️ Acumulado mensual</div>
+      <div id='cnt-barras-mes'></div>
+    </div>
+    <div class='card'>
+      <div class='ctitle'>📈 Comparativo mes a mes</div>
+      <div id='cnt-comparativo'></div>
+    </div>
+  </div>
+  <!-- Ranking de áreas -->
+  <div class='card mb16'>
+    <div class='ctitle'>🏆 Ranking de áreas por productividad <span style='font-size:10px;color:var(--m);font-weight:400'>(total histórico)</span></div>
+    <div id='cnt-ranking'></div>
+  </div>
+  <!-- Detalle por área expandible -->
+  <div class='card'>
+    <div class='ctitle'>🔍 Detalle por área y período</div>
+    <div id='cnt-detalle-area'></div>
+  </div>
 </div>
 
 <!-- ═══════════════════ HISTORIAL ═══════════════════ -->
@@ -1115,33 +1177,36 @@ function cargarPedidoDesdeVendedor(){
 // DATOS BASE Y CONSTANTES
 // ══════════════════════════════════════════════════════════
 const AREAS_DEF = [
-  {id:1, nombre:'DISEÑO',       color:'#26a69a', cap:1000, activa:true},
-  {id:2, nombre:'CORTE',        color:'#7c4dff', cap:400,  activa:true},
-  {id:3, nombre:'IMPRESION',    color:'#2979ff', cap:450,  activa:true},
-  {id:4, nombre:'SUBLIMACION',  color:'#ff6d00', cap:450,  activa:true},
-  {id:5, nombre:'COSTURA',      color:'#c62828', cap:120,  activa:true},
-  {id:6, nombre:'SERIGRAFIA',   color:'#00897b', cap:100,  activa:true},
-  {id:7, nombre:'TRANSFER',     color:'#d84315', cap:100,  activa:true},
-  {id:8, nombre:'CTRL CALIDAD', color:'#546e7a', cap:250,  activa:true},
-  {id:9, nombre:'ASEO/EMPAQUE', color:'#37474f', cap:250,  activa:true},
-  {id:10,nombre:'FACTURACION',  color:'#2e7d32', cap:9999, activa:true},
-  {id:11,nombre:'COSTURA EXT',  color:'#ad1457', cap:220,  activa:false},
+  {id:1, nombre:'DISEÑO',        color:'#26a69a', cap:1000, activa:true},
+  {id:2, nombre:'CORTE',         color:'#7c4dff', cap:400,  activa:true},
+  {id:3, nombre:'IMPRESION',     color:'#2979ff', cap:450,  activa:true},
+  {id:4, nombre:'SUBLIMACION',   color:'#ff6d00', cap:450,  activa:true},
+  {id:5, nombre:'COSTURA',       color:'#c62828', cap:120,  activa:true},
+  {id:6, nombre:'SERIGRAFIA DSÑ',color:'#00897b', cap:100,  activa:true},
+  {id:7, nombre:'TRANSFER',      color:'#d84315', cap:100,  activa:true},
+  {id:8, nombre:'CTRL CALIDAD',  color:'#546e7a', cap:250,  activa:true},
+  {id:9, nombre:'ASEO/EMPAQUE',  color:'#37474f', cap:250,  activa:true},
+  {id:10,nombre:'FACTURACION',   color:'#2e7d32', cap:9999, activa:true},
+  {id:11,nombre:'COSTURA EXT',   color:'#ad1457', cap:220,  activa:false},
+  {id:12,nombre:'SERIGRAFIA ETQ',color:'#00695c', cap:350,  activa:false},
 ];
 const DEPS = {
-  4:[2,3],      // SUBLIMACION espera CORTE+IMPRESION
-  5:[4,2],      // COSTURA interna espera SUBLIMACION (o CORTE)
-  11:[4,2],     // COSTURA EXT: misma dependencia
-  6:[5,11],     // SERIGRAFIA espera COSTURA (int o ext)
-  7:[5,11],     // TRANSFER espera COSTURA (int o ext)
-  8:[5,6,7,11], // CTRL CALIDAD espera COSTURA+SERIG+TRANSF
-  9:[8],        // EMPAQUE espera CTRL CALIDAD (secuencial)
-  10:[9],       // FACTURACION espera EMPAQUE
+  4:[2,3],         // SUBLIMACION espera CORTE+IMPRESION
+  5:[4,2],         // COSTURA interna espera SUBLIMACION (o CORTE)
+  11:[4,2],        // COSTURA EXT: misma dependencia
+  6:[5,11],        // SERIGRAFIA DSÑ espera COSTURA (int o ext)
+  12:[5,11],       // SERIGRAFIA ETQ espera COSTURA (int o ext) — misma posición
+  7:[5,11],        // TRANSFER espera COSTURA (int o ext)
+  8:[5,6,7,11,12], // CTRL CALIDAD espera COSTURA+SERIG DSÑ+ETQ+TRANSF
+  9:[8],           // EMPAQUE espera CTRL CALIDAD
+  10:[9],          // FACTURACION espera EMPAQUE
 };
 const DEPS_DESC = {
   4:'CORTE + IMPRESIÓN completados',
   5:'SUBLIMACIÓN (si aplica) o CORTE',
   11:'SUBLIMACIÓN (si aplica) o CORTE',
   6:'COSTURA (interna o externa)',
+  12:'COSTURA (interna o externa)',
   7:'COSTURA (interna o externa)',
   8:'COSTURA + SERIGRAFÍA/TRANSFER (los que apliquen)',
   9:'CTRL. CALIDAD',
@@ -1152,18 +1217,21 @@ const DEPS_DESC = {
 // Ej: SUDADERA peso 2.0 en COSTURA = produce la mitad que remeras.
 // Podés renombrar los tipos en Configuración según tu producción real.
 const PESOS_DEF = {
-  //                            DIS  COR  IMP  SUB  COS  SER  TRA  CCL  EMP  FAC  CEXT
-  'CAMISETA BASICA SUBLIMADA': [1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1   ],
-  'REMERA BASICA ALGODÓN':     [1,   1,   0,   0,   1,   1.3, 1.2, 1,   1,   1,   1   ],
-  'POLO':                      [1.2, 1.3, 1.5, 1.5, 1.5, 1.5, 1.5, 1,   1,   1,   1.5],
-  'SUDADERA':                  [1.5, 1.5, 1.5, 2,   2,   2,   2,   1.2, 1.2, 1,   2  ],
-  'BUZO':                      [1.5, 1.5, 1.5, 2,   2,   2,   2,   1.2, 1.2, 1,   2  ],
-  'CAMPERA':                   [2,   2,   1.8, 2.5, 2.5, 2.5, 2.5, 1.5, 1.5, 1,   2.5],
-  'PANTALON':                  [1.5, 1.8, 1,   1,   2,   1.5, 1.5, 1.2, 1.2, 1,   2  ],
-  'SHORT':                     [1,   1.3, 1,   1,   1.5, 1,   1,   1,   1,   1,   1.5],
-  'VESTIDO':                   [2,   2,   1.5, 2,   2.5, 2,   2,   1.5, 1.5, 1,   2.5],
-  'OTRO':                      [1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1,   1.5],
+  //                            DIS  COR  IMP  SUB  COS  SER_D TRA  CCL  EMP  FAC  CEXT SER_E
+  'CAMISETA BASICA SUBLIMADA': [1,   1,   1,   1,   1,   1,    1,   1,   1,   1,   1,   1   ],
+  'REMERA BASICA ALGODÓN':     [1,   1,   0,   0,   1,   1.3,  1.2, 1,   1,   1,   1,   1   ],
+  'POLO':                      [1.2, 1.3, 1.5, 1.5, 1.5, 1.5,  1.5, 1,   1,   1,   1.5, 1   ],
+  'SUDADERA':                  [1.5, 1.5, 1.5, 2,   2,   2,    2,   1.2, 1.2, 1,   2,   1   ],
+  'BUZO':                      [1.5, 1.5, 1.5, 2,   2,   2,    2,   1.2, 1.2, 1,   2,   1   ],
+  'CAMPERA':                   [2,   2,   1.8, 2.5, 2.5, 2.5,  2.5, 1.5, 1.5, 1,   2.5, 1   ],
+  'PANTALON':                  [1.5, 1.8, 1,   1,   2,   1.5,  1.5, 1.2, 1.2, 1,   2,   1   ],
+  'SHORT':                     [1,   1.3, 1,   1,   1.5, 1,    1,   1,   1,   1,   1.5, 1   ],
+  'VESTIDO':                   [2,   2,   1.5, 2,   2.5, 2,    2,   1.5, 1.5, 1,   2.5, 1   ],
+  'OTRO':                      [1.5, 1.5, 1.5, 1.5, 1.5, 1.5,  1.5, 1.5, 1.5, 1,   1.5, 1   ],
 };
+// Nota: SER_E (SERIGRAFIA ETQ) tiene peso 1 para todos los tipos
+// porque la etiqueta siempre es 1 prenda = 1 etiqueta, independiente del tipo.
+// Podés ajustar estos pesos en Configuración → Pesos por tipo.
 
 // ══════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════
@@ -1497,7 +1565,7 @@ function toast(msg,tipo='ok'){
 // ══════════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════════
-const TABS=['resumen','pedidos','calendario','planificacion','areas','simulador','informes','historial','configuracion','ideal','alertas'];
+const TABS=['resumen','pedidos','calendario','planificacion','areas','simulador','informes','historial','configuracion','ideal','alertas','contador'];
 function showTab(id){
   TABS.forEach((t,i)=>{
     document.querySelectorAll('.tab')[i]?.classList.toggle('active',t===id);
@@ -1511,6 +1579,7 @@ function showTab(id){
   if(id==='simulador')renderSimulador();
   if(id==='informes')renderInformes();
   if(id==='alertas')renderAlertas();
+  if(id==='contador')renderContador();
   if(id==='historial')renderHistorial();
   if(id==='configuracion')renderConfiguracion();
   if(id==='resumen'){renderResumen(); renderSeguimiento();}
@@ -1582,7 +1651,7 @@ function replanificarTodo() {
       }
     });
     // Propagar real entre áreas dependientes
-    const depMapProp = { 11:[4,2], 5:[4,2], 6:[5,11], 7:[5,11], 8:[5,6,7,11], 9:[8], 10:[9] };
+    const depMapProp = { 11:[4,2], 5:[4,2], 6:[5,11], 12:[5,11], 7:[5,11], 8:[5,6,7,11,12], 9:[8], 10:[9] };
     Object.entries(depMapProp).forEach(([aIdStr, deps]) => {
       const aId = parseInt(aIdStr);
       const realEste = realAcum[pi][aId];
@@ -1608,7 +1677,6 @@ function replanificarTodo() {
       const aId = area.id;
       const ai  = getAreaIdx(aId);
       if (ai < 0) continue;
-      const capTotalDia = Math.max(0, Math.floor(area.cap * fDia));
       for (let pi = 0; pi < N; pi++) {
         const ped = activos[pi];
         if (!(ped.areas||[]).includes(aId)) continue;
@@ -1616,6 +1684,9 @@ function replanificarTodo() {
         if (!p) continue;
         if (diasBloq[pi][aId].has(di)) continue;
         if (ultimoGlob[pi] && FECHAS[di] <= ultimoGlob[pi]) continue;
+        // Cap por área (cada área tiene su propia cap: SERIGRAFIA DSÑ=100, ETQ=350)
+        const capEfectiva = area.cap;
+        const capTotalDia = Math.max(0, Math.floor(capEfectiva * fDia));
 
         // Helper: acumulado de un área hasta di-1
         const acumHasta = (id) => {
@@ -1651,14 +1722,14 @@ function replanificarTodo() {
           // COSTURA interna o externa
           const depId = (ped.areas||[]).includes(4) ? 4 : (ped.areas||[]).includes(2) ? 2 : null;
           insumo = depId ? Math.max(0, acumHasta(depId) - yaEsta) : Infinity;
-        } else if (aId === 6 || aId === 7) {
-          // SERIGRAFIA/TRANSFER: espera costura int o ext (la que más produzca)
+        } else if (aId === 6 || aId === 7 || aId === 12) {
+          // SERIGRAFIA DSÑ / SERIGRAFIA ETQ / TRANSFER: espera costura int o ext
           const cosIds = [5,11].filter(id => (ped.areas||[]).includes(id));
           if (!cosIds.length) insumo = Infinity;
           else insumo = Math.max(0, Math.max(...cosIds.map(acumHasta)) - yaEsta);
         } else if (aId === 8) {
-          // CTRL CALIDAD: espera min de costura+serig+transfer que apliquen
-          const ids = [5,6,7,11].filter(id => (ped.areas||[]).includes(id));
+          // CTRL CALIDAD: espera min de costura+serig DSÑ+serig ETQ+transfer que apliquen
+          const ids = [5,6,7,11,12].filter(id => (ped.areas||[]).includes(id));
           if (!ids.length) insumo = Infinity;
           else insumo = Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
         } else if (aId === 9) {
@@ -1997,11 +2068,15 @@ function buildAreasCheck(areasPresel){
   // areasPresel: array de ids a marcar (viene de pedido vendedor)
   // si no se pasa, usar AREAS_DEFAULT_ON
   const onIds = areasPresel ? [...areasPresel, ...AREAS_DEFAULT_ON] : AREAS_DEFAULT_ON;
-  c.innerHTML=areasOk.map(a=>`
-    <div class='ac-item${onIds.includes(a.id)?" on":""}' id='ac-${a.id}' onclick='toggleAC(${a.id})'>
+  c.innerHTML=areasOk.map(a=>{
+    const esExt2=a.id===11, esEtq2=a.id===12;
+    const badge2=esExt2?"<span style='font-size:9px;background:#ad1457;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>EXT</span>":esEtq2?"<span style='font-size:9px;background:#00695c;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>ETQ</span>":'';
+    const ttl=esExt2?'Costura tercerizada (220 ud/día)':esEtq2?'Serigrafía etiquetas (350 ud/día)':'';
+    return `<div class='ac-item${onIds.includes(a.id)?" on":""}' id='ac-${a.id}' onclick='toggleAC(${a.id})' title='${ttl}'>
       <div class='ac-dot' id='acdot-${a.id}' style='background:${a.color}'></div>
-      <span>${a.nombre}</span>
-    </div>`).join('');
+      <span>${a.nombre}</span>${badge2}
+    </div>`;
+  }).join('');
   actualizarBtnAgregar();
 }
 
@@ -2075,6 +2150,7 @@ function agregarPedido(){
   const diseno=document.getElementById('f-diseno').value.trim();
   const tela=(document.getElementById('f-tela')||{}).value||'';
   const perfil=(document.getElementById('f-perfil')||{}).value||'';
+  const tipoSeri=(document.getElementById('f-tip-seri')||{}).value||'';
   const notas=document.getElementById('f-notas').value.trim();
   const areas=getAreasSeleccionadas();
 
@@ -2089,7 +2165,7 @@ function agregarPedido(){
   // Agregar tipo a pesos si no existe
   if(!PESOS[tipo]){PESOS[tipo]=AREAS.map(()=>1);updateTiposDatalist();}
 
-  const ped={id:nro,cliente,diseno,tipo,cant,ingreso,entrega,prioridad,estado:'PENDIENTE',notas,tela,perfil,areas,realProd:{},planDia:{},creadoEn:new Date().toISOString()};
+  const ped={id:nro,cliente,diseno,tipo,cant,ingreso,entrega,prioridad,estado:'PENDIENTE',notas,tela,perfil,tipoSeri,areas,realProd:{},planDia:{},creadoEn:new Date().toISOString()};
   pedidos.push(ped);
   // Agregar a historial
   historial.push({...ped});
@@ -2104,6 +2180,7 @@ function agregarPedido(){
 
 function limpiarForm(){
   ['f-nro','f-cliente','f-diseno','f-tipo','f-cant','f-notas','f-tela','f-perfil'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const fts=document.getElementById('f-tip-seri'); if(fts)fts.value='';
   document.getElementById('f-ingreso').value=isoHoy();
   const e=new Date();e.setDate(e.getDate()+30);
   document.getElementById('f-entrega').value=toS(e);
@@ -2225,15 +2302,17 @@ function guardarEdicionPedido(id){
   const prior    = document.getElementById('ep-prior')?.value;
   const cant     = parseInt(document.getElementById('ep-cant')?.value) || p.cant;
   const notas    = document.getElementById('ep-notas')?.value.trim();
+  const tipoSeri = document.getElementById('ep-tip-seri')?.value || '';
   if(!entrega){ toast('La fecha de entrega es obligatoria','err'); return; }
   p.cliente   = cliente || p.cliente;
   p.entrega   = entrega;
   p.prioridad = prior;
   p.cant      = cant;
   p.notas     = notas;
+  p.tipoSeri  = tipoSeri;
   // Actualizar historial si existe
   const h = historial.find(x => x.id === id);
-  if(h){ h.cliente=p.cliente; h.entrega=p.entrega; h.prioridad=p.prioridad; h.cant=p.cant; h.notas=p.notas; }
+  if(h){ h.cliente=p.cliente; h.entrega=p.entrega; h.prioridad=p.prioridad; h.cant=p.cant; h.notas=p.notas; h.tipoSeri=tipoSeri; }
   guardarEstado();
   replanificarTodo();
   renderPedidosList();
@@ -4098,19 +4177,36 @@ function renderIdeal() {
 
     capNecesaria[aId] = capNec;
 
-    const deficit = capNec - capActual;
-    const pct = Math.round(capNec / capActual * 100);
+    // Calcular pico de demanda: máxima superposición de pedidos urgentes
+    // Si hay 3 pedidos que todos vencen en 5 días y cada uno necesita 100/día = pico de 300/día
+    let picoDemanda = 0;
+    const hoy2 = isoHoy();
+    // Para cada "ventana" de días urgentes, sumar la carga de todos los pedidos que vencen ahí
+    const ventanas = [...new Set(pedsEnArea.filter(p=>p.entrega).map(p=>p.entrega))].sort();
+    for(const vent of ventanas) {
+      const diasV = Math.max(1, diasHastaEntrega(vent));
+      const cargaV = pedsEnArea.filter(p=>(p.entrega||'9999')<=vent).reduce((s,p)=>s+p.restante,0);
+      picoDemanda = Math.max(picoDemanda, Math.ceil(cargaV / diasV));
+    }
+    const capNecReal = Math.max(capNec, picoDemanda);
+
+    const deficit = capNecReal - capActual;
+    const pct = Math.round(capNecReal / capActual * 100);
     const diasConCapActual = Math.ceil(carga / capActual);
 
     analisisPorArea.push({
-      area, aId, carga, capActual, capNec, deficit, pct,
+      area, aId, carga, capActual, capNec: capNecReal, deficit, pct,
       diasConCapActual, diasDisp, masUrgente,
       estado: deficit <= 0 ? 'ok' : deficit < capActual * 0.3 ? 'warn' : 'risk'
     });
   }
 
-  // Ordenar por déficit descendente (el más crítico primero)
-  analisisPorArea.sort((a,b) => b.deficit - a.deficit);
+  // Ordenar: primero los con déficit (más crítico arriba), luego los OK
+  analisisPorArea.sort((a,b) => {
+    if(a.deficit > 0 && b.deficit <= 0) return -1;
+    if(a.deficit <= 0 && b.deficit > 0) return 1;
+    return b.deficit - a.deficit;
+  });
 
   // ── Cuello de botella principal ────────────────────────
   const critico = analisisPorArea.find(a => a.deficit > 0) || analisisPorArea[0];
@@ -4456,6 +4552,208 @@ function renderAlertas(){
     const criticos2=alertas.filter(a=>['CRITICO','URGENTE'].includes(a.tipo)).length;
     tabAl.innerHTML=criticos2>0?`🚨 ALERTAS <span style='background:#c62828;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px'>${criticos2}</span>`:'🚨 ALERTAS';
   }
+}
+
+
+// ══════════════════════════════════════════════════════════
+// CONTADOR DE PRODUCCIÓN
+// ══════════════════════════════════════════════════════════
+let cntPeriodo = 'mes';
+
+function setCntPeriodo(p, btn){
+  cntPeriodo = p;
+  document.querySelectorAll('[id^="cnt-btn-"]').forEach(b => b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderContador();
+}
+
+function renderContador(){
+  const h = isoHoy();
+  let desde, hasta;
+  if(cntPeriodo==='dia')   { desde=h; hasta=h; }
+  else if(cntPeriodo==='semana'){ desde=addD(h,-7); hasta=h; }
+  else if(cntPeriodo==='mes')  { desde=addD(h,-30); hasta=h; }
+  else if(cntPeriodo==='anio') { desde=addD(h,-365); hasta=h; }
+  else { desde='2020-01-01'; hasta=h; }
+
+  // ── Recopilar todos los registros reales ──
+  // realProd = { "areaId_fecha": qty }
+  const registros = []; // {aId, fecha, qty, pedId, cliente, tipo}
+  const todosLosPeds = [...pedidos, ...historial.filter(h2 => !pedidos.find(p2=>p2.id===h2.id))];
+  todosLosPeds.forEach(p => {
+    Object.entries(p.realProd||{}).forEach(([k,v]) => {
+      if(!k.includes('_')) return;
+      const parts = k.split('_');
+      const aId = parseInt(parts[0]);
+      const fecha = parts.slice(1).join('_');
+      const qty = num(v);
+      if(!qty || !fecha) return;
+      registros.push({aId, fecha, qty, pedId:p.id, cliente:p.cliente||'', tipo:p.tipo||''});
+    });
+  });
+
+  const enPeriodo = registros.filter(r => r.fecha >= desde && r.fecha <= hasta);
+  const totalPeriodo = enPeriodo.reduce((s,r)=>s+r.qty, 0);
+  const totalHistorico = registros.reduce((s,r)=>s+r.qty, 0);
+  const diasConProd = new Set(enPeriodo.map(r=>r.fecha)).size;
+  const promDiario = diasConProd > 0 ? Math.round(totalPeriodo / diasConProd) : 0;
+
+  // ── KPIs ──
+  document.getElementById('cnt-kpi').innerHTML =
+    `<div class='inf-card'><div class='inf-lbl'>Total período</div><div class='inf-val' style='color:#ff6d00'>${totalPeriodo.toLocaleString()}</div><div style='font-size:10px;color:var(--m)'>unidades</div></div>` +
+    `<div class='inf-card'><div class='inf-lbl'>Días con producción</div><div class='inf-val' style='color:var(--bl)'>${diasConProd}</div><div style='font-size:10px;color:var(--m)'>días activos</div></div>` +
+    `<div class='inf-card'><div class='inf-lbl'>Promedio diario</div><div class='inf-val' style='color:var(--gr)'>${promDiario.toLocaleString()}</div><div style='font-size:10px;color:var(--m)'>ud/día</div></div>` +
+    `<div class='inf-card'><div class='inf-lbl'>Total histórico</div><div class='inf-val' style='color:var(--t)'>${totalHistorico.toLocaleString()}</div><div style='font-size:10px;color:var(--m)'>todas las áreas</div></div>`;
+
+  // ── Tabla por área ──
+  const porArea = {};
+  const mejorDia = {};
+  const diasArea = {};
+  enPeriodo.forEach(r => {
+    porArea[r.aId] = (porArea[r.aId]||0) + r.qty;
+    const key = r.aId+'_'+r.fecha;
+    // suma por día por área para encontrar el mejor
+    if(!diasArea[r.aId]) diasArea[r.aId] = {};
+    diasArea[r.aId][r.fecha] = (diasArea[r.aId][r.fecha]||0) + r.qty;
+  });
+  Object.entries(diasArea).forEach(([aId, dias]) => {
+    mejorDia[aId] = Math.max(...Object.values(dias));
+  });
+
+  const tbody = document.getElementById('cnt-tbody-area');
+  const areasConData = AREAS.filter(a => porArea[a.id] > 0).sort((a,b)=>(porArea[b.id]||0)-(porArea[a.id]||0));
+  const maxPorArea = Math.max(...areasConData.map(a=>porArea[a.id]||0), 1);
+
+  tbody.innerHTML = areasConData.map(a => {
+    const tot = porArea[a.id]||0;
+    const pct = Math.round(tot/totalPeriodo*100);
+    const dias2 = new Set(enPeriodo.filter(r=>r.aId===a.id).map(r=>r.fecha)).size;
+    const prom2 = dias2 > 0 ? Math.round(tot/dias2) : 0;
+    const mejor = mejorDia[a.id]||0;
+    const barW = Math.round(tot/maxPorArea*100);
+    return `<tr>
+      <td><strong style='color:${a.color}'>${a.nombre}</strong></td>
+      <td>
+        <div style='display:flex;align-items:center;gap:8px'>
+          <div style='flex:1;height:6px;background:var(--b);border-radius:3px;min-width:80px'>
+            <div style='height:6px;border-radius:3px;background:${a.color};width:${barW}%'></div>
+          </div>
+          <span style='font-family:DM Mono,monospace;font-size:12px;font-weight:700'>${tot.toLocaleString()}</span>
+        </div>
+      </td>
+      <td style='font-family:DM Mono,monospace;color:var(--m)'>${pct}%</td>
+      <td style='font-family:DM Mono,monospace'>${dias2}</td>
+      <td style='font-family:DM Mono,monospace;color:#2d8a4e'>${prom2.toLocaleString()}/día</td>
+      <td style='font-family:DM Mono,monospace;color:var(--ac)'>${mejor.toLocaleString()}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">Sin producción registrada en el período</td></tr>';
+
+  // ── Barras diarias ──
+  const porFecha = {};
+  enPeriodo.forEach(r => { porFecha[r.fecha]=(porFecha[r.fecha]||0)+r.qty; });
+  const fechasOrd = Object.entries(porFecha).sort((a,b)=>a[0]>b[0]?1:-1);
+  const maxF = Math.max(...fechasOrd.map(x=>x[1]), 1);
+  document.getElementById('cnt-subtit-dia').textContent = `(últimos ${Math.min(fechasOrd.length,60)} días con producción)`;
+  document.getElementById('cnt-barras-dia').innerHTML = fechasOrd.slice(-60).reverse().map(([f,qty])=>`
+    <div class='orow'>
+      <div class='onombre' style='font-size:10px;font-family:DM Mono,monospace;min-width:80px'>${f.split('-').reverse().join('/')}</div>
+      <div class='obarbg'><div class='obar' style='width:${Math.round(qty/maxF*100)}%;background:#ff6d00'></div></div>
+      <div class='opct tbl-mono'>${qty.toLocaleString()}</div>
+    </div>`).join('') || '<div class="empty">Sin datos</div>';
+
+  // ── Barras semanales ──
+  const porSemana = {};
+  registros.filter(r=>r.fecha>=addD(h,-365)&&r.fecha<=h).forEach(r => {
+    const d = new Date(r.fecha+'T00:00:00');
+    const dow = d.getDay()||7;
+    const mon = new Date(d); mon.setDate(d.getDate()-dow+1);
+    const sem = mon.toISOString().slice(0,10);
+    porSemana[sem] = (porSemana[sem]||0) + r.qty;
+  });
+  const semsOrd = Object.entries(porSemana).sort((a,b)=>a[0]>b[0]?1:-1).slice(-26);
+  const maxS = Math.max(...semsOrd.map(x=>x[1]), 1);
+  document.getElementById('cnt-barras-semana').innerHTML = semsOrd.reverse().map(([sem,qty])=>`
+    <div class='orow'>
+      <div class='onombre' style='font-size:10px;font-family:DM Mono,monospace'>Sem ${sem.split('-').reverse().join('/')}</div>
+      <div class='obarbg'><div class='obar' style='width:${Math.round(qty/maxS*100)}%;background:#2979ff'></div></div>
+      <div class='opct tbl-mono'>${qty.toLocaleString()}</div>
+    </div>`).join('') || '<div class="empty">Sin datos</div>';
+
+  // ── Barras mensuales ──
+  const porMes = {};
+  registros.forEach(r => {
+    const mes = r.fecha.slice(0,7);
+    porMes[mes] = (porMes[mes]||0) + r.qty;
+  });
+  const mesesOrd = Object.entries(porMes).sort((a,b)=>a[0]>b[0]?1:-1);
+  const maxM = Math.max(...mesesOrd.map(x=>x[1]), 1);
+  document.getElementById('cnt-barras-mes').innerHTML = mesesOrd.reverse().map(([mes,qty])=>`
+    <div class='orow'>
+      <div class='onombre' style='font-size:10px;font-family:DM Mono,monospace'>${mes}</div>
+      <div class='obarbg'><div class='obar' style='width:${Math.round(qty/maxM*100)}%;background:#7c4dff'></div></div>
+      <div class='opct tbl-mono'>${qty.toLocaleString()}</div>
+    </div>`).join('') || '<div class="empty">Sin datos de producción aún</div>';
+
+  // ── Comparativo mes a mes ──
+  if(mesesOrd.length >= 2) {
+    const mesesArr = mesesOrd.slice(0,12); // últimos 12 ya están en orden desc
+    const comparativo = document.getElementById('cnt-comparativo');
+    comparativo.innerHTML = '<div style="font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-bottom:8px">Variación respecto al mes anterior:</div>' +
+      mesesArr.map(([mes,qty], i) => {
+        const prev = mesesArr[i+1];
+        const diff = prev ? qty - prev[1] : null;
+        const pct2 = prev ? Math.round((qty-prev[1])/Math.max(1,prev[1])*100) : null;
+        const col = diff === null ? 'var(--m)' : diff >= 0 ? '#2d8a4e' : '#c62828';
+        const arrow = diff === null ? '' : diff >= 0 ? '▲' : '▼';
+        return `<div class='orow'>
+          <div class='onombre' style='font-size:11px;font-family:DM Mono,monospace'>${mes}</div>
+          <div style='font-family:DM Mono,monospace;font-size:12px;font-weight:700'>${qty.toLocaleString()}</div>
+          <div style='font-family:DM Mono,monospace;font-size:11px;color:${col};margin-left:8px;min-width:60px'>
+            ${diff !== null ? arrow+' '+(diff>=0?'+':'')+diff.toLocaleString()+' ('+pct2+'%)' : '—'}
+          </div>
+        </div>`;
+      }).join('');
+  } else {
+    document.getElementById('cnt-comparativo').innerHTML = '<div class="empty">Necesitás al menos 2 meses de datos</div>';
+  }
+
+  // ── Ranking histórico ──
+  const rankHist = {};
+  registros.forEach(r => { rankHist[r.aId]=(rankHist[r.aId]||0)+r.qty; });
+  const rankArr = AREAS.filter(a=>rankHist[a.id]>0).sort((a,b)=>rankHist[b.id]-rankHist[a.id]);
+  const maxRank = rankHist[rankArr[0]?.id]||1;
+  document.getElementById('cnt-ranking').innerHTML = rankArr.map((a,i)=>`
+    <div style='display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--b)'>
+      <div style='font-size:18px;font-weight:700;color:${i===0?"#c8960a":i===1?"#aaa":i===2?"#cd7f32":"var(--m)"};min-width:28px;text-align:center'>${i===0?"🥇":i===1?"🥈":i===2?"🥉":"#"+(i+1)}</div>
+      <div style='min-width:120px;font-weight:700;color:${a.color}'>${a.nombre}</div>
+      <div style='flex:1;height:8px;background:var(--b);border-radius:4px'>
+        <div style='height:8px;border-radius:4px;background:${a.color};width:${Math.round(rankHist[a.id]/maxRank*100)}%'></div>
+      </div>
+      <div style='font-family:DM Mono,monospace;font-size:12px;font-weight:700;min-width:80px;text-align:right'>${rankHist[a.id].toLocaleString()} ud</div>
+    </div>`).join('') || '<div class="empty">Sin producción registrada aún</div>';
+
+  // ── Detalle por área (acordeón) ──
+  const detalle = document.getElementById('cnt-detalle-area');
+  detalle.innerHTML = AREAS.filter(a=>porArea[a.id]>0).map(a=>{
+    const regsArea = enPeriodo.filter(r=>r.aId===a.id);
+    const diasDetalle = {};
+    regsArea.forEach(r=>{ diasDetalle[r.fecha]=(diasDetalle[r.fecha]||0)+r.qty; });
+    const diasArr = Object.entries(diasDetalle).sort((a2,b2)=>b2[0]>a2[0]?1:-1).slice(0,10);
+    return `<div style='margin-bottom:8px;border:1px solid var(--b);border-radius:6px;overflow:hidden'>
+      <div style='background:var(--b2);padding:8px 12px;font-weight:700;color:${a.color};cursor:pointer;display:flex;justify-content:space-between;align-items:center'
+           onclick='this.nextElementSibling.style.display=this.nextElementSibling.style.display==="none"?"block":"none"'>
+        <span>${a.nombre}</span>
+        <span style='font-family:DM Mono,monospace;font-size:12px;color:var(--m)'>${(porArea[a.id]||0).toLocaleString()} ud en período · últimos ${diasArr.length} días ▾</span>
+      </div>
+      <div style='display:none;padding:8px 12px'>
+        ${diasArr.map(([f,qty2])=>`<div style='display:flex;justify-content:space-between;font-size:12px;font-family:DM Mono,monospace;padding:3px 0;border-bottom:1px solid var(--b)'>
+          <span style='color:var(--m)'>${f.split('-').reverse().join('/')}</span>
+          <span style='color:var(--t);font-weight:700'>${qty2.toLocaleString()} ud</span>
+        </div>`).join('')}
+        ${diasArr.length===0?'<div class="empty">Sin registros</div>':''}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">Sin producción en el período seleccionado</div>';
 }
 
 
