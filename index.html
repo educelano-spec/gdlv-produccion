@@ -2093,6 +2093,7 @@ function renderProgresoGlobal(){
 // ══════════════════════════════════════════════════════════
 const AREAS_DEFAULT_ON = [8, 9, 10]; // CTRL CALIDAD, ASEO/EMPAQUE, FACTURACION
 function buildAreasCheck(areasPresel){
+  syncAreasConDef(); // garantizar que todas las áreas estén disponibles
   const c=document.getElementById('areas-check'); if(!c)return;
   const areasOk = (AREAS && AREAS.length) ? AREAS : AREAS_DEF;
   // areasPresel: array de ids a marcar (viene de pedido vendedor)
@@ -3344,6 +3345,7 @@ function exportarHistorialCSV(){
 // CONFIGURACIÓN
 // ══════════════════════════════════════════════════════════
 function renderConfiguracion(){
+  syncAreasConDef(); // garantizar que todas las áreas estén presentes
   // Capacidades
   const tb=document.getElementById('tbody-caps'); if(!tb)return;
   tb.innerHTML=AREAS.map((a,i)=>`
@@ -4120,6 +4122,7 @@ guardarEstado = function(){
 // ══════════════════════════════════════════════════════════
 
 function renderIdeal() {
+  syncAreasConDef();
   const priOrd = {ALTA:0, MEDIA:1, BAJA:2};
   const activos = pedidos
     .filter(p => p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO')
