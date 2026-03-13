@@ -1273,6 +1273,7 @@ function cargarEstado(){
 
     // ÁREAS: Excel tiene caps y colores, localStorage puede tener ediciones del usuario
     AREAS = JSON.parse(lsAreas || 'null') || JSON.parse(JSON.stringify(AREAS_DEF));
+    syncAreasConDef(); // asegurar que áreas nuevas siempre estén presentes
     if(DATA_EXCEL.areas && excelEsMasNuevo){
       DATA_EXCEL.areas.forEach(a => {
         const idx = AREAS.findIndex(x => x.id === a.id);
@@ -1368,6 +1369,7 @@ function cargarEstado(){
     // Sin DATA_EXCEL — usar solo localStorage
     AREAS    = JSON.parse(lsAreas  || 'null') || JSON.parse(JSON.stringify(AREAS_DEF));
     if(!AREAS || !AREAS.length) AREAS = JSON.parse(JSON.stringify(AREAS_DEF));
+    syncAreasConDef(); // asegurar que áreas nuevas siempre estén presentes
     PESOS    = JSON.parse(lsPesos  || 'null') || JSON.parse(JSON.stringify(PESOS_DEF));
     if(!PESOS || !Object.keys(PESOS).length) PESOS = JSON.parse(JSON.stringify(PESOS_DEF));
     pedidos  = JSON.parse(lsPedidos|| '[]');
@@ -1527,7 +1529,14 @@ function esDom(s){const p=s.split('-').map(Number);return new Date(p[0],p[1]-1,p
 function num(v){return isNaN(parseFloat(v))?0:parseFloat(v);}
 function capReal(aIdx,tipo){const p=getPeso(tipo,aIdx);if(!p)return 0;return Math.max(1,Math.floor(AREAS[aIdx].cap/p));} // 0=área no aplica a este tipo
 function getPeso(tipo,aIdx){const row=PESOS[tipo.toUpperCase()]||PESOS[tipo]||PESOS['OTRO'];if(!row)return 1;const v=num(row[aIdx]);return v;} // 0=area no aplica, >0=peso real
-function getArea(id){return AREAS.find(a=>a.id===id);}
+function getArea(id){return AREAS.find(a=>a.id===id) || AREAS_DEF.find(a=>a.id===id);}
+// Al cargar, asegurar que AREAS siempre tenga todas las áreas de AREAS_DEF
+function syncAreasConDef(){
+  if(!AREAS) return;
+  AREAS_DEF.forEach(def=>{
+    if(!AREAS.find(a=>a.id===def.id)) AREAS.push({...def});
+  });
+}
 function getAreaIdx(id){return AREAS.findIndex(a=>a.id===id);}
 let pedNroCnt=1;
 function siguienteNro(){
