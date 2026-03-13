@@ -1533,9 +1533,27 @@ function getArea(id){return AREAS.find(a=>a.id===id) || AREAS_DEF.find(a=>a.id==
 // Al cargar, asegurar que AREAS siempre tenga todas las áreas de AREAS_DEF
 function syncAreasConDef(){
   if(!AREAS) return;
+  let changed = false;
   AREAS_DEF.forEach(def=>{
-    if(!AREAS.find(a=>a.id===def.id)) AREAS.push({...def});
+    if(!AREAS.find(a=>a.id===def.id)){
+      AREAS.push({...def});
+      changed = true;
+    }
   });
+  // También sincronizar PESOS: agregar columna nueva si falta
+  if(PESOS && AREAS_DEF.length > 0){
+    const nCols = AREAS_DEF.length;
+    Object.keys(PESOS).forEach(tipo=>{
+      if(Array.isArray(PESOS[tipo]) && PESOS[tipo].length < nCols){
+        while(PESOS[tipo].length < nCols) PESOS[tipo].push(1);
+        changed = true;
+      }
+    });
+  }
+  if(changed){
+    localStorage.setItem('pp_areas', JSON.stringify(AREAS));
+    if(PESOS) localStorage.setItem('pp_pesos', JSON.stringify(PESOS));
+  }
 }
 function getAreaIdx(id){return AREAS.findIndex(a=>a.id===id);}
 let pedNroCnt=1;
