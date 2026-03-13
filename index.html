@@ -1188,16 +1188,18 @@ const AREAS_DEF = [
   {id:9, nombre:'ASEO/EMPAQUE',  color:'#37474f', cap:250,  activa:true},
   {id:10,nombre:'FACTURACION',   color:'#2e7d32', cap:9999, activa:true},
   {id:11,nombre:'COSTURA EXT',   color:'#ad1457', cap:220,  activa:false},
-  {id:12,nombre:'SERIGRAFIA ETQ',color:'#00695c', cap:350,  activa:false},
+  {id:12,nombre:'SERIGRAFIA ETQ', color:'#00695c', cap:350,  activa:false},
+  {id:13,nombre:'SERIGRAFIA LOGO',color:'#004d40', cap:150,  activa:false},
 ];
 const DEPS = {
   4:[2,3],         // SUBLIMACION espera CORTE+IMPRESION
   5:[4,2],         // COSTURA interna espera SUBLIMACION (o CORTE)
   11:[4,2],        // COSTURA EXT: misma dependencia
   6:[5,11],        // SERIGRAFIA DSÑ espera COSTURA (int o ext)
-  12:[5,11],       // SERIGRAFIA ETQ espera COSTURA (int o ext) — misma posición
+  12:[5,11],       // SERIGRAFIA ETQ espera COSTURA (int o ext)
+  13:[5,11],       // SERIGRAFIA LOGO espera COSTURA (int o ext)
   7:[5,11],        // TRANSFER espera COSTURA (int o ext)
-  8:[5,6,7,11,12], // CTRL CALIDAD espera COSTURA+SERIG DSÑ+ETQ+TRANSF
+  8:[5,6,7,11,12,13], // CTRL CALIDAD espera COSTURA+SERIG DSÑ+ETQ+LOGO+TRANSF
   9:[8],           // EMPAQUE espera CTRL CALIDAD
   10:[9],          // FACTURACION espera EMPAQUE
 };
@@ -1207,6 +1209,7 @@ const DEPS_DESC = {
   11:'SUBLIMACIÓN (si aplica) o CORTE',
   6:'COSTURA (interna o externa)',
   12:'COSTURA (interna o externa)',
+  13:'COSTURA (interna o externa)',
   7:'COSTURA (interna o externa)',
   8:'COSTURA + SERIGRAFÍA/TRANSFER (los que apliquen)',
   9:'CTRL. CALIDAD',
@@ -1217,17 +1220,17 @@ const DEPS_DESC = {
 // Ej: SUDADERA peso 2.0 en COSTURA = produce la mitad que remeras.
 // Podés renombrar los tipos en Configuración según tu producción real.
 const PESOS_DEF = {
-  //                            DIS  COR  IMP  SUB  COS  SER_D TRA  CCL  EMP  FAC  CEXT SER_E
-  'CAMISETA BASICA SUBLIMADA': [1,   1,   1,   1,   1,   1,    1,   1,   1,   1,   1,   1   ],
-  'REMERA BASICA ALGODÓN':     [1,   1,   0,   0,   1,   1.3,  1.2, 1,   1,   1,   1,   1   ],
-  'POLO':                      [1.2, 1.3, 1.5, 1.5, 1.5, 1.5,  1.5, 1,   1,   1,   1.5, 1   ],
-  'SUDADERA':                  [1.5, 1.5, 1.5, 2,   2,   2,    2,   1.2, 1.2, 1,   2,   1   ],
-  'BUZO':                      [1.5, 1.5, 1.5, 2,   2,   2,    2,   1.2, 1.2, 1,   2,   1   ],
-  'CAMPERA':                   [2,   2,   1.8, 2.5, 2.5, 2.5,  2.5, 1.5, 1.5, 1,   2.5, 1   ],
-  'PANTALON':                  [1.5, 1.8, 1,   1,   2,   1.5,  1.5, 1.2, 1.2, 1,   2,   1   ],
-  'SHORT':                     [1,   1.3, 1,   1,   1.5, 1,    1,   1,   1,   1,   1.5, 1   ],
-  'VESTIDO':                   [2,   2,   1.5, 2,   2.5, 2,    2,   1.5, 1.5, 1,   2.5, 1   ],
-  'OTRO':                      [1.5, 1.5, 1.5, 1.5, 1.5, 1.5,  1.5, 1.5, 1.5, 1,   1.5, 1   ],
+  //                            DIS  COR  IMP  SUB  COS  SER_D TRA  CCL  EMP  FAC  CEXT SER_E SER_L
+  'CAMISETA BASICA SUBLIMADA': [1,   1,   1,   1,   1,   1,    1,   1,   1,   1,   1,   1,   1   ],
+  'REMERA BASICA ALGODÓN':     [1,   1,   0,   0,   1,   1.3,  1.2, 1,   1,   1,   1,   1,   1   ],
+  'POLO':                      [1.2, 1.3, 1.5, 1.5, 1.5, 1.5,  1.5, 1,   1,   1,   1.5, 1,   1   ],
+  'SUDADERA':                  [1.5, 1.5, 1.5, 2,   2,   2,    2,   1.2, 1.2, 1,   2,   1,   1   ],
+  'BUZO':                      [1.5, 1.5, 1.5, 2,   2,   2,    2,   1.2, 1.2, 1,   2,   1,   1   ],
+  'CAMPERA':                   [2,   2,   1.8, 2.5, 2.5, 2.5,  2.5, 1.5, 1.5, 1,   2.5, 1,   1   ],
+  'PANTALON':                  [1.5, 1.8, 1,   1,   2,   1.5,  1.5, 1.2, 1.2, 1,   2,   1,   1   ],
+  'SHORT':                     [1,   1.3, 1,   1,   1.5, 1,    1,   1,   1,   1,   1.5, 1,   1   ],
+  'VESTIDO':                   [2,   2,   1.5, 2,   2.5, 2,    2,   1.5, 1.5, 1,   2.5, 1,   1   ],
+  'OTRO':                      [1.5, 1.5, 1.5, 1.5, 1.5, 1.5,  1.5, 1.5, 1.5, 1,   1.5, 1,   1   ],
 };
 // Nota: SER_E (SERIGRAFIA ETQ) tiene peso 1 para todos los tipos
 // porque la etiqueta siempre es 1 prenda = 1 etiqueta, independiente del tipo.
@@ -1651,7 +1654,7 @@ function replanificarTodo() {
       }
     });
     // Propagar real entre áreas dependientes
-    const depMapProp = { 11:[4,2], 5:[4,2], 6:[5,11], 12:[5,11], 7:[5,11], 8:[5,6,7,11,12], 9:[8], 10:[9] };
+    const depMapProp = { 11:[4,2], 5:[4,2], 6:[5,11], 12:[5,11], 13:[5,11], 7:[5,11], 8:[5,6,7,11,12,13], 9:[8], 10:[9] };
     Object.entries(depMapProp).forEach(([aIdStr, deps]) => {
       const aId = parseInt(aIdStr);
       const realEste = realAcum[pi][aId];
@@ -1722,14 +1725,14 @@ function replanificarTodo() {
           // COSTURA interna o externa
           const depId = (ped.areas||[]).includes(4) ? 4 : (ped.areas||[]).includes(2) ? 2 : null;
           insumo = depId ? Math.max(0, acumHasta(depId) - yaEsta) : Infinity;
-        } else if (aId === 6 || aId === 7 || aId === 12) {
+        } else if (aId === 6 || aId === 7 || aId === 12 || aId === 13) {
           // SERIGRAFIA DSÑ / SERIGRAFIA ETQ / TRANSFER: espera costura int o ext
           const cosIds = [5,11].filter(id => (ped.areas||[]).includes(id));
           if (!cosIds.length) insumo = Infinity;
           else insumo = Math.max(0, Math.max(...cosIds.map(acumHasta)) - yaEsta);
         } else if (aId === 8) {
           // CTRL CALIDAD: espera min de costura+serig DSÑ+serig ETQ+transfer que apliquen
-          const ids = [5,6,7,11,12].filter(id => (ped.areas||[]).includes(id));
+          const ids = [5,6,7,11,12,13].filter(id => (ped.areas||[]).includes(id));
           if (!ids.length) insumo = Infinity;
           else insumo = Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
         } else if (aId === 9) {
@@ -2069,9 +2072,9 @@ function buildAreasCheck(areasPresel){
   // si no se pasa, usar AREAS_DEFAULT_ON
   const onIds = areasPresel ? [...areasPresel, ...AREAS_DEFAULT_ON] : AREAS_DEFAULT_ON;
   c.innerHTML=areasOk.map(a=>{
-    const esExt2=a.id===11, esEtq2=a.id===12;
-    const badge2=esExt2?"<span style='font-size:9px;background:#ad1457;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>EXT</span>":esEtq2?"<span style='font-size:9px;background:#00695c;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>ETQ</span>":'';
-    const ttl=esExt2?'Costura tercerizada (220 ud/día)':esEtq2?'Serigrafía etiquetas (350 ud/día)':'';
+    const esExt2=a.id===11, esEtq2=a.id===12, esLogo2=a.id===13;
+    const badge2=esExt2?"<span style='font-size:9px;background:#ad1457;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>EXT</span>":esEtq2?"<span style='font-size:9px;background:#00695c;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>ETQ</span>":esLogo2?"<span style='font-size:9px;background:#004d40;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px'>LOGO</span>":'';
+    const ttl=esExt2?'Costura tercerizada (220 ud/día)':esEtq2?'Serigrafía etiquetas (350 ud/día)':esLogo2?'Serigrafía logo (150 ud/día)':'';
     return `<div class='ac-item${onIds.includes(a.id)?" on":""}' id='ac-${a.id}' onclick='toggleAC(${a.id})' title='${ttl}'>
       <div class='ac-dot' id='acdot-${a.id}' style='background:${a.color}'></div>
       <span>${a.nombre}</span>${badge2}
