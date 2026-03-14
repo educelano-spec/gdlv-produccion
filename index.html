@@ -4274,42 +4274,71 @@ function renderIdeal() {
   });
 
   // ── Cuello de botella principal ────────────────────────
-  const critico = analisisPorArea.find(a => a.deficit > 0) || analisisPorArea[0];
-
-  // ── Render diagnóstico ─────────────────────────────────
+  // Todas las áreas con déficit ordenadas por criticidad
+  const conDeficit = analisisPorArea.filter(a => a.deficit > 0);
   const totalUnidades = activos.reduce((s,p) => s + Math.max(0, p.cant - Object.entries(p.realProd||{}).reduce((sr,[k,v])=>sr+num(v),0)), 0);
   const conRetraso = activos.filter(p => {
     if (!p.entrega) return false;
-    const d = diasHastaEntrega(p.entrega);
-    const areaBottleneck = (p.areas||[]).find(aId => capNecesaria[aId] > (AREAS.find(a=>a.id===aId)||{}).cap);
-    return areaBottleneck !== undefined;
+    return (p.areas||[]).some(aId => capNecesaria[aId] > (AREAS.find(a=>a.id===aId)||{}).cap);
   });
 
-  document.getElementById('ideal-diagnostico').innerHTML = `
-    <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:4px'>
-      <div class='card' style='border-color:#c62828;text-align:center;padding:16px'>
-        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>CUELLO DE BOTELLA</div>
-        <div style='font-size:22px;font-weight:700;color:#c62828'>${critico ? critico.area.nombre : '—'}</div>
-        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>${critico ? `${critico.capActual} ud/día actual vs ${critico.capNec} necesario` : 'Sin déficit'}</div>
-      </div>
-      <div class='card' style='text-align:center;padding:16px'>
-        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>TOTAL PENDIENTE</div>
-        <div style='font-size:22px;font-weight:700;color:var(--t)'>${totalUnidades.toLocaleString()}</div>
-        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>${activos.length} pedidos activos</div>
-      </div>
-      <div class='card' style='border-color:#c8960a;text-align:center;padding:16px'>
-        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>PEDIDOS EN RIESGO</div>
-        <div style='font-size:22px;font-weight:700;color:#c8960a'>${conRetraso.length}</div>
-        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>de ${activos.length} no llegarían a tiempo</div>
-      </div>
-      ${critico && critico.deficit > 0 ? `
-      <div class='card' style='border-color:#c62828;text-align:center;padding:16px'>
-        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>DÉFICIT ${critico.area.nombre}</div>
-        <div style='font-size:22px;font-weight:700;color:#c62828'>+${critico.deficit} ud/día</div>
-        <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-top:4px'>${Math.round(critico.pct - 100)}% más de capacidad</div>
-      </div>` : ''}
+  // ── KPIs resumen ──
+  let diagHTML = `<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px'>
+    <div class='card' style='text-align:center;padding:16px'>
+      <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>TOTAL PENDIENTE</div>
+      <div style='font-size:28px;font-weight:700;color:var(--t)'>${totalUnidades.toLocaleString()}</div>
+      <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace'>${activos.length} pedidos activos</div>
     </div>
-  `;
+    <div class='card' style='border-color:${conDeficit.length>0?"#c62828":"#2d8a4e"};text-align:center;padding:16px'>
+      <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>ÁREAS CON DÉFICIT</div>
+      <div style='font-size:28px;font-weight:700;color:${conDeficit.length>0?"#c62828":"#2d8a4e"}'>${conDeficit.length}</div>
+      <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace'>${conDeficit.length===0?"✅ Capacidad suficiente":"cuellos de botella"}</div>
+    </div>
+    <div class='card' style='border-color:${conRetraso.length>0?"#c8960a":"#2d8a4e"};text-align:center;padding:16px'>
+      <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:6px'>PEDIDOS EN RIESGO</div>
+      <div style='font-size:28px;font-weight:700;color:${conRetraso.length>0?"#c8960a":"#2d8a4e"}'>${conRetraso.length}</div>
+      <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace'>de ${activos.length} no llegarían a tiempo</div>
+    </div>
+  </div>`;
+
+  // ── Tarjetas de cuellos de botella (una por área con déficit) ──
+  if(conDeficit.length === 0){
+    diagHTML += `<div class='card' style='border-color:#2d8a4e;padding:16px;text-align:center;color:#2d8a4e;font-family:DM Mono,monospace;font-size:12px'>
+      ✅ La capacidad actual es suficiente para todos los pedidos activos.
+    </div>`;
+  } else {
+    diagHTML += `<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:4px'>`;
+    conDeficit.forEach(a => {
+      const pctExtra = Math.round(a.pct - 100);
+      const color = a.estado==='risk' ? '#c62828' : '#c8960a';
+      diagHTML += `<div class='card' style='border-color:${color};padding:14px'>
+        <div style='display:flex;align-items:center;gap:8px;margin-bottom:10px'>
+          <div style='width:10px;height:10px;border-radius:50%;background:${a.area.color};flex-shrink:0'></div>
+          <strong style='color:${color};font-size:13px'>${a.area.nombre}</strong>
+          <span style='margin-left:auto;font-size:10px;background:${color}22;color:${color};padding:2px 6px;border-radius:4px;font-family:DM Mono,monospace'>${a.estado==='risk'?'🚨 CRÍTICO':'⚠️ ALERTA'}</span>
+        </div>
+        <div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px'>
+          <div style='text-align:center;background:var(--b2);border-radius:6px;padding:8px'>
+            <div style='font-size:18px;font-weight:700;color:var(--t)'>${a.capActual}</div>
+            <div style='font-size:9px;color:var(--m);font-family:DM Mono,monospace'>ud/día ACTUAL</div>
+          </div>
+          <div style='text-align:center;background:${color}15;border-radius:6px;padding:8px'>
+            <div style='font-size:18px;font-weight:700;color:${color}'>${a.capNec}</div>
+            <div style='font-size:9px;color:var(--m);font-family:DM Mono,monospace'>ud/día NECESARIO</div>
+          </div>
+        </div>
+        <div style='font-size:11px;font-family:DM Mono,monospace;color:${color};background:${color}10;padding:6px 10px;border-radius:4px;text-align:center'>
+          Agregar <strong>+${a.deficit} ud/día</strong> (+${pctExtra}% más)
+        </div>
+        <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace;margin-top:6px'>
+          Carga: ${a.carga.toLocaleString()} ud · Pedido urgente: ${a.masUrgente?.cliente||'—'} (${(a.masUrgente?.entrega||'').split('-').reverse().join('/')})
+        </div>
+      </div>`;
+    });
+    diagHTML += `</div>`;
+  }
+
+  document.getElementById('ideal-diagnostico').innerHTML = diagHTML;
 
   // ── Render tabla capacidad por área ───────────────────
   const colores = {ok:'#2d8a4e', warn:'#c8960a', risk:'#c62828'};
