@@ -1703,7 +1703,8 @@ function replanificarTodo() {
     const fDia = factorDia(FECHAS[di]);
     if (!fDia) continue;
     for (const area of AREAS) {
-      if (!area.activa) continue;
+      // Áreas inactivas globalmente igual planifican si algún pedido las tiene asignadas
+      if (!area.activa && !activos.some(p=>(p.areas||[]).includes(area.id))) continue;
       const aId = area.id;
       const ai  = getAreaIdx(aId);
       if (ai < 0) continue;
@@ -2622,7 +2623,7 @@ function renderCronoPlani(){
   // Botones filtro area
   var btnHtml='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">';
   btnHtml+='<button onclick="window._planAreaFiltro=0;renderCronoPlani()" style="padding:4px 10px;border-radius:3px;border:1px solid var(--b);cursor:pointer;font-size:11px;font-family:DM Mono,monospace;font-weight:700;background:'+(aFiltro===0?'var(--ac)':'var(--s2)')+';color:'+(aFiltro===0?'#fff':'var(--t)')+'">TODAS</button>';
-  AREAS.filter(function(a){return a.activa;}).forEach(function(a){
+  AREAS.filter(function(a){return a.activa || planif.some(r=>r.aId===a.id);}).forEach(function(a){
     var sel=aFiltro===a.id;
     btnHtml+='<button onclick="window._planAreaFiltro='+a.id+';renderCronoPlani()" style="padding:4px 10px;border-radius:3px;border:1px solid '+a.color+';cursor:pointer;font-size:11px;font-family:DM Mono,monospace;font-weight:700;background:'+(sel?a.color:'var(--s2)')+';color:'+(sel?'#fff':a.color)+'">'+a.nombre+'</button>';
   });
@@ -4182,6 +4183,8 @@ function renderIdeal() {
     for (const aId of ai_list) {
       const ai = getAreaIdx(aId);
       if (ai < 0) continue;
+      // Asegurar que el área existe en AREAS aunque esté inactiva globalmente
+      if (!AREAS.find(a=>a.id===aId)) { const def=AREAS_DEF.find(a=>a.id===aId); if(def) AREAS.push({...def}); }
       const p = getPeso(ped.tipo, ai);
       if (!p) continue;
       // Restar producción real ya hecha
@@ -4216,7 +4219,8 @@ function renderIdeal() {
   const analisisPorArea = [];
 
   for (const area of AREAS) {
-    if (!area.activa) continue;
+    // Incluir áreas inactivas globalmente si tienen carga (pedidos asignados)
+    if (!area.activa && !cargaArea[area.id]) continue;
     const aId = area.id;
     const carga = cargaArea[aId];
     if (!carga) continue;
@@ -4554,7 +4558,7 @@ function renderAlertas(){
     });
   });
 
-  AREAS.filter(a=>a.activa).forEach(a=>{
+  AREAS.filter(a=>a.activa||cargaPorArea[a.id]).forEach(a=>{
     const carga=cargaPorArea[a.id];
     if(!carga)return;
     const diasNec=Math.ceil(carga/a.cap);
@@ -4580,7 +4584,7 @@ function renderAlertas(){
   });
 
   // ── 5. Áreas con carga excesiva ──
-  AREAS.filter(a=>a.activa).forEach(a=>{
+  AREAS.filter(a=>a.activa||cargaPorArea[a.id]).forEach(a=>{
     const carga=cargaPorArea[a.id];
     if(!carga)return;
     const diasNec=Math.ceil(carga/a.cap);
