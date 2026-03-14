@@ -724,6 +724,28 @@ datalist{}
     <button class='btn btn-sec btn-sm' onclick='renderAlertas()'>↺ Actualizar</button>
   </div>
   <div id='alertas-resumen' style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px'></div>
+  <!-- Panel configuración umbrales COSTURA EXT -->
+  <div class='card mb16' style='border-color:#ad1457'>
+    <div class='ctitle' style='color:#ad1457'>🧵 Umbrales para sugerencia de COSTURA EXT</div>
+    <div style='display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end'>
+      <div>
+        <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;color:var(--m);display:block;margin-bottom:4px'>SUGERIR cuando pedido tiene más de:</label>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <input type='number' id='cext-umbral-uds' value='200' min='1' style='width:80px;padding:5px 8px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px'>
+          <span style='font-size:12px;color:var(--m);font-family:DM Mono,monospace'>unidades en costura</span>
+        </div>
+      </div>
+      <div>
+        <label style='font-family:DM Mono,monospace;font-size:10px;font-weight:700;color:var(--m);display:block;margin-bottom:4px'>O cuando costura supera:</label>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <input type='number' id='cext-umbral-dias' value='5' min='1' style='width:60px;padding:5px 8px;border:1.5px solid var(--b);border-radius:4px;background:var(--bg);color:var(--t);font-size:13px'>
+          <span style='font-size:12px;color:var(--m);font-family:DM Mono,monospace'>días de carga acumulada</span>
+        </div>
+      </div>
+      <button class='btn btn-prim btn-sm' onclick='guardarUmbralesCExt()'>GUARDAR</button>
+      <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace'>COSTURA INT: 150/día · COSTURA EXT: 220/día · Combinadas: 370/día</div>
+    </div>
+  </div>
   <div id='alertas-lista'></div>
 </div>
 
@@ -4560,7 +4582,21 @@ function renderIdealEscenarios() {
 // ══════════════════════════════════════════════════════════
 // ALERTAS Y RECOMENDACIONES
 // ══════════════════════════════════════════════════════════
+function guardarUmbralesCExt(){
+  const uds  = parseInt(document.getElementById('cext-umbral-uds')?.value) || 200;
+  const dias = parseInt(document.getElementById('cext-umbral-dias')?.value) || 5;
+  localStorage.setItem('pp_cext_umbral_uds',  uds);
+  localStorage.setItem('pp_cext_umbral_dias', dias);
+  toast('Umbrales guardados','ok');
+  renderAlertas();
+}
+
 function renderAlertas(){
+  // Cargar umbrales guardados en los inputs
+  const udsEl  = document.getElementById('cext-umbral-uds');
+  const diasEl = document.getElementById('cext-umbral-dias');
+  if(udsEl)  udsEl.value  = localStorage.getItem('pp_cext_umbral_uds')  || '200';
+  if(diasEl) diasEl.value = localStorage.getItem('pp_cext_umbral_dias') || '5';
   const h=isoHoy();
   const activos=pedidos.filter(p=>p.estado!=='ENTREGADO'&&p.estado!=='CANCELADO');
   const alertas=[];
@@ -4640,7 +4676,70 @@ function renderAlertas(){
     }
   });
 
-  // ── 6. Buenas noticias si todo va bien ──
+  // ── 6. COSTURA EXT — análisis y sugerencias ──
+  (function(){
+    const umbralUds   = parseInt(localStorage.getItem('pp_cext_umbral_uds') || '200');
+    const umbralDias  = parseInt(localStorage.getItem('pp_cext_umbral_dias') || '5');
+    const costuraArea = AREAS.find(a=>a.id===5);
+    const costuraExt  = AREAS.find(a=>a.id===11);
+    if(!costuraArea || !costuraExt) return;
+
+    const cargaCostura = cargaPorArea[5] || 0;
+    const diasCostura  = cargaCostura > 0 ? Math.ceil(cargaCostura / costuraArea.cap) : 0;
+    const costuraEstaAhogada = diasCostura >= umbralDias;
+
+    // Pedidos que se beneficiarían de COSTURA EXT:
+    // tienen costura asignada, NO tienen costura ext, y cumplen algún criterio
+    const pedSugeridos = activos.filter(p => {
+      const areas = p.areas || [];
+      if(!areas.includes(5)) return false;   // no usa costura
+      if(areas.includes(11)) return false;   // ya tiene costura ext
+      // Calcular cuánto falta en costura
+      let realCos = 0;
+      Object.entries(p.realProd||{}).forEach(([k,v])=>{
+        if(parseInt(k.split('_')[0])===5) realCos+=num(v);
+      });
+      const faltaCos = Math.max(0, p.cant - realCos);
+      if(faltaCos <= 0) return false; // costura ya terminada
+      // Criterio: pedido grande O costura ahogada
+      return faltaCos >= umbralUds || costuraEstaAhogada;
+    });
+
+    if(pedSugeridos.length === 0 && !costuraEstaAhogada) return;
+
+    // Calcular impacto concreto de activar COSTURA EXT
+    const capCombinada = costuraArea.cap + costuraExt.cap; // 150 + 220 = 370
+    const diasConExt   = cargaCostura > 0 ? Math.ceil(cargaCostura / capCombinada) : 0;
+    const diasAhorro   = diasCostura - diasConExt;
+
+    let msg = '';
+    let rec = '';
+
+    if(costuraEstaAhogada){
+      msg = `COSTURA tiene ${cargaCostura.toLocaleString()} ud pendientes → ${diasCostura} días hábiles con ${costuraArea.cap}/día. `;
+      msg += `Con COSTURA EXT sumada (${costuraExt.cap}/día adicionales) bajaría a ${diasConExt} días — ahorrás ${diasAhorro} días hábiles.`;
+      if(pedSugeridos.length > 0){
+        msg += ` Pedidos que conviene tercerizar: ${pedSugeridos.map(p=>`${p.id} (${p.cliente} · ${p.cant} ud)`).join(', ')}.`;
+      }
+      rec = `Editá cada pedido y activá COSTURA EXT (id=11) en la sección de áreas. `;
+      rec += `Criterio sugerido: pedidos de más de ${umbralUds} ud o cuando costura supera ${umbralDias} días de carga.`;
+    } else if(pedSugeridos.length > 0){
+      msg = `Hay ${pedSugeridos.length} pedido${pedSugeridos.length>1?'s':''} grande${pedSugeridos.length>1?'s':''} que podría${pedSugeridos.length>1?'n':''} beneficiarse de tercerización: `;
+      msg += pedSugeridos.map(p=>`${p.id} (${p.cliente} · ${p.cant} ud, vence ${(p.entrega||'').split('-').reverse().join('/')})`).join(', ') + '.';
+      rec = `Si activás COSTURA EXT en estos pedidos, la carga combinada bajaría de ${diasCostura} a ${diasConExt} días. Editá cada pedido para activarla.`;
+    }
+
+    alertas.push({
+      tipo:'COSTURA_EXT',
+      icono:'🧵',
+      titulo: costuraEstaAhogada ? `COSTURA SATURADA — Conviene tercerizar` : `SUGERENCIA: Usar COSTURA EXT`,
+      msg,
+      rec,
+      extra: {pedSugeridos: pedSugeridos.map(p=>p.id), diasAhorro, capCombinada}
+    });
+  })();
+
+  // ── 7. Buenas noticias si todo va bien ──
   if(!alertas.length){
     alertas.push({tipo:'OK',icono:'✅',titulo:'TODO EN ORDEN',
       msg:'No hay alertas críticas en este momento. Todos los pedidos activos están dentro de sus fechas.',
@@ -4672,20 +4771,41 @@ function renderAlertas(){
     </div>`;
 
   // ── Render lista de alertas ──
-  const coloresTipo={CRITICO:'#c62828',URGENTE:'#c8960a',CUELLO:'#2563a8',SOBRECARGA:'#7c4dff',CONFIG:'#546e7a',OK:'#2d8a4e'};
+  const coloresTipo={CRITICO:'#c62828',URGENTE:'#c8960a',CUELLO:'#2563a8',SOBRECARGA:'#7c4dff',CONFIG:'#546e7a',OK:'#2d8a4e',COSTURA_EXT:'#ad1457'};
   document.getElementById('alertas-lista').innerHTML=alertas.map(al=>{
     const col=coloresTipo[al.tipo]||'var(--t)';
+    // Botones extra según tipo
+    let btns = '';
+    if(al.pedId) btns += `<button class='btn btn-sec btn-sm' onclick='showTab("pedidos")'>Ver pedidos</button> `;
+    if(al.tipo==='COSTURA_EXT' && al.extra && al.extra.pedSugeridos && al.extra.pedSugeridos.length){
+      btns += `<button class='btn btn-sm' style='border-color:#ad1457;color:#ad1457' onclick='showTab("pedidos")'>✎ Editar pedidos sugeridos</button>`;
+    }
     return `<div class='card mb16' style='border-left:4px solid ${col}'>
       <div style='display:flex;align-items:center;gap:8px;margin-bottom:6px'>
         <span style='font-size:20px'>${al.icono}</span>
         <strong style='color:${col};font-size:13px'>${al.titulo}</strong>
-        <span style='margin-left:auto;font-size:10px;font-family:DM Mono,monospace;color:var(--m);background:var(--b2);padding:2px 6px;border-radius:4px'>${al.tipo}</span>
+        <span style='margin-left:auto;font-size:10px;font-family:DM Mono,monospace;color:var(--m);background:var(--b2);padding:2px 6px;border-radius:4px'>${al.tipo.replace('_',' ')}</span>
       </div>
+      ${al.tipo==='COSTURA_EXT' && al.extra ? `
+      <div style='display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap'>
+        <div style='background:var(--b2);border-radius:6px;padding:8px 12px;text-align:center;flex:1;min-width:100px'>
+          <div style='font-size:18px;font-weight:700;color:#c62828'>${al.extra.diasAhorro||0}</div>
+          <div style='font-size:9px;color:var(--m);font-family:DM Mono,monospace'>DÍAS QUE AHORRARÍAS</div>
+        </div>
+        <div style='background:var(--b2);border-radius:6px;padding:8px 12px;text-align:center;flex:1;min-width:100px'>
+          <div style='font-size:18px;font-weight:700;color:#ad1457'>${al.extra.capCombinada||0}</div>
+          <div style='font-size:9px;color:var(--m);font-family:DM Mono,monospace'>UD/DÍA COMBINADAS</div>
+        </div>
+        <div style='background:var(--b2);border-radius:6px;padding:8px 12px;text-align:center;flex:1;min-width:100px'>
+          <div style='font-size:18px;font-weight:700;color:#2d8a4e'>${al.extra.pedSugeridos ? al.extra.pedSugeridos.length : 0}</div>
+          <div style='font-size:9px;color:var(--m);font-family:DM Mono,monospace'>PEDIDOS SUGERIDOS</div>
+        </div>
+      </div>` : ''}
       <div style='font-size:12px;color:var(--t);margin-bottom:6px'>${al.msg}</div>
       <div style='font-size:11px;color:var(--m);background:var(--b2);padding:6px 10px;border-radius:6px'>
         💡 <strong>Recomendación:</strong> ${al.rec}
       </div>
-      ${al.pedId?`<div style='margin-top:8px'><button class='btn btn-sec btn-sm' onclick='showTab("pedidos")'>Ver pedidos</button></div>`:''}
+      ${btns ? `<div style='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap'>${btns}</div>` : ''}
     </div>`;
   }).join('');
 
