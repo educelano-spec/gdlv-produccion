@@ -1640,8 +1640,12 @@ function diasHabilesDesde(desde, n) {
 }
 
 function replanificarTodo() {
-  // ALGORITMO v3 — cadena correcta: COSTURA→CTRL CALIDAD→EMPAQUE→FACTURACIÓN(1día)
-  // COSTURA EXT (id=11) activa por pedido, misma posición que COSTURA interna
+  // ALGORITMO v4 — SECUENCIAL por pedido dentro de cada área
+  // Regla: en cada área, terminar completamente el pedido de mayor prioridad
+  //        antes de pasar al siguiente. Prioridad → fecha entrega más urgente.
+  // Cadena: DISEÑO→CORTE→IMPRESION→SUBLIMACION→COSTURA(int/ext)
+  //         →SERIGRAFIA(DSÑ/ETQ/LOGO)/TRANSFER→CTRL CALIDAD→EMPAQUE→FACTURACION(1día)
+
   const priOrd = {ALTA:0, MEDIA:1, BAJA:2};
   const activos = pedidos
     .filter(p => p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO')
@@ -1649,19 +1653,29 @@ function replanificarTodo() {
       const po = (priOrd[a.prioridad??a.prio]??1) - (priOrd[b.prioridad??b.prio]??1);
       return po !== 0 ? po : diffD(b.entrega||'9999-12-31', a.entrega||'9999-12-31');
     });
+
   planif = [];
   if (!activos.length) return;
+
   const NDIAS  = 120;
   const FECHAS = diasHabilesDesde(isoHoy(), NDIAS);
   const N      = activos.length;
-  const cantP  = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)])));
-  const ocup   = Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)]));
+
+  // cantP[pi][aId][di] = unidades planificadas para pedido pi, área aId, día di
+  const cantP = activos.map(() =>
+    Object.fromEntries(AREAS.map(a => [a.id, new Array(NDIAS).fill(0)]))
+  );
+  // ocup[aId][di] = capacidad ocupada en área aId en día di (todos los pedidos)
+  const ocup = Object.fromEntries(
+    AREAS.map(a => [a.id, new Array(NDIAS).fill(0)])
+  );
+  // Producción real acumulada por pedido×área
   const realAcum  = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, 0])));
   const diasBloq  = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, new Set()])));
   const urArea    = activos.map(() => Object.fromEntries(AREAS.map(a => [a.id, ''])));
   const ultimoGlob = new Array(N).fill('');
 
-  // ── 1. Cargar producción real ──
+  // ── 1. Cargar producción real ──────────────────────────
   for (let pi = 0; pi < N; pi++) {
     const ped = activos[pi];
     Object.entries(ped.realProd || {}).forEach(([k, qty]) => {
@@ -1671,131 +1685,141 @@ function replanificarTodo() {
       const fStr = parts.slice(1).join('_');
       const q    = num(qty);
       if (!q) return;
+      if (!realAcum[pi][aId]) realAcum[pi][aId] = 0;
       realAcum[pi][aId] += q;
       if (fStr > (urArea[pi][aId]||'')) urArea[pi][aId] = fStr;
       if (fStr < isoHoy() && fStr > ultimoGlob[pi]) ultimoGlob[pi] = fStr;
       const di = FECHAS.indexOf(fStr);
       if (di >= 0) {
         diasBloq[pi][aId].add(di);
-        if (fStr > isoHoy()) { cantP[pi][aId][di] += q; ocup[aId][di] += q; }
+        if (fStr >= isoHoy()) { cantP[pi][aId][di] += q; ocup[aId][di] += q; }
       }
-    });
-    // Propagar real entre áreas dependientes
-    const depMapProp = { 11:[4,2], 5:[4,2], 6:[5,11], 12:[5,11], 13:[5,11], 7:[5,11], 8:[5,6,7,11,12,13], 9:[8], 10:[9] };
-    Object.entries(depMapProp).forEach(([aIdStr, deps]) => {
-      const aId = parseInt(aIdStr);
-      const realEste = realAcum[pi][aId];
-      if (!realEste) return;
-      deps.forEach(depId => {
-        if (!(ped.areas||[]).includes(depId)) return;
-        if (realAcum[pi][depId] >= realEste) return;
-        const falta = realEste - realAcum[pi][depId];
-        if (cantP[pi][depId]) {
-          cantP[pi][depId][0] += falta; ocup[depId][0] += falta;
-          diasBloq[pi][depId].add(0); realAcum[pi][depId] = realEste;
-        }
-      });
     });
   }
 
-  // ── 2. Loop día a día ──
+  // Helper: acumulado de un área hasta di-1 (real + planificado)
+  const acumHasta = (pi, aId, di) => {
+    let s = realAcum[pi][aId] || 0;
+    for (let k = 0; k < di; k++) {
+      s += cantP[pi][aId][k] || 0;
+    }
+    return s;
+  };
+
+  // Helper: insumo disponible para (pi, aId) en día di
+  const calcInsumo = (pi, aId, di, ped) => {
+    const areas = ped.areas || [];
+    const ya = acumHasta(pi, aId, di);
+
+    if (aId === 4) {
+      const ids = [2,3].filter(id => areas.includes(id));
+      if (!ids.length) return Infinity;
+      return Math.max(0, Math.min(...ids.map(id => acumHasta(pi,id,di))) - ya);
+    }
+    if (aId === 5 || aId === 11) {
+      const dep = areas.includes(4) ? 4 : areas.includes(2) ? 2 : null;
+      return dep ? Math.max(0, acumHasta(pi,dep,di) - ya) : Infinity;
+    }
+    if (aId === 6 || aId === 7 || aId === 12 || aId === 13) {
+      const cosIds = [5,11].filter(id => areas.includes(id));
+      if (!cosIds.length) return Infinity;
+      return Math.max(0, Math.max(...cosIds.map(id => acumHasta(pi,id,di))) - ya);
+    }
+    if (aId === 8) {
+      const ids = [5,6,7,11,12,13].filter(id => areas.includes(id));
+      if (!ids.length) return Infinity;
+      return Math.max(0, Math.min(...ids.map(id => acumHasta(pi,id,di))) - ya);
+    }
+    if (aId === 9) {
+      if (areas.includes(8)) return Math.max(0, acumHasta(pi,8,di) - ya);
+      const cosIds = [5,11].filter(id => areas.includes(id));
+      return cosIds.length ? Math.max(0, Math.min(...cosIds.map(id => acumHasta(pi,id,di))) - ya) : Infinity;
+    }
+    return Infinity; // áreas 1,2,3: sin dependencia
+  };
+
+  // ── 2. Loop día a día ──────────────────────────────────
   for (let di = 0; di < NDIAS; di++) {
     const fDia = factorDia(FECHAS[di]);
     if (!fDia) continue;
+
     for (const area of AREAS) {
-      // Áreas inactivas globalmente igual planifican si algún pedido las tiene asignadas
-      if (!area.activa && !activos.some(p=>(p.areas||[]).includes(area.id))) continue;
       const aId = area.id;
-      const ai  = getAreaIdx(aId);
+      // Incluir área si está activa O si algún pedido la usa
+      if (!area.activa && !activos.some(p => (p.areas||[]).includes(aId))) continue;
+      const ai = getAreaIdx(aId);
       if (ai < 0) continue;
+
+      // Capacidad total del área en este día
+      const capTotalDia = Math.max(0, Math.floor(area.cap * fDia));
+      let capRestante = capTotalDia - (ocup[aId][di] || 0);
+      if (capRestante <= 0) continue;
+
+      // ── SECUENCIAL: iterar pedidos en orden de prioridad,
+      //    completar cada uno antes de pasar al siguiente ──
       for (let pi = 0; pi < N; pi++) {
+        if (capRestante <= 0) break;
         const ped = activos[pi];
         if (!(ped.areas||[]).includes(aId)) continue;
+
         const p = getPeso(ped.tipo, ai);
         if (!p) continue;
-        if (diasBloq[pi][aId].has(di)) continue;
+        if (diasBloq[pi][aId] && diasBloq[pi][aId].has(di)) continue;
         if (ultimoGlob[pi] && FECHAS[di] <= ultimoGlob[pi]) continue;
-        // Cap por área (cada área tiene su propia cap: SERIGRAFIA DSÑ=100, ETQ=350)
-        const capEfectiva = area.cap;
-        const capTotalDia = Math.max(0, Math.floor(capEfectiva * fDia));
 
-        // Helper: acumulado de un área hasta di-1
-        const acumHasta = (id) => {
-          let s = realAcum[pi][id] || 0;
-          for (let k = 0; k < di; k++) {
-            if (diasBloq[pi][id].has(k)) continue;
-            if (ultimoGlob[pi] && FECHAS[k] <= ultimoGlob[pi]) continue;
-            s += cantP[pi][id][k];
-          }
-          return s;
-        };
-
-        // FACTURACIÓN (id=10): solo cuando EMPAQUE terminó el 100%
+        // FACTURACIÓN: solo cuando EMPAQUE terminó el 100%
         if (aId === 10) {
           const depId = (ped.areas||[]).includes(9) ? 9 : null;
-          if (depId && acumHasta(depId) < ped.cant) continue;
-          let yaFact = realAcum[pi][10] || 0;
-          for (let k = 0; k <= di; k++) yaFact += cantP[pi][10][k];
+          if (depId && acumHasta(pi, depId, di) < ped.cant) continue;
+          let yaFact = 0;
+          for (let k = 0; k <= di; k++) yaFact += (cantP[pi][10][k] || 0);
+          yaFact += (realAcum[pi][10] || 0);
           const restFact = Math.max(0, ped.cant - yaFact);
           if (restFact <= 0) continue;
-          cantP[pi][10][di] += restFact; ocup[10][di] += restFact;
+          cantP[pi][10][di] = (cantP[pi][10][di] || 0) + restFact;
+          ocup[10][di] = (ocup[10][di] || 0) + restFact;
           continue;
         }
 
-        // Calcular insumo disponible
-        const yaEsta = acumHasta(aId);
-        let insumo = 0;
-        if (aId === 4) {
-          const ids = [2,3].filter(id => (ped.areas||[]).includes(id));
-          if (!ids.length) insumo = Infinity;
-          else insumo = Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
-        } else if (aId === 5 || aId === 11) {
-          // COSTURA interna o externa
-          const depId = (ped.areas||[]).includes(4) ? 4 : (ped.areas||[]).includes(2) ? 2 : null;
-          insumo = depId ? Math.max(0, acumHasta(depId) - yaEsta) : Infinity;
-        } else if (aId === 6 || aId === 7 || aId === 12 || aId === 13) {
-          // SERIGRAFIA DSÑ / SERIGRAFIA ETQ / TRANSFER: espera costura int o ext
-          const cosIds = [5,11].filter(id => (ped.areas||[]).includes(id));
-          if (!cosIds.length) insumo = Infinity;
-          else insumo = Math.max(0, Math.max(...cosIds.map(acumHasta)) - yaEsta);
-        } else if (aId === 8) {
-          // CTRL CALIDAD: espera min de costura+serig DSÑ+serig ETQ+transfer que apliquen
-          const ids = [5,6,7,11,12,13].filter(id => (ped.areas||[]).includes(id));
-          if (!ids.length) insumo = Infinity;
-          else insumo = Math.max(0, Math.min(...ids.map(acumHasta)) - yaEsta);
-        } else if (aId === 9) {
-          // EMPAQUE: espera CTRL CALIDAD (secuencial)
-          if ((ped.areas||[]).includes(8)) insumo = Math.max(0, acumHasta(8) - yaEsta);
-          else {
-            const cosIds = [5,11].filter(id => (ped.areas||[]).includes(id));
-            insumo = cosIds.length ? Math.max(0, Math.min(...cosIds.map(acumHasta)) - yaEsta) : Infinity;
-          }
-        } else {
-          insumo = Infinity; // áreas 1,2,3: sin dependencia
-        }
-
+        // Calcular insumo disponible (lo que la etapa anterior produjo)
+        const insumo = calcInsumo(pi, aId, di, ped);
         if (insumo <= 0) continue;
+
+        // Cuánto falta producir en este pedido para esta área
         let yaTot = realAcum[pi][aId] || 0;
-        for (let k = 0; k <= di; k++) yaTot += cantP[pi][aId][k];
+        for (let k = 0; k < di; k++) yaTot += (cantP[pi][aId][k] || 0);
         const restante = Math.max(0, ped.cant - yaTot);
         if (restante <= 0) continue;
-        const capDisp = Math.max(0, capTotalDia - ocup[aId][di]);
-        if (capDisp <= 0) continue;
+
+        // Capacidad máxima que puede usar este pedido en este día
+        // (limitada por peso, por insumo disponible, por lo que falta, y por cap restante)
         const capDia = Math.max(1, Math.floor(area.cap / p * fDia));
-        const qty = Math.min(insumo, capDia, capDisp, restante);
-        if (qty > 0) { cantP[pi][aId][di] += qty; ocup[aId][di] += qty; }
+        const qty = Math.min(insumo, capDia, capRestante, restante);
+        if (qty <= 0) continue;
+
+        cantP[pi][aId][di] = (cantP[pi][aId][di] || 0) + qty;
+        ocup[aId][di] = (ocup[aId][di] || 0) + qty;
+        capRestante -= qty;
+        // ── SECUENCIAL: si el pedido consumió todo lo disponible o
+        //    terminó su restante, pasamos al siguiente. Si quedó cap,
+        //    el siguiente pedido la puede usar. ──
       }
     }
   }
 
-  // ── 3. Convertir a planif[] ──
+  // ── 3. Convertir a planif[] ──────────────────────────
   for (let pi = 0; pi < N; pi++) {
     const ped = activos[pi];
     for (const aId of (ped.areas||[])) {
       for (let di = 0; di < NDIAS; di++) {
-        const qty = cantP[pi][aId][di];
-        if (qty > 0) planif.push({pedId:ped.id,aId,fecha:FECHAS[di],qty,
-          cliente:ped.cliente,diseno:ped.diseno||'',tipo:ped.tipo,entrega:ped.entrega});
+        const qty = cantP[pi][aId] ? cantP[pi][aId][di] : 0;
+        if (qty > 0) {
+          planif.push({
+            pedId:ped.id, aId, fecha:FECHAS[di], qty,
+            cliente:ped.cliente, diseno:ped.diseno||'',
+            tipo:ped.tipo, entrega:ped.entrega
+          });
+        }
       }
     }
   }
@@ -2244,7 +2268,10 @@ function renderPedidosList(){
 function renderTablaPedidos(){
   const tb=document.getElementById('tbody-ped'); if(!tb)return;
   const q=(document.getElementById('search-ped')?.value||'').toLowerCase();
-  const lista=pedidos.filter(p=>!q||p.id.toLowerCase().includes(q)||p.cliente.toLowerCase().includes(q)||p.tipo.toLowerCase().includes(q));
+  const lista=pedidos.filter(p=>{
+    if(p.estado==='ENTREGADO'||p.estado==='CANCELADO') return false;
+    return !q||p.id.toLowerCase().includes(q)||p.cliente.toLowerCase().includes(q)||p.tipo.toLowerCase().includes(q);
+  });
   tb.innerHTML=lista.map(p=>{
     const d=diffD(isoHoy(),p.entrega);
     const dc=d<0?'var(--rd)':d<7?'var(--ac)':'inherit';
@@ -2390,23 +2417,41 @@ function cambiarEstado(id){
   const estados=['PENDIENTE','EN PROCESO','ENTREGADO','CANCELADO'];
   const i=estados.indexOf(ped.estado);
   ped.estado=estados[(i+1)%estados.length];
-  // Sincronizar historial
-  const h=historial.find(p=>p.id===id);
-  if(h)h.estado=ped.estado;
-  if(ped.estado==='ENTREGADO')ped.entregadoEn=new Date().toISOString();
+  if(ped.estado==='ENTREGADO'){
+    ped.entregadoEn=new Date().toISOString();
+    // Actualizar o agregar en historial
+    const hi=historial.findIndex(p=>p.id===id);
+    if(hi>=0) historial[hi]={...ped};
+    else historial.push({...ped});
+    // Sacar del array activo
+    pedidos.splice(pedidos.findIndex(p=>p.id===id),1);
+    toast(id+' marcado como ENTREGADO — movido a Historial ✅','ok');
+  } else {
+    const h=historial.find(p=>p.id===id);
+    if(h)h.estado=ped.estado;
+    toast(id+' → '+ped.estado);
+  }
   guardarEstado();
+  replanificarTodo();
   renderPedidosList();
   renderResumen(); renderSeguimiento();
-  toast(id+' → '+ped.estado);
 }
 
 function cambiarEstadoDirecto(id, nuevo){
   const ped=pedidos.find(p=>p.id===id); if(!ped)return;
   if(ped.estado===nuevo)return;
   ped.estado=nuevo;
-  const h=historial.find(p=>p.id===id);
-  if(h)h.estado=nuevo;
-  if(nuevo==='ENTREGADO')ped.entregadoEn=new Date().toISOString();
+  if(nuevo==='ENTREGADO'){
+    ped.entregadoEn=new Date().toISOString();
+    const hi=historial.findIndex(p=>p.id===id);
+    if(hi>=0) historial[hi]={...ped};
+    else historial.push({...ped});
+    pedidos.splice(pedidos.findIndex(p=>p.id===id),1);
+    toast(id+' entregado — movido a Historial ✅','ok');
+  } else {
+    const h=historial.find(p=>p.id===id);
+    if(h)h.estado=nuevo;
+  }
   guardarEstado();
   replanificarTodo();
   renderPedidosList();
