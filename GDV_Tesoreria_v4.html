@@ -528,31 +528,56 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
 
 <!-- GASTOS POR RUBRO -->
 <div id="view-rubros" class="view">
-  <div class="ph"><div><div class="ph-title">Gastos por <em>Rubro</em></div><div class="ph-sub">Análisis de todos los gastos por categoría</div></div></div>
-  <div class="frow" id="rub-filtros">
-    <span class="fchip on" onclick="filtrarRubros('todos',this)">Todos</span>
-    <span class="fchip" onclick="filtrarRubros('cheques',this)">Cheques</span>
-    <span class="fchip" onclick="filtrarRubros('transferencias',this)">Transferencias</span>
-    <span class="fchip" onclick="filtrarRubros('realizados',this)">Realizados</span>
+  <div class="ph">
+    <div><div class="ph-title">Gastos por <em>Rubro</em></div><div class="ph-sub">Análisis histórico y proyectado por categoría</div></div>
   </div>
+
+  <!-- Filtros -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+    <button class="filter-btn active" onclick="filtrarRubros('todos',this)">Todos (hist+proy)</button>
+    <button class="filter-btn" onclick="filtrarRubros('realizados',this)">✅ Solo Realizados</button>
+    <button class="filter-btn" onclick="filtrarRubros('pendientes',this)">📅 Solo Proyectados</button>
+    <button class="filter-btn" onclick="filtrarRubros('cheques',this)">Cheques</button>
+    <button class="filter-btn" onclick="filtrarRubros('transferencias',this)">Transferencias</button>
+  </div>
+
+  <!-- Info label: histórico vs proyectado totals -->
+  <div id="rub-info" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap"></div>
+  <div id="rub-rango" style="font-size:11px;color:var(--ink3);margin-bottom:14px"></div>
+
   <div class="g2" style="margin-bottom:14px">
     <div class="panel">
       <div class="panel-hdr"><div class="panel-title">Distribución por Rubro</div></div>
-      <div class="donut-wrap"><canvas id="rub-donut" width="130" height="130"></canvas><div class="dleg" id="rub-leg"></div></div>
+      <div class="donut-wrap">
+        <canvas id="rub-donut" width="130" height="130"></canvas>
+        <div id="rub-leg" class="dleg"></div>
+      </div>
     </div>
     <div class="panel">
       <div class="panel-hdr"><div class="panel-title">Barras por Rubro</div></div>
-      <div id="rub-bars" style="padding:14px 18px"></div>
+      <div id="rub-bars" style="padding:12px"></div>
+      <div style="padding:4px 12px 10px;font-size:10px;color:var(--ink3)">
+        Barra sólida = realizado · Barra clara = proyectado
+      </div>
     </div>
   </div>
+
   <div class="panel">
-    <div class="panel-hdr"><div class="panel-title">Detalle por Rubro</div></div>
-    <div class="tscroll"><table><thead><tr><th>Rubro</th><th class="r">Total</th><th class="r">N° Transacciones</th><th class="r">Promedio</th><th class="r">% del Total</th></tr></thead><tbody id="tb-rubros"></tbody></table></div>
+    <div class="panel-hdr"><div class="panel-title">📋 Tabla Detallada por Rubro</div></div>
+    <div class="tscroll">
+      <table><thead><tr>
+        <th>Rubro</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:right">Realizado</th>
+        <th style="text-align:right">Proyectado</th>
+        <th style="text-align:right">N° pagos</th>
+        <th style="text-align:right">% del total</th>
+      </tr></thead>
+      <tbody id="tb-rubros"></tbody></table>
+    </div>
   </div>
 </div>
 
-
-<!-- EVOLUCIÓN -->
 <div id="view-evolucion" class="view">
   <div class="ph">
     <div><div class="ph-title">Evolución <em>Mensual</em></div><div class="ph-sub">Flujo histórico de ingresos y egresos realizados</div></div>
@@ -3993,33 +4018,87 @@ function guardarCaja() {
 
 // ─── GASTOS POR RUBRO ─────────────────────────────────────────────────────────
 var _rubroFiltro = 'todos';
-function filtrarRubros(tipo, el) {
-  document.querySelectorAll('#rub-filtros .fchip').forEach(function(c){c.classList.remove('on');});
-  el.classList.add('on');
-  _rubroFiltro = tipo;
+function filtrarRubros(f, el) {
+  _rubroFiltro = f;
+  document.querySelectorAll('#view-rubros .filter-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(el) el.classList.add('active');
   renderRubros();
 }
 
 function renderRubros() {
-  var all = [];
-  var f = _rubroFiltro;
-  if(f==='todos'||f==='cheques')
-    DB.cheques.forEach(function(r){all.push({tipo:r.tipo,monto:parseFloat(r.monto||0),src:'cheque'});});
-  if(f==='todos'||f==='transferencias')
-    DB.transferencias.forEach(function(r){all.push({tipo:r.tipo,monto:parseFloat(r.monto||0),src:'transferencia'});});
-  if(f==='todos'||f==='realizados')
-    (DB.transferenciasRealizadas||[]).forEach(function(r){all.push({tipo:r.tipo,monto:parseFloat(r.monto||0),src:'realizado'});});
-  var bt={};
-  all.forEach(function(r){
-    var t=r.tipo||'Otros';
-    if(!bt[t])bt[t]={total:0,n:0};
-    bt[t].total+=r.monto; bt[t].n++;
+  var f = _rubroFiltro || 'todos';
+
+  // Separate: HISTORICAL (realizados + chequesCobrados) vs PROJECTED (cheques pendientes + transferencias pendientes)
+  var historical = [];
+  var projected = [];
+
+  // Historical: pagos realizados
+  (DB.transferenciasRealizadas||[]).forEach(function(r){
+    historical.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.fecha, src:'realizado'});
   });
-  var sorted=Object.entries(bt).sort(function(a,b){return b[1].total-a[1].total;});
-  var total=sorted.reduce(function(s,x){return s+x[1].total;},0)||1;
+  // Historical: cheques cobrados
+  (DB.chequesCobrados||[]).forEach(function(r){
+    historical.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.fechaCobro||r.fecha, src:'cheque cobrado'});
+  });
+
+  // Projected: cheques pendientes
+  (DB.cheques||[]).forEach(function(r){
+    if(r.estado==='COBRADO') return;
+    projected.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.vto||r.fecha, src:'cheque pendiente'});
+  });
+  // Projected: transferencias pendientes
+  (DB.transferencias||[]).forEach(function(r){
+    if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+    projected.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.fecha, src:'transferencia'});
+  });
+
+  // Decide which to show based on filter
+  var all = [];
+  if(f==='todos') all = historical.concat(projected);
+  else if(f==='realizados') all = historical;
+  else if(f==='pendientes') all = projected;
+  else if(f==='cheques') all = (DB.cheques||[]).map(function(r){return {tipo:r.tipo||'OTROS',monto:parseFloat(r.monto||0),fecha:r.vto||r.fecha,src:'cheque'};});
+  else if(f==='transferencias') all = (DB.transferencias||[]).map(function(r){return {tipo:r.tipo||'OTROS',monto:parseFloat(r.monto||0),fecha:r.fecha,src:'transf'};});
+
+  // Get date range
+  var fechas = all.map(function(r){return parseFloat(r.fecha)||0;}).filter(Boolean).sort(function(a,b){return a-b;});
+  var rangoTxt = fechas.length
+    ? 'Período: '+xlToDate(fechas[0])+' → '+xlToDate(fechas[fechas.length-1])
+    : '';
+  var rangoEl = document.getElementById('rub-rango');
+  if(rangoEl) rangoEl.textContent = rangoTxt;
+
+  // Show info label
+  var infoEl = document.getElementById('rub-info');
+  if(infoEl) {
+    if(f==='realizados'||f==='todos'&&historical.length) {
+      var hTotal = historical.reduce(function(s,r){return s+r.monto;},0);
+      var pTotal = projected.reduce(function(s,r){return s+r.monto;},0);
+      infoEl.innerHTML =
+        '<span style="background:var(--grnl);border:1px solid #a8dcc0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--grn);margin-right:8px">'+
+        '✅ Histórico: '+fGs(hTotal)+' ('+historical.length+' pagos realizados)</span>'+
+        '<span style="background:var(--ambl);border:1px solid #fcd5a0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--amb)">'+
+        '📅 Proyectado: '+fGs(pTotal)+' ('+projected.length+' pagos pendientes)</span>';
+    } else {
+      infoEl.innerHTML = '';
+    }
+  }
+
+  // Group by rubro
+  var bt = {};
+  all.forEach(function(r){
+    var t = r.tipo||'OTROS';
+    if(!bt[t]) bt[t] = {total:0, n:0, hist:0, proj:0};
+    bt[t].total += r.monto; bt[t].n++;
+    if(r.src==='realizado'||r.src==='cheque cobrado') bt[t].hist += r.monto;
+    else bt[t].proj += r.monto;
+  });
+  var sorted = Object.entries(bt).sort(function(a,b){return b[1].total-a[1].total;});
+  var total = sorted.reduce(function(s,x){return s+x[1].total;},0)||1;
   var COLORS=['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669','#d97706','#6b7280'];
+
   // Donut
-  var canvas=document.getElementById('rub-donut');
+  var canvas = document.getElementById('rub-donut');
   if(canvas){
     var ctx=canvas.getContext('2d'),sz=130,cx=65,cy=65,R=52,ri=34;
     ctx.clearRect(0,0,sz,sz);
@@ -4029,31 +4108,44 @@ function renderRubros() {
       ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a,a+sl);
       ctx.closePath();ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();a+=sl;
     });
-    ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
-    ctx.fillStyle='#1a1814';ctx.font='bold 10px Plus Jakarta Sans';ctx.textAlign='center';
-    ctx.fillText('Rubros',cx,cy);ctx.font='9px Plus Jakarta Sans';ctx.fillStyle='#8c8680';ctx.fillText('por gasto',cx,cy+11);
+    ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='var(--bg,#fff)';ctx.fill();
+    ctx.fillStyle='var(--ink,#1a1814)';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Rubros',cx,cy);ctx.font='9px sans-serif';ctx.fillStyle='#8c8680';ctx.fillText('por gasto',cx,cy+11);
   }
-  var legEl=document.getElementById('rub-leg');
-  if(legEl) legEl.innerHTML=sorted.slice(0,8).map(function(item,i){
+
+  var legEl = document.getElementById('rub-leg');
+  if(legEl) legEl.innerHTML = sorted.slice(0,8).map(function(item,i){
     return '<div class="dleg-item"><div class="dleg-dot" style="background:'+COLORS[i%COLORS.length]+'"></div>'+
-      '<span class="dleg-lbl">'+item[0]+'</span><span class="dleg-val">'+fGs(item[1].total)+'</span>'+
+      '<span class="dleg-lbl">'+item[0]+'</span>'+
+      '<span class="dleg-val">'+fGs(item[1].total)+'</span>'+
       '<span class="dleg-pct">'+((item[1].total/total)*100).toFixed(0)+'%</span></div>';
   }).join('');
-  // Bar chart
-  var barEl=document.getElementById('rub-bars');
-  if(barEl) barEl.innerHTML=sorted.slice(0,10).map(function(item,i){
-    return '<div class="rub-row"><div class="rub-lbl">'+item[0]+'</div>'+
-      '<div class="rub-bar-wrap"><div class="rub-bar" style="width:'+((item[1].total/total)*100).toFixed(1)+'%;background:'+COLORS[i%COLORS.length]+'"></div></div>'+
-      '<div class="rub-val">'+fGs(item[1].total)+'</div></div>';
+
+  var barEl = document.getElementById('rub-bars');
+  if(barEl) barEl.innerHTML = sorted.slice(0,10).map(function(item,i){
+    var pctH = total>0?((item[1].hist/total)*100).toFixed(1):0;
+    var pctP = total>0?((item[1].proj/total)*100).toFixed(1):0;
+    return '<div class="rub-row">'+
+      '<div class="rub-lbl">'+item[0]+'</div>'+
+      '<div class="rub-bar-wrap" title="'+fGs(item[1].hist)+' realizado / '+fGs(item[1].proj)+' proyectado">'+
+        '<div class="rub-bar" style="width:'+pctH+'%;background:'+COLORS[i%COLORS.length]+';opacity:.9"></div>'+
+        '<div class="rub-bar" style="width:'+pctP+'%;background:'+COLORS[i%COLORS.length]+';opacity:.4;margin-top:2px"></div>'+
+      '</div>'+
+      '<div class="rub-val">'+fGs(item[1].total)+'</div>'+
+    '</div>';
   }).join('');
-  // Table
-  var tbEl=document.getElementById('tb-rubros');
-  if(tbEl) tbEl.innerHTML=sorted.map(function(item){
-    return '<tr><td>'+chip(item[0])+'</td><td class="neg">'+fGs(item[1].total)+'</td>'+
-      '<td class="r" style="font-family:JetBrains Mono,monospace">'+item[1].n+'</td>'+
-      '<td class="neu">'+fGs(Math.round(item[1].total/item[1].n))+'</td>'+
-      '<td class="r" style="font-family:JetBrains Mono,monospace">'+((item[1].total/total)*100).toFixed(1)+'%</td></tr>';
-  }).join('')||'<tr><td colspan="5" class="empty">Sin datos</td></tr>';
+
+  var tbEl = document.getElementById('tb-rubros');
+  if(tbEl) tbEl.innerHTML = sorted.map(function(item){
+    return '<tr>'+
+      '<td>'+chip(item[0])+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(item[1].total)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+fGs(item[1].hist)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--amb)">'+fGs(item[1].proj)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+item[1].n+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+((item[1].total/total)*100).toFixed(1)+'%</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="6" class="empty">Sin datos</td></tr>';
 }
 
 // ─── SIMULADOR DE PAGOS ───────────────────────────────────────────────────────
@@ -4063,64 +4155,124 @@ function renderSimulador() {
 }
 
 function calcSimulador() {
-  var monto=parseFloat(document.getElementById('sim-monto').value)||0;
-  var nCuotas=parseInt(document.getElementById('sim-cuotas').value)||1;
-  var diasBase=parseInt(document.getElementById('sim-dias-base').value)||30;
-  var tipo=document.getElementById('sim-tipo').value;
-  var concepto=document.getElementById('sim-concepto').value||'Nuevo compromiso';
-  var rubro=document.getElementById('sim-rubro').value;
-  if(!monto){document.getElementById('sim-resultado').innerHTML='<div class="al-item info"><div class="al-ico">ℹ</div><div>Ingresá el monto total para calcular.</div></div>';return;}
-  var cuota=monto/nCuotas;
-  // Build load map from existing pagos
-  var loadMap={};
-  DB.pagos.forEach(function(p){loadMap[p.dia]=(loadMap[p.dia]||0)+(p.total||0);});
-  DB.transferencias.filter(function(t){return t.estado!=='COBRADO';}).forEach(function(t){
-    var ds=xlToDate(t.fecha);if(!ds)return;
-    var pts=ds.split('/');if(pts.length!==3)return;
-    var dom=parseInt(pts[0]); loadMap[dom]=(loadMap[dom]||0)+parseFloat(t.monto||0);
-  });
-  var hoy=new Date();
-  var html='<div class="panel"><div class="panel-hdr"><div class="panel-title">Plan Sugerido — '+concepto+'</div></div>';
-  html+='<div style="padding:12px 18px;background:var(--sur2);border-bottom:1px solid var(--bdr);display:flex;gap:20px;flex-wrap:wrap">';
-  html+='<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Total</div><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--red)">'+fGs(monto)+'</div></div>';
-  html+='<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">'+nCuotas+' cuotas de</div><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--amb)">'+fGs(cuota)+'</div></div>';
-  html+='<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Tipo</div><div style="font-size:14px;font-weight:600">'+tipo+'</div></div>';
-  html+='<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Rubro</div><div>'+chip(rubro)+'</div></div>';
-  html+='</div>';
-  html+='<div style="padding:14px 18px"><div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Fechas Recomendadas — editá antes de confirmar</div>';
-  html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">';
-  for(var i=0;i<nCuotas;i++){
-    var targetDays=7+(i*diasBase);
-    var bestDate=null,bestScore=9e9;
-    for(var d=-10;d<=10;d++){
-      var t=new Date(hoy); t.setDate(t.getDate()+targetDays+d);
-      var dom=t.getDate(); var dow=t.getDay();
-      if([4,5,6].indexOf(dom)>=0) continue; // blocked salary days
-      var carga=loadMap[dom]||0;
-      var score=carga+Math.abs(d)*300000;
-      if(score<bestScore){bestScore=score;bestDate=new Date(t);}
-    }
-    if(!bestDate){bestDate=new Date(hoy);bestDate.setDate(bestDate.getDate()+targetDays);}
-    var dom2=bestDate.getDate();
-    var carga2=loadMap[dom2]||0;
-    var cardCls=carga2<5000000?'sim-date-card good':carga2<10000000?'sim-date-card ok':'sim-date-card busy';
-    var scoreLabel=carga2<5000000?'✅ Dia libre':carga2<10000000?'⚠ Carga media':'🔴 Dia ocupado';
-    var dateInput=bestDate.getFullYear()+'-'+('0'+(bestDate.getMonth()+1)).slice(-2)+'-'+('0'+dom2).slice(-2);
-    html+='<div class="'+cardCls+'" id="simopt_'+i+'" onclick="this.classList.toggle(\"sel\")">';
-    html+='<div style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;margin-bottom:5px">Cuota '+(i+1)+' de '+nCuotas+'</div>';
-    html+='<input type="date" value="'+dateInput+'" id="simdate_'+i+'" style="font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;border:none;background:none;outline:none;color:var(--ink);padding:0;width:145px" onclick="event.stopPropagation()">';
-    html+='<div style="font-size:11px;color:var(--ink3);margin-top:3px">Carga actual día '+dom2+': '+fGs(carga2)+'</div>';
-    html+='<div style="font-size:10px;font-weight:700;margin-top:3px">'+scoreLabel+'</div>';
-    html+='<div style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:var(--amb);margin-top:6px">'+fGs(cuota)+'</div>';
-    html+='</div>';
+  var monto = parseFloat(document.getElementById('sim-monto').value)||0;
+  var nCuotas = parseInt(document.getElementById('sim-cuotas').value)||1;
+  var diasBase = parseInt(document.getElementById('sim-dias-base').value)||30;
+  var tipo = document.getElementById('sim-tipo').value;
+  var concepto = document.getElementById('sim-concepto').value||'Nuevo compromiso';
+  var rubro = document.getElementById('sim-rubro').value;
+  if(!monto){
+    document.getElementById('sim-resultado').innerHTML='<div class="al-item info"><div class="al-ico">ℹ</div><div>Ingresá el monto total para calcular.</div></div>';
+    return;
   }
-  html+='</div>';
-  html+='<div style="margin-top:14px;padding:10px 0;border-top:1px solid var(--bdr);display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-  html+='<button class="btn btn-a" onclick="agregarSimPagos()">✓ Agregar todos al plan</button>';
-  html+='<span style="font-size:12px;color:var(--ink3)">Podés modificar cualquier fecha. No caerán en días 4, 5 ni 6 (salarios).</span>';
-  html+='</div></div></div>';
-  document.getElementById('sim-resultado').innerHTML=html;
-  window._simCtx={concepto:concepto,monto:monto,cuota:cuota,nCuotas:nCuotas,tipo:tipo,rubro:rubro};
+  var cuota = monto/nCuotas;
+
+  // Build load map by day-of-month from REAL data (cheques + transferencias pendientes + cuotas préstamos)
+  var loadByDay = {}; // day-of-month → total committed
+  var loadByDate = {}; // YYYY-MM-DD → total committed (for exact date display)
+
+  function addLoad(xlDate, amount) {
+    var d = xlToDate(xlDate);
+    if(!d||d==='—') return;
+    var p = d.split('/');
+    if(p.length!==3) return;
+    var dom = parseInt(p[0]);
+    loadByDay[dom] = (loadByDay[dom]||0) + amount;
+    var dateKey = p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);
+    loadByDate[dateKey] = (loadByDate[dateKey]||0) + amount;
+  }
+
+  (DB.cheques||[]).forEach(function(r){
+    if(r.estado==='COBRADO') return;
+    addLoad(r.vto||r.fecha, parseFloat(r.monto||0));
+  });
+  (DB.transferencias||[]).forEach(function(r){
+    if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+    addLoad(r.fecha, parseFloat(r.monto||0));
+  });
+  (DB.prestamos||[]).forEach(function(p){
+    var ini=new Date(p.inicio);
+    for(var q=1;q<=p.nCuotas;q++){
+      if(q<=(p.pagadas||0)) continue;
+      var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia);
+      var dom=dt.getDate();
+      loadByDay[dom]=(loadByDay[dom]||0)+parseFloat(p.cuota||0);
+    }
+  });
+
+  var hoy = new Date();
+  var html = '<div class="panel"><div class="panel-hdr"><div class="panel-title">💡 Plan Sugerido — '+concepto+'</div></div>';
+
+  // Summary header
+  html += '<div style="padding:12px 18px;background:var(--sur2);border-bottom:1px solid var(--bdr);display:flex;gap:20px;flex-wrap:wrap">';
+  html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Total</div><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--red)">'+fGs(monto)+'</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">'+nCuotas+' cuota'+(nCuotas>1?'s':'')+' de</div><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--amb)">'+fGs(cuota)+'</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Tipo</div><div style="font-size:14px;font-weight:600">'+tipo+'</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Rubro</div><div>'+chip(rubro)+'</div></div>';
+  html += '</div>';
+
+  // Find best dates
+  html += '<div style="padding:14px 18px">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">Fechas Recomendadas — podés editar cualquier fecha antes de confirmar</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">';
+
+  var BLOCKED_DAYS = [4,5,6]; // salary days
+
+  for(var qi=0; qi<nCuotas; qi++){
+    var targetDays = 7 + (qi * diasBase);
+    var bestDate = null, bestScore = 9e9;
+
+    // Search ±14 days around target
+    for(var delta=-14; delta<=14; delta++){
+      var candidate = new Date(hoy);
+      candidate.setDate(candidate.getDate() + targetDays + delta);
+      var dom = candidate.getDate();
+      var dow = candidate.getDay(); // 0=Sun, 6=Sat
+
+      if(BLOCKED_DAYS.indexOf(dom) >= 0) continue; // skip salary days
+      if(dow === 0 || dow === 6) continue; // skip weekends
+
+      var carga = loadByDay[dom]||0;
+      // Score: lower is better. Penalize high load and distance from target
+      var score = (carga/1000000) + Math.abs(delta)*0.5;
+      if(score < bestScore){ bestScore=score; bestDate=new Date(candidate); }
+    }
+    if(!bestDate){ bestDate=new Date(hoy); bestDate.setDate(bestDate.getDate()+targetDays); }
+
+    var dom2 = bestDate.getDate();
+    var carga2 = loadByDay[dom2]||0;
+    var dateStr = bestDate.getFullYear()+'-'+('0'+(bestDate.getMonth()+1)).slice(-2)+'-'+('0'+dom2).slice(-2);
+    var dateDisplay = ('0'+dom2).slice(-2)+'/'
+      +('0'+(bestDate.getMonth()+1)).slice(-2)+'/'+bestDate.getFullYear();
+
+    var cardColor = carga2===0?'background:#e8f5e9;border-color:#a5d6a7':
+                   carga2<5000000?'background:#f1f8e9;border-color:#c5e1a5':
+                   carga2<15000000?'background:#fffde7;border-color:#ffe082':
+                   'background:#fff3e0;border-color:#ffcc80';
+    var trafficIcon = carga2===0?'🟢 Día libre':
+                     carga2<5000000?'✅ Carga baja':
+                     carga2<15000000?'🟡 Carga media':
+                     '🔴 Día ocupado';
+
+    html += '<div style="border:1.5px solid;border-radius:10px;padding:12px;'+cardColor+'">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;margin-bottom:6px">Cuota '+(qi+1)+' de '+nCuotas+'</div>';
+    html += '<input type="date" value="'+dateStr+'" id="simdate_'+qi+'" ';
+    html += 'style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;border:none;background:none;outline:none;color:var(--ink);padding:0;width:160px">';
+    html += '<div style="font-size:11px;margin-top:6px;font-weight:600">'+trafficIcon+'</div>';
+    html += '<div style="font-size:11px;color:var(--ink3);margin-top:3px">Carga día '+dom2+': '+fGs(carga2)+'</div>';
+    html += '<div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--amb);margin-top:8px">'+fGs(cuota)+'</div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  html += '<div style="margin-top:16px;padding:12px 0;border-top:1px solid var(--bdr);display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+  html += '<button class="btn btn-a" onclick="agregarSimPagos()">✓ Agregar todos al sistema</button>';
+  html += '<button class="btn btn-g" onclick="document.getElementById(\'sim-resultado\').innerHTML=\'\'">✕ Cancelar</button>';
+  html += '<span style="font-size:12px;color:var(--ink3)">Días 4, 5 y 6 bloqueados (salarios). Fines de semana excluidos.</span>';
+  html += '</div></div></div>';
+
+  document.getElementById('sim-resultado').innerHTML = html;
+  window._simCtx = {concepto:concepto, monto:monto, cuota:cuota, nCuotas:nCuotas, tipo:tipo, rubro:rubro};
 }
 
 function agregarSimPagos() {
