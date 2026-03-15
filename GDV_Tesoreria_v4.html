@@ -650,7 +650,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
       <table>
         <thead><tr>
           <th>Emisión</th><th>N° Cheque</th><th>A Orden de</th><th>Concepto</th>
-          <th style="text-align:right">Monto</th><th>Vencimiento</th><th>Tipo</th><th>Estado</th><th>Mes Cobro</th><th></th>
+          <th style="text-align:right">Monto</th><th>Vencimiento</th><th>Tipo</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tb-cheques"></tbody>
       </table>
@@ -1171,7 +1171,6 @@ const DEFAULT_DATA = {
   ],
   cobros: [
     {fechaCobro:'46095',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE'},
-    {fechaCobro:'45742',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE'},
     {fechaCobro:'46122',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE'},
     {fechaCobro:'46097',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8333333',tipoCobro:'Cheque',estado:'PENDIENTE'},
     {fechaCobro:'46104',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8333333',tipoCobro:'Cheque',estado:'PENDIENTE'}
@@ -2525,7 +2524,7 @@ function renderTabla(mod) {
   var hoy = todayXl();
 
   if (mod === 'cheques') {
-    if (!data.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty">Sin registros</td></tr>'; return; }
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin registros</td></tr>'; return; }
     data.forEach(function(r) {
       var idx = origData.indexOf(r);
       var vtoN = parseFloat(r.vto);
@@ -2541,7 +2540,7 @@ function renderTabla(mod) {
         '<td class="mn">'+xlToDate(r.vto)+(isVenc?' <span style="color:var(--red);font-size:10px">⚠ VENC</span>':isSoon?' <span style="color:var(--amb);font-size:10px">⚡</span>':'')+'</td>' +
         '<td>'+chip(r.tipo)+'</td>' +
         '<td>'+badge(r.estado)+'</td>' +
-        '<td class="mn" style="color:var(--ink3)">'+(r.mesCobro||'—')+'</td>' +
+
         '<td>'+actionBtns('cheques',idx)+'</td>' +
         '</tr>';
     });
@@ -3238,7 +3237,7 @@ function renderPagosDia() {
   if(kpiEl) kpiEl.innerHTML=
     '<div class="kpi '+(hoyTotal>0?'rd':'gn')+'"><div class="kpi-ico '+(hoyTotal>0?'rd':'gn')+'">📅</div><div class="kpi-lbl">Vence Hoy</div><div class="kpi-val '+(hoyTotal>0?'neg':'pos')+'">'+fGs(hoyTotal)+'</div></div>'+
     '<div class="kpi am"><div class="kpi-ico am">📆</div><div class="kpi-lbl">Próximos 7 días</div><div class="kpi-val amb">'+fGs(semTotal)+'</div></div>'+
-    '<div class="kpi rd"><div class="kpi-ico rd">⚠</div><div class="kpi-lbl">Ítems pendientes</div><div class="kpi-val neg">'+keys.reduce(function(s,k){return s+(byDate[String(k)]?byDate[String(k)].items.length:0);},0)+'</div></div>';
+    '<div class="kpi am"><div class="kpi-ico am">📋</div><div class="kpi-lbl">Pagos a ejecutar</div><div class="kpi-val neg">'+keys.reduce(function(s,k){return s+(byDate[String(k)]?byDate[String(k)].items.length:0);},0)+'</div></div>';
 }
 
 // ══════════════════════════════════════
@@ -3461,7 +3460,7 @@ function exportar(mod) {
   var data;
   if (mod==='cheques') {
     data = [['Emision','Cheque N°','Beneficiario','Concepto','Monto','Vencimiento','Tipo','Estado','Mes Cobro']];
-    DB.cheques.forEach(function(r){data.push([xlToDate(r.fecha),r.cheque,r.beneficiario,r.concepto,parseFloat(r.monto)||0,xlToDate(r.vto),r.tipo,r.estado,r.mesCobro||'']);});
+    DB.cheques.forEach(function(r){data.push([xlToDate(r.fecha),r.cheque,r.beneficiario,r.concepto,parseFloat(r.monto)||0,xlToDate(r.vto),r.tipo,r.estado]);});
   } else if (mod==='transferencias') {
     data = [['Fecha','Beneficiario','Concepto','Monto','Tipo','Estado','Nro Transf']];
     DB.transferencias.forEach(function(r){data.push([xlToDate(r.fecha),r.beneficiario,r.concepto,parseFloat(r.monto)||0,r.tipo,r.estado,r.nroTrans||'']);});
@@ -3764,23 +3763,7 @@ function renderChqMesHeader() {
   }
 }
 
-function renderChqCobradosTable() {
-  var el = document.getElementById('tb-chq-cobrados');
-  if(!el) return;
-  var rows = (DB.chequesCobrados||[]).map(function(r){
-    return '<tr>'+
-      '<td class="mn">'+xlToDate(r.fechaCobro||r.fecha)+'</td>'+
-      '<td class="mn">'+(r.cheque||'—')+'</td>'+
-      '<td><strong>'+(r.beneficiario||'—')+'</strong></td>'+
-      '<td style="color:var(--ink2)">'+(r.concepto||'—')+'</td>'+
-      '<td>'+chip(r.tipo||'—')+'</td>'+
-      '<td class="neg">'+fGs(r.monto)+'</td>'+
-      '<td class="mn" style="color:var(--grn)">'+xlToDate(r.vto||r.fecha)+'</td>'+
-      '<td class="mn" style="color:var(--ink3)">'+(r.cuenta||'—')+'</td>'+
-      '</tr>';
-  }).join('');
-  el.innerHTML = rows || '<tr><td colspan="8" class="empty">Sin historial aún</td></tr>';
-}
+// renderChqCobradosTable merged into renderChqMesHeader
 
 // ─── RESUMEN TRANSFERENCIAS MES ───────────────────────────────────────────────
 function renderTraMesHeader() {
