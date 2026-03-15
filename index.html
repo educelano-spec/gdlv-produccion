@@ -1753,7 +1753,12 @@ function replanificarTodo() {
       return Math.max(0, Math.min(...ids.map(id => acumHasta(pi,id,di))) - ya);
     }
     if (aId === 9) {
-      if (areas.includes(8)) return Math.max(0, acumHasta(pi,8,di) - ya);
+      // EMPAQUE corre el MISMO DÍA que CTRL CALIDAD (id=8)
+      // Usar acumHasta(di+1) para incluir lo producido hoy en CTRL CALIDAD
+      if (areas.includes(8)) {
+        const ctrlHoy = acumHasta(pi,8,di) + (cantP[pi][8] ? cantP[pi][8][di] : 0);
+        return Math.max(0, ctrlHoy - ya);
+      }
       const cosIds = [5,11].filter(id => areas.includes(id));
       return cosIds.length ? Math.max(0, Math.min(...cosIds.map(id => acumHasta(pi,id,di))) - ya) : Infinity;
     }
