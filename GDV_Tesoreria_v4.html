@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+
+  <div id="online-indicator" style="font-size:10px;font-weight:600;padding:4px 10px;margin:0 8px 8px;border-radius:8px;background:var(--sur2);transition:color .3s">
+    <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#9e9e9e;border-radius:50%;display:inline-block"></span>Conectando...</span>
+  </div><!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -308,8 +311,13 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     </div>
   </div>
   <!-- Save indicator -->
-  <div id="save-indicator" style="position:fixed;bottom:18px;right:18px;background:#333;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;opacity:0;transition:opacity .4s;z-index:9998;pointer-events:none">☁ Guardado</div>
-  <style>@keyframes fbprog{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}</style>
+  <div id="save-indicator" style="position:fixed;bottom:18px;right:18px;background:#2e7d32;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;opacity:0;transition:opacity .4s;z-index:9998;pointer-events:none">☁ Guardado en Firebase</div>
+  <!-- Sync toast -->
+  <div id="sync-toast" style="position:fixed;bottom:50px;right:18px;background:#1565c0;color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;opacity:0;transform:translateY(10px);transition:opacity .4s,transform .4s;z-index:9997;pointer-events:none">🔄 Datos actualizados desde Firebase</div>
+  <style>
+    @keyframes fbprog{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+    @keyframes pulse-grn{0%,100%{box-shadow:0 0 0 0 rgba(76,175,80,.4)}70%{box-shadow:0 0 0 6px rgba(76,175,80,0)}}
+  </style>
 <div class="shell">
 <nav class="sidebar">
   <div class="nav-sec">
@@ -995,111 +1003,133 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
 // ══════════════════════════════════════
 const DEFAULT_DATA = {
   cheques: [
-    {fecha:'46057',cheque:'837295',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'2660000',vto:'46090',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45968',cheque:'605155',beneficiario:'Paraguay Textil SA',concepto:'insumos',monto:'3431747',vto:'46092',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46073',cheque:'68808',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1346003',vto:'46097',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46071',cheque:'837296',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'2660000',vto:'46098',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46036',cheque:'60174',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',vto:'46098',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45919',cheque:'278291',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'5850000',vto:'46100',tipo:'ACTIVO FIJO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837289',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46102',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45995',cheque:'605164',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',vto:'46103',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46045',cheque:'837282',beneficiario:'SERIMAX',concepto:'MAQUINA',monto:'1822500',vto:'46104',tipo:'ACTIVO FIJO',estado:'',mesCobro:''},
-    {fecha:'46079',cheque:'a emitir',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'15282500',vto:'46107',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837284',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3560000',vto:'46107',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46080',cheque:'68810',beneficiario:'SERIMAX',concepto:'papel',monto:'1643000',vto:'46108',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46073',cheque:'a emitir',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46110',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837283',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1982000',vto:'46111',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46090',cheque:'68815',beneficiario:'SERIMAX',concepto:'Compra de papel',monto:'1509500',vto:'46113',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46090',cheque:'68816',beneficiario:'SERIMAX',concepto:'Compra de papel',monto:'2240455',vto:'46118',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46090',cheque:'68811',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'1995000',vto:'46118',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46090',cheque:'68812',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1236137',vto:'46119',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45968',cheque:'605156',beneficiario:'Paraguay Textil SA',concepto:'insumos',monto:'3431747',vto:'46123',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46036',cheque:'60175',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',vto:'46129',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45919',cheque:'278292',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'4500000',vto:'46131',tipo:'ACTIVO FIJO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837290',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46133',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45995',cheque:'605165',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',vto:'46134',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837285',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3560000',vto:'46138',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46073',cheque:'837298',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46141',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46090',cheque:'68813',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1236137',vto:'46149',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46036',cheque:'837280',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2583025',vto:'46159',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45919',cheque:'278293',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'4500000',vto:'46161',tipo:'ACTIVO FIJO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837291',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46163',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45995',cheque:'605166',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4156566',vto:'46164',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837286',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3560000',vto:'46168',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46090',cheque:'68814',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1236137',vto:'46180',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'45919',cheque:'278294',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'4500000',vto:'46192',tipo:'ACTIVO FIJO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837292',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46194',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837288',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3566865',vto:'46199',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46073',cheque:'837300',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46202',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837293',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46224',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46073',cheque:'68807',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'5578741',vto:'46232',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46052',cheque:'837294',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46255',tipo:'INSUMO',estado:'',mesCobro:''},
-    {fecha:'46073',cheque:'a emitir',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46263',tipo:'INSUMO',estado:'',mesCobro:''}
+    {fecha:'46073',cheque:'68808',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1346003',vto:'46097',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:'abr-26'},
+    {fecha:'46071',cheque:'837296',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'2660000',vto:'46098',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:'may-26'},
+    {fecha:'46036',cheque:'60174',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',vto:'46098',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:'jun-26'},
+    {fecha:'45919',cheque:'278291',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'5850000',vto:'46100',tipo:'ACTIVO FIJO',estado:'PENDIENTE',mesCobro:'jul-26'},
+    {fecha:'46052',cheque:'837289',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46102',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:'ago-26'},
+    {fecha:'45995',cheque:'605164',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',vto:'46103',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46045',cheque:'837282',beneficiario:'SERIMAX',concepto:'MAQUINA',monto:'1822500',vto:'46104',tipo:'ACTIVO FIJO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46094',cheque:'a emitir',beneficiario:'adela rios',concepto:'alquiler',monto:'3300000',vto:'46105',tipo:'ALQUILER',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46079',cheque:'a emitir',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'15282500',vto:'46107',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837284',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3560000',vto:'46107',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46080',cheque:'68810',beneficiario:'SERIMAX',concepto:'papel',monto:'1643000',vto:'46108',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46073',cheque:'a emitir',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46110',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837283',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1982000',vto:'46111',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46090',cheque:'68815',beneficiario:'SERIMAX',concepto:'Compra de papel',monto:'1509500',vto:'46113',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46090',cheque:'68816',beneficiario:'SERIMAX',concepto:'Compra de papel',monto:'2240455',vto:'46118',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46090',cheque:'68811',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'1995000',vto:'46118',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46090',cheque:'68812',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1236137',vto:'46119',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'45968',cheque:'605156',beneficiario:'Paraguay Textil SA',concepto:'insumos',monto:'3431747',vto:'46123',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46036',cheque:'60175',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',vto:'46129',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'45919',cheque:'278292',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'4500000',vto:'46131',tipo:'ACTIVO FIJO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837290',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46133',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'45995',cheque:'605165',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',vto:'46134',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837285',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3560000',vto:'46138',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46073',cheque:'837298',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46141',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46090',cheque:'68813',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1236137',vto:'46149',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46036',cheque:'837280',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2583025',vto:'46159',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'45919',cheque:'278293',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'4500000',vto:'46161',tipo:'ACTIVO FIJO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837291',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46163',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'45995',cheque:'605166',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4156566',vto:'46164',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837286',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3560000',vto:'46168',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46073',cheque:'a emitir',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46171',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46090',cheque:'68814',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1236137',vto:'46180',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'45919',cheque:'278294',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'4500000',vto:'46192',tipo:'ACTIVO FIJO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837292',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46194',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837288',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'3566865',vto:'46199',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46073',cheque:'837300',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'5700000',vto:'46202',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837293',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46224',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46073',cheque:'68807',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'5578741',vto:'46232',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''},
+    {fecha:'46052',cheque:'837294',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3650000',vto:'46255',tipo:'INSUMO',estado:'PENDIENTE',mesCobro:''}
   ],
   transferencias: [
-    {fecha:'46092',beneficiario:'ips',concepto:'ips',monto:'7000000',tipo:'IPS',estado:'PENDIENTE'},
-    {fecha:'46094',beneficiario:'delfino',concepto:'medias',monto:'2000000',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46094',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'PENDIENTE'},
-    {fecha:'46094',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'6000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46094',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46094',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE'},
-    {fecha:'46096',beneficiario:'SET',concepto:'DEUDA PENDIENTE',monto:'8770639',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46101',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE'},
-    {fecha:'46101',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'6000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46101',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46103',beneficiario:'marijoa',concepto:'compra de tela',monto:'1017700',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46104',beneficiario:'SET',concepto:'RENTA EDU',monto:'1828571',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46106',beneficiario:'marijoa',concepto:'compra de tela',monto:'241500',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46106',beneficiario:'marijoa',concepto:'compra de tela',monto:'840600',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46107',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'PENDIENTE'},
-    {fecha:'46108',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE'},
-    {fecha:'46108',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'6000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46108',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46109',beneficiario:'marijoa',concepto:'compra de tela',monto:'1305650',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46114',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE'},
-    {fecha:'46115',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46115',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE'},
-    {fecha:'46115',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46117',beneficiario:'solutech',concepto:'insumos',monto:'8000000',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46117',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46122',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46122',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE'},
-    {fecha:'46122',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46125',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE'},
-    {fecha:'46125',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'PENDIENTE'},
-    {fecha:'46125',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE'},
-    {fecha:'46126',beneficiario:'veta sytems',concepto:'sistema',monto:'438000',tipo:'SISTEMA',estado:'PENDIENTE'},
-    {fecha:'46127',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46129',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46129',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE'},
-    {fecha:'46129',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46134',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE'},
-    {fecha:'46136',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46136',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE'},
-    {fecha:'46136',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46138',beneficiario:'ALBERTO VELAZQUEZ',concepto:'contador',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'PENDIENTE'},
-    {fecha:'46139',beneficiario:'marijoa',concepto:'compra de tela',monto:'1305650',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46140',beneficiario:'MILI',concepto:'marketing',monto:'4000000',tipo:'MARKETING',estado:'PENDIENTE'},
-    {fecha:'46142',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE'},
-    {fecha:'46147',beneficiario:'solutech',concepto:'insumos',monto:'8000000',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46147',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46155',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'PENDIENTE'},
-    {fecha:'46155',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE'},
-    {fecha:'46157',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46169',beneficiario:'marijoa',concepto:'compra de tela',monto:'1305750',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46178',beneficiario:'solutech',concepto:'insumos',monto:'8000000',tipo:'INSUMO',estado:'PENDIENTE'},
-    {fecha:'46178',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46186',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE'},
-    {fecha:'46188',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46208',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46216',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE'},
-    {fecha:'46218',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46239',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE'},
-    {fecha:'46247',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE'},
-    {fecha:'46249',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46280',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46310',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'},
-    {fecha:'46341',beneficiario:'SET',concepto:'DEUDA PENDIENTE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE'}
+    {fecha:'46096',beneficiario:'SET',concepto:'DEUDA PENDIENTE',monto:'8770639',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46099',beneficiario:'easy sistem',concepto:'sistema',monto:'438000',tipo:'SISTEMA',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46101',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46101',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'6000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46101',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46103',beneficiario:'marijoa',concepto:'compra de tela',monto:'1017700',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46104',beneficiario:'SET',concepto:'RENTA EDU',monto:'1828571',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46106',beneficiario:'marijoa',concepto:'compra de tela',monto:'241500',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46106',beneficiario:'marijoa',concepto:'compra de tela',monto:'840600',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46107',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46108',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46108',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'6000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46108',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46109',beneficiario:'marijoa',concepto:'compra de tela',monto:'1290075',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46109',beneficiario:'marijoa',concepto:'compra de tela',monto:'1305650',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46114',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46115',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46115',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46115',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46117',beneficiario:'solutech',concepto:'insumos',monto:'8000000',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46117',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46122',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46122',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46122',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46123',beneficiario:'marijoa',concepto:'compra de tela',monto:'1668450',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46125',beneficiario:'SERIMAX SRL',concepto:'cuota software',monto:'5600000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46125',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46125',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46125',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46126',beneficiario:'veta sytems',concepto:'sistema',monto:'438000',tipo:'SISTEMA',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46127',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46129',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46129',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46129',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46134',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46136',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46136',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46136',beneficiario:'JUANJO SALINAS',concepto:'SALARIO SEMANAL',monto:'1687500',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46138',beneficiario:'ALBERTO VELAZQUEZ',concepto:'contador',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46139',beneficiario:'marijoa',concepto:'compra de tela',monto:'1307070',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46139',beneficiario:'marijoa',concepto:'compra de tela',monto:'1305650',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46140',beneficiario:'MILI',concepto:'marketing',monto:'4000000',tipo:'MARKETING',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46142',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46143',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46143',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46143',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46147',beneficiario:'solutech',concepto:'insumos',monto:'8000000',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46147',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46150',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46150',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46150',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46153',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46155',beneficiario:'SERIMAX SRL',concepto:'cuota software',monto:'5600000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46155',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46155',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46155',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46157',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46157',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46157',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46157',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46164',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46164',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46164',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46165',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46168',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46169',beneficiario:'marijoa',concepto:'compra de tela',monto:'1319945',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46169',beneficiario:'marijoa',concepto:'compra de tela',monto:'1305750',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46170',beneficiario:'cesar amarilla',concepto:'marketing',monto:'3500000',tipo:'MARKETING',estado:'PENDIENTE',nroTrans:'123456'},
+    {fecha:'46171',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46171',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46171',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46174',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46178',beneficiario:'solutech',concepto:'insumos',monto:'8000000',tipo:'INSUMO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46178',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46186',beneficiario:'SERIMAX SRL',concepto:'cuota software',monto:'5600000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46186',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46188',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46208',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46216',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46218',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46239',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'22000000',tipo:'SALARIOS',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46247',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46249',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46280',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46310',beneficiario:'SET',concepto:'DEUDA PENDIENTE NOV,DIC,ENE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''},
+    {fecha:'46341',beneficiario:'SET',concepto:'DEUDA PENDIENTE',monto:'6340974',tipo:'IMPUESTO',estado:'PENDIENTE',nroTrans:''}
   ],
   prestamos: [
     {id:'p1',nombre:'Mutual Andrea',tipo:'Mutual',capital:93627600,cuota:7802300,inicio:'2025-10-01',nCuotas:12,pagadas:0,dia:25,obs:'Cuota mensual fija - vence día 25'},
@@ -1108,32 +1138,317 @@ const DEFAULT_DATA = {
     {id:'p4',nombre:'Mutual Eduardo 2',tipo:'Mutual',capital:53814000,cuota:3587600,inicio:'2026-01-01',nCuotas:15,pagadas:0,dia:18,obs:'Cuota mensual fija - vence día 18'}
   ],
   cobros: [
-    {fechaCobro:'46095',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE',factura:'SI'},
-    {fechaCobro:'45742',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE',factura:'SI'},
-    {fechaCobro:'46122',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE',factura:'SI'},
-    {fechaCobro:'46097',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8333333',tipoCobro:'Cheque',estado:'PENDIENTE',factura:'SI'},
-    {fechaCobro:'46093',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'7764750',tipoCobro:'Cheque',estado:'PENDIENTE',factura:'SI'},
-    {fechaCobro:'46104',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8333333',tipoCobro:'Cheque',estado:'PENDIENTE',factura:'SI'}
+    {fechaCobro:'46095',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE'},
+    {fechaCobro:'45742',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE'},
+    {fechaCobro:'46122',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipoCobro:'Cheque',estado:'PENDIENTE'},
+    {fechaCobro:'46097',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8333333',tipoCobro:'Cheque',estado:'PENDIENTE'},
+    {fechaCobro:'46104',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8333333',tipoCobro:'Cheque',estado:'PENDIENTE'}
   ],
   cobrosRecibidos: [
-    {n:'204',fechaCobro:'46076',cliente:'SERIMAX',concepto:'MAQUINA',monto:'1822500',tipo:'ACTIVO FIJO',estado:'COBRADO'},
-    {n:'203',fechaCobro:'46071',cliente:'perla villalba',concepto:'Liquidacion',monto:'2303500',tipo:'SALARIOS',estado:'COBRADO'},
-    {n:'200',fechaCobro:'46070',cliente:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',tipo:'INSUMO',estado:'COBRADO'},
-    {n:'201',fechaCobro:'46070',cliente:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1985500',tipo:'INSUMO',estado:'COBRADO'},
-    {n:'202',fechaCobro:'46065',cliente:'GM Textil',concepto:'Compra de papel',monto:'2660000',tipo:'INSUMO',estado:'COBRADO'},
-    {n:'198',fechaCobro:'46061',cliente:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1939500',tipo:'INSUMO',estado:'COBRADO'},
-    {n:'197',fechaCobro:'46059',cliente:'Paraguay Textil SA',concepto:'compra de tela',monto:'3438959',tipo:'INSUMO',estado:'COBRADO'},
-    {n:'199',fechaCobro:'46058',cliente:'adela rios',concepto:'alquiler',monto:'3300000',tipo:'ALQUILER',estado:'COBRADO'},
-    {n:'196',fechaCobro:'46051',cliente:'GM Textil',concepto:'Compra de papel',monto:'1839675',tipo:'INSUMO',estado:'COBRADO'},
-    {n:'195',fechaCobro:'46044',cliente:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',tipo:'INSUMO',estado:'COBRADO'}
+    {n:'1',fechaCobro:'46093',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'7764750',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'2',fechaCobro:'46087',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'7764750',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'3',fechaCobro:'46083',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8335334',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'4',fechaCobro:'46083',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'5',fechaCobro:'46071',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'9471200',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'6',fechaCobro:'46070',cliente:'CHACOMER SAE',concepto:'BANDERAS',monto:'3480000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'7',fechaCobro:'46059',cliente:'sport group',concepto:'REMERAS',monto:'3540000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'8',fechaCobro:'46057',cliente:'KINGS TRAIL',concepto:'REMERAS',monto:'4515000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'9',fechaCobro:'46056',cliente:'sport group',concepto:'REMERAS',monto:'3540000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'10',fechaCobro:'46052',cliente:'FARMA OLIVA',concepto:'REMERAS',monto:'7614455',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'11',fechaCobro:'46052',cliente:'CRISTHIAN ZALAZAR',concepto:'EQUIPOS',monto:'6260000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'12',fechaCobro:'46052',cliente:'CRISTINA MARTINEZ',concepto:'REMERAS',monto:'1295000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'13',fechaCobro:'46051',cliente:'KINGS TRAIL',concepto:'REMERAS',monto:'13440000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'14',fechaCobro:'46048',cliente:'ESTEBAN NEXUS',concepto:'REMERAS',monto:'950000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'15',fechaCobro:'46038',cliente:'ALE SARAVIA',concepto:'EQUIPOS',monto:'4180000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'16',fechaCobro:'46034',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'5100000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'17',fechaCobro:'46028',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'5100000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'18',fechaCobro:'46021',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'5100000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'19',fechaCobro:'46019',cliente:'RENZO FERRARI',concepto:'EQUIPOS',monto:'65430000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'20',fechaCobro:'46016',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8821000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'21',fechaCobro:'46014',cliente:'WERNER',concepto:'PRENDAS',monto:'6395000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'22',fechaCobro:'46010',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8821000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'23',fechaCobro:'46007',cliente:'MIGUEL LEDEZMA',concepto:'CAMISETAS',monto:'625000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'24',fechaCobro:'46007',cliente:'KINGS TRAIL',concepto:'CAMISETAS',monto:'2150000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'25',fechaCobro:'46006',cliente:'VICTOR FERREIRA',concepto:'CAMISETAS',monto:'750000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'26',fechaCobro:'46005',cliente:'CLAUDIA BARBOZA',concepto:'CONJUNTOS',monto:'5175000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'27',fechaCobro:'46004',cliente:'EXEN',concepto:'REMERAS',monto:'18150000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'28',fechaCobro:'46004',cliente:'OLIVER MACHADO',concepto:'CAMISETAS',monto:'550000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'29',fechaCobro:'46003',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'5310000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'30',fechaCobro:'46003',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8821000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'31',fechaCobro:'45996',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8821000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'32',fechaCobro:'45993',cliente:'PMC',concepto:'REMERAS HIDROVIA',monto:'17040000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'33',fechaCobro:'45991',cliente:'CLAUDIA BARBOZA',concepto:'EQUIPOS CAMPO ALTO',monto:'5175000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'34',fechaCobro:'45990',cliente:'CHACOMER',concepto:'BANDERAS PY',monto:'2820909',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'35',fechaCobro:'45989',cliente:'MIGUEL LEDEZMA',concepto:'83 PRENDAS',monto:'3070000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'36',fechaCobro:'45989',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'8821000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'37',fechaCobro:'45982',cliente:'EXEN',concepto:'REMERAS',monto:'18150000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'38',fechaCobro:'45982',cliente:'RENZO FERRARI',concepto:'EQUIPOS OLIMPIA',monto:'40000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'39',fechaCobro:'45982',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'7500000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'40',fechaCobro:'45971',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'41',fechaCobro:'45961',cliente:'CHACOMER',concepto:'REMERAS ALBIRROJA',monto:'35930113',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'42',fechaCobro:'45961',cliente:'SPORT GROUP',concepto:'IRONMAN',monto:'8275000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'43',fechaCobro:'45961',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'9250000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'44',fechaCobro:'45959',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'45',fechaCobro:'45957',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'8500000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'46',fechaCobro:'45956',cliente:'SPORT GROUP',concepto:'PUNTO FARMA REMERA',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'47',fechaCobro:'45955',cliente:'SPORT GROUP',concepto:'CAMISETAS IRONMAN',monto:'15000000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'48',fechaCobro:'45953',cliente:'SPORT GROUP',concepto:'remeras ironman',monto:'10000000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'49',fechaCobro:'45950',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'8500000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'50',fechaCobro:'45949',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'10927600',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'51',fechaCobro:'45948',cliente:'SPORT GROUP',concepto:'CAMISETAS IRONMAN',monto:'15000000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'52',fechaCobro:'45946',cliente:'SPORT GROUP',concepto:'REMERAS IRONMAN',monto:'10927600',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'53',fechaCobro:'45946',cliente:'SPORT GROUP',concepto:'REMERAS IRONMAN',monto:'15000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'54',fechaCobro:'45943',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'8500000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'55',fechaCobro:'45941',cliente:'SPORT GROUP',concepto:'REMERAS PUNTO FARMA',monto:'15000000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'56',fechaCobro:'45940',cliente:'CHACOMER',concepto:'REMERAS ALBIRROJA',monto:'600000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'57',fechaCobro:'45938',cliente:'SPORT GROUP',concepto:'IRONMAN',monto:'8820000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'58',fechaCobro:'45937',cliente:'SAGRADA FAMILIA',concepto:'REMERAS',monto:'12380000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'59',fechaCobro:'45936',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'8500000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'60',fechaCobro:'45933',cliente:'SPORT GROUP',concepto:'REMERAS SALESIANITO',monto:'7000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'61',fechaCobro:'45933',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'62',fechaCobro:'45930',cliente:'SPORT GROUP',concepto:'REMERAS MIA',monto:'14000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'63',fechaCobro:'45930',cliente:'CHACOMER',concepto:'REMERAS ALBIRROJA',monto:'10943182',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'64',fechaCobro:'45929',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'65',fechaCobro:'45929',cliente:'SPORT GROUP',concepto:'REMERAS IRONMAN',monto:'10927600',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'66',fechaCobro:'45929',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'6750000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'67',fechaCobro:'45926',cliente:'SPORT GROUP',concepto:'REMERAS SALESIANITO',monto:'6000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'68',fechaCobro:'45925',cliente:'SPORT GROUP',concepto:'CAMISETAS MIA',monto:'15000000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'69',fechaCobro:'45923',cliente:'KINGS TRAIL CLUB',concepto:'REMERAS',monto:'14000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'70',fechaCobro:'45922',cliente:'SPORT GROUP',concepto:'REMERAS IRONMAN',monto:'10907200',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'71',fechaCobro:'45920',cliente:'TEA PY',concepto:'REMERAS AUTISMO',monto:'26355000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'72',fechaCobro:'45920',cliente:'CHACOMER',concepto:'REMERAS SERVOME',monto:'7295454',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'73',fechaCobro:'45920',cliente:'SPORT GROUP',concepto:'PUNTO FARMA',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'74',fechaCobro:'45920',cliente:'CHACOMER',concepto:'REMERAS ALBIRROJA',monto:'178150623',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'75',fechaCobro:'45919',cliente:'SPORT GROUP',concepto:'REMERAS SALESIANITO',monto:'6000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'76',fechaCobro:'45917',cliente:'SPORT GROUP',concepto:'REMERAS PUNTO FARMA',monto:'10000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'77',fechaCobro:'45916',cliente:'SPORT GROUP',concepto:'REMERAS MIA',monto:'15000000',tipo:'CHEQUE',estado:'RECIBIDO'},
+    {n:'78',fechaCobro:'45912',cliente:'SPORT GROUP',concepto:'PUNTO FARMA REMERA',monto:'23565000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'79',fechaCobro:'45912',cliente:'SAGRADA FAMILIA',concepto:'REMERAS',monto:'7500000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'80',fechaCobro:'45912',cliente:'CHACOMER',concepto:'REMERAS CHACOMER',monto:'17941955',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'81',fechaCobro:'45911',cliente:'VICTOR NIELLA',concepto:'CAMISETAS Y CAMPERAS',monto:'4500000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'82',fechaCobro:'45910',cliente:'SPORT GROUP',concepto:'PUNTO FARMA REMERA',monto:'10000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'83',fechaCobro:'45910',cliente:'SAGRADA FAMILIA',concepto:'REMERAS',monto:'5000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'84',fechaCobro:'45910',cliente:'SPORT GROUP',concepto:'REMERAS SALESIANITO',monto:'6000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'85',fechaCobro:'45910',cliente:'SPORT GROUP',concepto:'REMERAS MIA',monto:'10948000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'86',fechaCobro:'45906',cliente:'SPORT GROUP',concepto:'CAMISETAS MIA',monto:'15000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'87',fechaCobro:'45903',cliente:'SPORT GROUP',concepto:'PUNTO FARMA REMERA',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'88',fechaCobro:'45903',cliente:'KINGS TRAIL',concepto:'REMEAS',monto:'16716000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'89',fechaCobro:'45903',cliente:'PMC',concepto:'BUFF MIA',monto:'10000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'90',fechaCobro:'45903',cliente:'PMC',concepto:'MIA',monto:'23000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'91',fechaCobro:'45898',cliente:'SPORT GROUP',concepto:'CAMISETAS MIA',monto:'10000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'92',fechaCobro:'45897',cliente:'SPORT GROUP',concepto:'REMERAS PUNTO FARMA',monto:'5000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'93',fechaCobro:'45892',cliente:'SPORT GROUP',concepto:'PUNTO FARMA REMERA',monto:'20000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'94',fechaCobro:'45890',cliente:'SPORT GROUP',concepto:'REMERAS PUNTO FARMA',monto:'7000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'95',fechaCobro:'45888',cliente:'JOHANA BERNAL',concepto:'CAMPERA Y PANTALON',monto:'1520000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'96',fechaCobro:'45888',cliente:'CHACOMER',concepto:'REMERAS ALBIRROJA',monto:'113809000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'97',fechaCobro:'45887',cliente:'TEA PY',concepto:'REMERAS AUTISMO',monto:'25000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'98',fechaCobro:'45884',cliente:'TEA PY',concepto:'REMERAS',monto:'25000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'99',fechaCobro:'45883',cliente:'SNT',concepto:'REMERAS SNT',monto:'50600000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'100',fechaCobro:'45883',cliente:'SPORT GROUP',concepto:'REMERAS PUNTO FARMA',monto:'7000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'101',fechaCobro:'45880',cliente:'RICARDO SANCHEZ',concepto:'CAMISETAS Y CAMISILLAS',monto:'545000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'102',fechaCobro:'45880',cliente:'SPORT GROUP',concepto:'PUNTO FARMA REMERA',monto:'25000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'103',fechaCobro:'45877',cliente:'SPORT GROUP',concepto:'SALESIANITO',monto:'25000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'104',fechaCobro:'45875',cliente:'EXEN',concepto:'CAMISETAS',monto:'912000',tipo:'',estado:'RECIBIDO'},
+    {n:'105',fechaCobro:'45873',cliente:'EDUARDO FRANCO',concepto:'CAMISETAS',monto:'200000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'106',fechaCobro:'45873',cliente:'SAGRADA FAMILIA',concepto:'REMERAS Y MOCHILAS',monto:'13020000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'107',fechaCobro:'45873',cliente:'SOFIA PEREZ',concepto:'EQUIPOS Y CAMISETAS',monto:'1830000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'108',fechaCobro:'45871',cliente:'GIULIANO POLETTI',concepto:'CONJUNTOS DE PRACTICA',monto:'1100000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'109',fechaCobro:'45869',cliente:'CHACOMER',concepto:'EQUIPOS',monto:'2494000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'110',fechaCobro:'45869',cliente:'CHACOMER',concepto:'CAMISETAS RALLY',monto:'18000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'111',fechaCobro:'45869',cliente:'FEDERACION LUQUEÑA',concepto:'CAMISETA',monto:'140000',tipo:'',estado:'RECIBIDO'},
+    {n:'112',fechaCobro:'45869',cliente:'PAOLA GANDOLFO',concepto:'EQUIPO COMPLETO',monto:'1020000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'113',fechaCobro:'45867',cliente:'FPA',concepto:'CONJUNTOS',monto:'19897000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'114',fechaCobro:'45866',cliente:'SOLEDAD SERVIAN',concepto:'CAMISETAS',monto:'1215000',tipo:'',estado:'RECIBIDO'},
+    {n:'115',fechaCobro:'45866',cliente:'SOFIA PEREZ',concepto:'CONJUNTOS FUTBOL  Y CAMISETAS',monto:'2000000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'116',fechaCobro:'45865',cliente:'MARIA FERNANDA SERVIAN',concepto:'EQUIPOS COMPLETOS Y CAMISETAS',monto:'1650000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'117',fechaCobro:'45864',cliente:'IVONNE GINNAR',concepto:'CAMISETAS',monto:'370000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'118',fechaCobro:'45864',cliente:'MARIA FERNANDA',concepto:'EQUIPOS COMPLETOS Y CAMISETAS',monto:'1660000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'119',fechaCobro:'45864',cliente:'PAOLA OTTIS',concepto:'CAMISETAS',monto:'695000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'120',fechaCobro:'45864',cliente:'ENZO GUERRERO',concepto:'EQUIPOS Y CAMISETAS',monto:'3335000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'121',fechaCobro:'45863',cliente:'EMIGDIO MENDIENTA',concepto:'BANDERA',monto:'245000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'122',fechaCobro:'45863',cliente:'AREA KIDS',concepto:'PANEL OVALADO PITUFO',monto:'168000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'123',fechaCobro:'45861',cliente:'SELENE FISHER',concepto:'CAMISETA',monto:'68000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'124',fechaCobro:'45850',cliente:'Federacion Luquena',concepto:'Conjuntos',monto:'8090000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'125',fechaCobro:'45849',cliente:'Sport Group',concepto:'Camisetas',monto:'13894000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'126',fechaCobro:'45846',cliente:'Sport Group',concepto:'Camisetas X',monto:'11000000',tipo:'Cheque',estado:'RECIBIDO'},
+    {n:'127',fechaCobro:'45846',cliente:'NATHALIA RUSSO',concepto:'CAMISETAS',monto:'215000',tipo:'Transferencia',estado:'RECIBIDO'},
+    {n:'128',fechaCobro:'45842',cliente:'SPORT GROUP SA',concepto:'Sena corrida Mia',monto:'15000000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'129',fechaCobro:'45842',cliente:'SPORT GROUP SA',concepto:'Parte de pago',monto:'11000000',tipo:'Cheque',estado:'COBRADO'},
+    {n:'130',fechaCobro:'45842',cliente:'Chacomer',concepto:'',monto:'2293636',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'131',fechaCobro:'45842',cliente:'Chacomer',concepto:'',monto:'6667636',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'132',fechaCobro:'45842',cliente:'Jessica Gonzalez',concepto:'',monto:'1500000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'133',fechaCobro:'45842',cliente:'Renato Filipini',concepto:'Cancelacion',monto:'1450000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'134',fechaCobro:'45842',cliente:'Patricia Gaona',concepto:'',monto:'2750000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'135',fechaCobro:'45841',cliente:'Victor Niella',concepto:'Cancelacion',monto:'8000000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'136',fechaCobro:'45841',cliente:'Camila Feltes',concepto:'x',monto:'605000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'137',fechaCobro:'45840',cliente:'Fabiana Paredes',concepto:'x',monto:'1100000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'138',fechaCobro:'45840',cliente:'Fed Pya de Atletismo',concepto:'Cancelacion',monto:'1594000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'139',fechaCobro:'45840',cliente:'Veronica Ghelli',concepto:'x',monto:'1000000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'140',fechaCobro:'45839',cliente:'SPORT GROUP SA',concepto:'Sena corrida Mia',monto:'30000000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'141',fechaCobro:'45839',cliente:'Giulianno Poletti',concepto:'Sena Conjuntos Hayes',monto:'5000000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'142',fechaCobro:'45839',cliente:'Blasida Espinola',concepto:'x',monto:'578500',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'143',fechaCobro:'45839',cliente:'Kings Trail Club',concepto:'Cancelacion Camisetas Luison',monto:'3035000',tipo:'Transferencia',estado:'COBRADO'},
+    {n:'144',fechaCobro:'44549',cliente:'SPORT GROUP',concepto:'REMERAS',monto:'5160000',tipo:'Cheque',estado:'RECIBIDO'}
   ],
   disponible: [
+    {fecha:'46095',caja:0,conti:96406706,ueno:0,otros:0,total:96406706},
+    {fecha:'46094',caja:0,conti:103077364,ueno:0,otros:0,total:103077364},
+    {fecha:'46093',caja:0,conti:85045749,ueno:0,otros:0,total:85045749},
     {fecha:'46091',caja:0,conti:28855000,ueno:0,otros:0,total:28855000},
     {fecha:'46090',caja:0,conti:35061003,ueno:0,otros:0,total:35061003},
     {fecha:'46088',caja:0,conti:45258288,ueno:0,otros:0,total:45258288},
     {fecha:'46087',caja:0,conti:27452066,ueno:0,otros:0,total:27452066},
     {fecha:'46086',caja:0,conti:56570428,ueno:0,otros:0,total:56570428},
-    {fecha:'46085',caja:0,conti:44224805,ueno:0,otros:0,total:44224805}
+    {fecha:'46085',caja:0,conti:44224805,ueno:0,otros:0,total:44224805},
+    {fecha:'46084',caja:0,conti:25025335,ueno:0,otros:0,total:25025335},
+    {fecha:'46083',caja:0,conti:24588357,ueno:0,otros:0,total:24588357},
+    {fecha:'46080',caja:0,conti:28382203,ueno:0,otros:0,total:28382203},
+    {fecha:'46079',caja:0,conti:28382416,ueno:0,otros:0,total:28382416},
+    {fecha:'46078',caja:0,conti:24790656,ueno:0,otros:0,total:24790656},
+    {fecha:'46077',caja:0,conti:31580390,ueno:0,otros:0,total:31580390},
+    {fecha:'46076',caja:0,conti:36014239,ueno:0,otros:0,total:36014239},
+    {fecha:'46075',caja:0,conti:24854990,ueno:0,otros:0,total:24854990},
+    {fecha:'46074',caja:0,conti:50251607,ueno:0,otros:0,total:50251607},
+    {fecha:'46073',caja:0,conti:16975991,ueno:0,otros:0,total:16975991},
+    {fecha:'46071',caja:0,conti:23000000,ueno:0,otros:0,total:23000000},
+    {fecha:'46069',caja:0,conti:39008375,ueno:0,otros:0,total:39008375},
+    {fecha:'46066',caja:0,conti:33113417,ueno:0,otros:0,total:33113417},
+    {fecha:'46065',caja:0,conti:29047014,ueno:0,otros:0,total:29047014},
+    {fecha:'46064',caja:0,conti:36078929,ueno:0,otros:0,total:36078929},
+    {fecha:'46063',caja:0,conti:21427189,ueno:0,otros:0,total:21427189},
+    {fecha:'46062',caja:0,conti:26526885,ueno:0,otros:0,total:26526885},
+    {fecha:'46061',caja:0,conti:27974095,ueno:0,otros:0,total:27974095},
+    {fecha:'46058',caja:0,conti:46550010,ueno:0,otros:0,total:46550010},
+    {fecha:'46056',caja:0,conti:65125703,ueno:0,otros:0,total:65125703},
+    {fecha:'46055',caja:0,conti:73869173,ueno:0,otros:0,total:73869173},
+    {fecha:'46052',caja:0,conti:73858728,ueno:0,otros:0,total:73858728},
+    {fecha:'46051',caja:0,conti:84823750,ueno:0,otros:0,total:84823750},
+    {fecha:'46048',caja:0,conti:92336845,ueno:0,otros:0,total:92336845},
+    {fecha:'46046',caja:0,conti:80105887,ueno:0,otros:0,total:80105887},
+    {fecha:'46045',caja:0,conti:84425750,ueno:0,otros:0,total:84425750},
+    {fecha:'46044',caja:0,conti:102958419,ueno:0,otros:0,total:102958419},
+    {fecha:'46041',caja:0,conti:61731300,ueno:0,otros:0,total:61731300},
+    {fecha:'46038',caja:0,conti:69852187,ueno:0,otros:0,total:69852187},
+    {fecha:'46037',caja:0,conti:71963893,ueno:0,otros:0,total:71963893},
+    {fecha:'46036',caja:0,conti:69389714,ueno:0,otros:0,total:69389714},
+    {fecha:'46032',caja:0,conti:87064548,ueno:0,otros:0,total:87064548},
+    {fecha:'46030',caja:0,conti:78908874,ueno:0,otros:0,total:78908874},
+    {fecha:'46029',caja:0,conti:82456508,ueno:0,otros:0,total:82456508},
+    {fecha:'46028',caja:0,conti:111843583,ueno:0,otros:0,total:111843583},
+    {fecha:'46017',caja:0,conti:117659887,ueno:0,otros:0,total:117659887},
+    {fecha:'46013',caja:0,conti:43721141,ueno:0,otros:0,total:43721141},
+    {fecha:'46010',caja:0,conti:27082100,ueno:0,otros:0,total:27082100},
+    {fecha:'46009',caja:0,conti:14126972,ueno:0,otros:0,total:14126972},
+    {fecha:'46008',caja:0,conti:23293382,ueno:0,otros:0,total:23293382},
+    {fecha:'46007',caja:0,conti:13875283,ueno:0,otros:0,total:13875283},
+    {fecha:'46006',caja:0,conti:17214337,ueno:0,otros:0,total:17214337},
+    {fecha:'46005',caja:0,conti:40289651,ueno:0,otros:0,total:40289651},
+    {fecha:'46003',caja:0,conti:5048880,ueno:0,otros:0,total:5048880},
+    {fecha:'46001',caja:0,conti:8173541,ueno:0,otros:0,total:8173541},
+    {fecha:'46000',caja:0,conti:23245718,ueno:0,otros:0,total:23245718},
+    {fecha:'45997',caja:0,conti:26197746,ueno:0,otros:0,total:26197746},
+    {fecha:'45996',caja:0,conti:49587176,ueno:0,otros:0,total:49587176},
+    {fecha:'45995',caja:0,conti:49794100,ueno:0,otros:0,total:49794100},
+    {fecha:'45993',caja:0,conti:52024896,ueno:0,otros:0,total:52024896},
+    {fecha:'45990',caja:0,conti:79022836,ueno:0,otros:0,total:79022836},
+    {fecha:'45989',caja:0,conti:85986456,ueno:0,otros:0,total:85986456},
+    {fecha:'45988',caja:0,conti:53000000,ueno:0,otros:0,total:53000000},
+    {fecha:'45986',caja:0,conti:44060891,ueno:0,otros:0,total:44060891},
+    {fecha:'45985',caja:0,conti:58339410,ueno:0,otros:0,total:58339410},
+    {fecha:'45982',caja:0,conti:46907675,ueno:0,otros:0,total:46907675},
+    {fecha:'45981',caja:0,conti:47374542,ueno:0,otros:0,total:47374542},
+    {fecha:'45979',caja:0,conti:39429655,ueno:0,otros:0,total:39429655},
+    {fecha:'45977',caja:0,conti:22225456,ueno:0,otros:0,total:22225456},
+    {fecha:'45972',caja:0,conti:66964611,ueno:0,otros:0,total:66964611},
+    {fecha:'45972',caja:0,conti:66964611,ueno:0,otros:0,total:66964611},
+    {fecha:'45968',caja:0,conti:82969737,ueno:0,otros:0,total:82969737},
+    {fecha:'45967',caja:0,conti:80969737,ueno:0,otros:0,total:80969737},
+    {fecha:'45965',caja:0,conti:143449652,ueno:0,otros:0,total:143449652},
+    {fecha:'45964',caja:0,conti:214068370,ueno:0,otros:0,total:214068370},
+    {fecha:'45961',caja:0,conti:95224165,ueno:0,otros:0,total:95224165},
+    {fecha:'45960',caja:0,conti:96513664,ueno:0,otros:0,total:96513664},
+    {fecha:'45957',caja:0,conti:55272130,ueno:0,otros:0,total:55272130},
+    {fecha:'45955',caja:0,conti:52087689,ueno:0,otros:0,total:52087689},
+    {fecha:'45952',caja:0,conti:61292445,ueno:0,otros:0,total:61292445},
+    {fecha:'45947',caja:0,conti:62455796,ueno:0,otros:0,total:62455796},
+    {fecha:'45939',caja:0,conti:110522361,ueno:0,otros:0,total:110522361},
+    {fecha:'45938',caja:0,conti:91918553,ueno:0,otros:0,total:91918553},
+    {fecha:'45936',caja:0,conti:83132252,ueno:0,otros:0,total:83132252},
+    {fecha:'45934',caja:0,conti:131706184,ueno:0,otros:0,total:131706184},
+    {fecha:'45933',caja:0,conti:135350108,ueno:0,otros:0,total:135350108},
+    {fecha:'45931',caja:0,conti:150075198,ueno:0,otros:0,total:150075198},
+    {fecha:'45930',caja:0,conti:132311219,ueno:0,otros:0,total:132311219},
+    {fecha:'45929',caja:0,conti:137411694,ueno:0,otros:0,total:137411694},
+    {fecha:'45927',caja:0,conti:140367730,ueno:0,otros:0,total:140367730},
+    {fecha:'45926',caja:0,conti:190267476,ueno:0,otros:0,total:190267476},
+    {fecha:'45925',caja:0,conti:195748600,ueno:0,otros:0,total:195748600},
+    {fecha:'45923',caja:0,conti:218738759,ueno:0,otros:0,total:218738759},
+    {fecha:'45922',caja:0,conti:209723859,ueno:0,otros:0,total:209723859},
+    {fecha:'45919',caja:0,conti:219996005,ueno:0,otros:0,total:219996005},
+    {fecha:'45917',caja:0,conti:64035868,ueno:0,otros:0,total:64035868},
+    {fecha:'45916',caja:0,conti:60700223,ueno:0,otros:0,total:60700223},
+    {fecha:'45915',caja:0,conti:44822565,ueno:0,otros:0,total:44822565},
+    {fecha:'45913',caja:0,conti:73198818,ueno:0,otros:0,total:73198818},
+    {fecha:'45912',caja:0,conti:44618261,ueno:0,otros:0,total:44618261},
+    {fecha:'45911',caja:0,conti:27972461,ueno:0,otros:0,total:27972461},
+    {fecha:'45910',caja:0,conti:36154452,ueno:0,otros:0,total:36154452},
+    {fecha:'45909',caja:0,conti:31724685,ueno:0,otros:0,total:31724685},
+    {fecha:'45908',caja:0,conti:26645337,ueno:0,otros:0,total:26645337},
+    {fecha:'45906',caja:0,conti:52659707,ueno:0,otros:0,total:52659707},
+    {fecha:'45905',caja:0,conti:73726067,ueno:0,otros:0,total:73726067},
+    {fecha:'45904',caja:0,conti:90604909,ueno:0,otros:0,total:90604909},
+    {fecha:'45903',caja:0,conti:70228000,ueno:0,otros:0,total:70228000},
+    {fecha:'45902',caja:0,conti:10898056,ueno:0,otros:0,total:10898056},
+    {fecha:'45901',caja:0,conti:15765406,ueno:0,otros:0,total:15765406},
+    {fecha:'45899',caja:0,conti:23730401,ueno:0,otros:0,total:23730401},
+    {fecha:'45897',caja:0,conti:63335718,ueno:0,otros:0,total:63335718},
+    {fecha:'45895',caja:0,conti:84954121,ueno:0,otros:0,total:84954121},
+    {fecha:'45894',caja:0,conti:85174644,ueno:0,otros:0,total:85174644},
+    {fecha:'45892',caja:0,conti:110419379,ueno:0,otros:0,total:110419379},
+    {fecha:'45890',caja:0,conti:121354214,ueno:0,otros:0,total:121354214},
+    {fecha:'45889',caja:0,conti:148608339,ueno:0,otros:0,total:148608339},
+    {fecha:'45888',caja:0,conti:32723000,ueno:0,otros:0,total:32723000},
+    {fecha:'45887',caja:0,conti:62317114,ueno:0,otros:0,total:62317114},
+    {fecha:'45884',caja:0,conti:42176870,ueno:0,otros:0,total:42176870},
+    {fecha:'45883',caja:0,conti:67741116,ueno:0,otros:0,total:67741116},
+    {fecha:'45882',caja:0,conti:34366490,ueno:0,otros:0,total:34366490},
+    {fecha:'45881',caja:0,conti:57542080,ueno:0,otros:0,total:57542080},
+    {fecha:'45880',caja:0,conti:38681724,ueno:0,otros:0,total:38681724},
+    {fecha:'45879',caja:2000000,conti:48035861,ueno:8350851,otros:0,total:58386712},
+    {fecha:'45878',caja:1800000,conti:58123606,ueno:8350851,otros:0,total:68274457},
+    {fecha:'45877',caja:1800000,conti:60506009,ueno:8350851,otros:0,total:70656860},
+    {fecha:'45876',caja:1902173,conti:64033891,ueno:8138351,otros:0,total:74074415},
+    {fecha:'45874',caja:2000000,conti:43504473,ueno:8138351,otros:0,total:53642824},
+    {fecha:'45873',caja:1266723,conti:59026453,ueno:8138351,otros:0,total:68431527},
+    {fecha:'45870',caja:1500000,conti:73641846,ueno:8138351,otros:0,total:83280197},
+    {fecha:'45868',caja:2500000,conti:92111195,ueno:8138351,otros:0,total:102749546},
+    {fecha:'45867',caja:2739173,conti:53387683,ueno:8138351,otros:0,total:64265207},
+    {fecha:'45866',caja:2739173,conti:15546551,ueno:8138351,otros:0,total:26424075},
+    {fecha:'45863',caja:2293385,conti:13173896,ueno:8138351,otros:0,total:23605632},
+    {fecha:'45862',caja:1485469,conti:46425487,ueno:8138351,otros:0,total:56049307},
+    {fecha:'45861',caja:1606957,conti:55195181,ueno:8138351,otros:0,total:64940489},
+    {fecha:'45860',caja:1619000,conti:58285708,ueno:8138351,otros:0,total:68043059},
+    {fecha:'45857',caja:2500000,conti:41340989,ueno:8138351,otros:0,total:51979340},
+    {fecha:'45856',caja:200000,conti:52806840,ueno:8138351,otros:0,total:61145191},
+    {fecha:'45855',caja:230000,conti:60338083,ueno:8138351,otros:0,total:68706434},
+    {fecha:'45854',caja:549879,conti:61804792,ueno:8138351,otros:0,total:70493022},
+    {fecha:'45853',caja:549879,conti:48979944,ueno:8138351,otros:0,total:57668174},
+    {fecha:'45852',caja:717279,conti:58572298,ueno:5354796,otros:0,total:64644373},
+    {fecha:'45851',caja:717279,conti:77761823,ueno:5354796,otros:0,total:83833898},
+    {fecha:'45850',caja:1200000,conti:75919763,ueno:5354796,otros:0,total:82474559},
+    {fecha:'45848',caja:2000000,conti:69252102,ueno:5354796,otros:0,total:76606898},
+    {fecha:'45847',caja:2300000,conti:65777118,ueno:5354796,otros:0,total:73431914},
+    {fecha:'45845',caja:500000,conti:74820312,ueno:5354796,otros:0,total:80675108},
+    {fecha:'45843',caja:500000,conti:77705788,ueno:5354796,otros:0,total:83560584},
+    {fecha:'45842',caja:500000,conti:82849854,ueno:5244296,otros:0,total:88594150},
+    {fecha:'45841',caja:500000,conti:61185249,ueno:5244296,otros:0,total:66929545},
+    {fecha:'45840',caja:1500000,conti:57834800,ueno:5244296,otros:0,total:64579096},
+    {fecha:'45838',caja:2000000,conti:26499841,ueno:5244296,otros:0,total:33744137},
+    {fecha:'45836',caja:799896,conti:38356535,ueno:5244296,otros:0,total:44400727},
+    {fecha:'45835',caja:1000000,conti:41000000,ueno:5000000,otros:0,total:47000000},
+    {fecha:'45835',caja:2000000,conti:40000000,ueno:2000000,otros:0,total:44000000},
+    {fecha:'45834',caja:1565000,conti:42981845,ueno:5244296,otros:0,total:49791141},
+    {fecha:'45834',caja:1564000,conti:42981845,ueno:5244296,otros:0,total:49790141}
   ],
   balance: [
     {fecha:'10/03/2026',pagar:2660000,cobrar:9471200,disponible:28855000,neto:35666200},
@@ -1180,118 +1495,398 @@ const DEFAULT_DATA = {
     {fecha:'Domingo 29/03/2026',dia:29,mes:3,anio:2026,total:5700000,items:[{ben:'Paraguay Textil SA',monto:5700000,tipo:'INSUMO'}]}
   ],
   chequesCobrados: [
-    {fecha:'46049',cheque:'204',beneficiario:'SERIMAX',concepto:'MAQUINA',monto:'1822500',vto:'46055',tipo:'ACTIVO FIJO',estado:'COBRADO',fechaCobro:'46050',cuenta:'Continental'},
-    {fecha:'46061',cheque:'203',beneficiario:'perla villalba',concepto:'Liquidacion',monto:'2303500',vto:'46061',tipo:'SALARIOS',estado:'COBRADO',fechaCobro:'46061',cuenta:'Continental'},
-    {fecha:'46026',cheque:'200',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',vto:'46049',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46049',cuenta:'Continental'},
-    {fecha:'46026',cheque:'201',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1985500',vto:'46049',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46049',cuenta:'Continental'},
-    {fecha:'46019',cheque:'202',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'2660000',vto:'46044',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46044',cuenta:'Continental'},
-    {fecha:'46018',cheque:'198',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1939500',vto:'46040',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46040',cuenta:'Continental'},
-    {fecha:'45904',cheque:'197',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3438959',vto:'46033',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46033',cuenta:'Continental'},
-    {fecha:'46039',cheque:'199',beneficiario:'adela rios',concepto:'alquiler',monto:'3300000',vto:'46039',tipo:'ALQUILER',estado:'COBRADO',fechaCobro:'46037',cuenta:'Continental'},
-    {fecha:'45989',cheque:'196',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'1839675',vto:'46011',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46011',cuenta:'Continental'},
-    {fecha:'45964',cheque:'195',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',vto:'46004',tipo:'INSUMO',estado:'COBRADO',fechaCobro:'46004',cuenta:'Continental'}
+    {cheque:'204',fechaCobro:'46076',beneficiario:'SERIMAX',concepto:'MAQUINA',monto:'1822500',tipo:'ACTIVO FIJO',vto:'46045',estado:'COBRADO'},
+    {cheque:'203',fechaCobro:'46071',beneficiario:'perla villalba',concepto:'Liquidacion',monto:'2303500',tipo:'SALARIOS',vto:'46071',estado:'COBRADO'},
+    {cheque:'200',fechaCobro:'46070',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'2580000',tipo:'INSUMO',vto:'46036',estado:'COBRADO'},
+    {cheque:'201',fechaCobro:'46070',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1985500',tipo:'INSUMO',vto:'46036',estado:'COBRADO'},
+    {cheque:'202',fechaCobro:'46065',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'2660000',tipo:'INSUMO',vto:'46030',estado:'COBRADO'},
+    {cheque:'198',fechaCobro:'46061',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',monto:'1939500',tipo:'INSUMO',vto:'46028',estado:'COBRADO'},
+    {cheque:'197',fechaCobro:'46059',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3438959',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'199',fechaCobro:'46058',beneficiario:'adela rios',concepto:'alquiler',monto:'3300000',tipo:'ALQUILER',vto:'46060',estado:'COBRADO'},
+    {cheque:'196',fechaCobro:'46051',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'1839675',tipo:'INSUMO',vto:'46020',estado:'COBRADO'},
+    {cheque:'195',fechaCobro:'46044',beneficiario:'Paraguay Textil SA',concepto:'COMPRA DE TELA',monto:'4100000',tipo:'INSUMO',vto:'45995',estado:'COBRADO'},
+    {cheque:'193',fechaCobro:'46035',beneficiario:'ITAIPU TEXTIL',concepto:'TELA',monto:'984500',tipo:'INSUMO',vto:'46003',estado:'COBRADO'},
+    {cheque:'192',fechaCobro:'46027',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1042863',tipo:'INSUMO',vto:'45931',estado:'COBRADO'},
+    {cheque:'194',fechaCobro:'46013',beneficiario:'GM Textil',concepto:'Compra de papel',monto:'2852000',tipo:'INSUMO',vto:'45980',estado:'COBRADO'},
+    {cheque:'191',fechaCobro:'46012',beneficiario:'ITAiPU TEXTILES SA',concepto:'COMPRA DE TELA',monto:'1961500',tipo:'INSUMO',vto:'45976',estado:'COBRADO'},
+    {cheque:'190',fechaCobro:'46009',beneficiario:'Politex Importaciones SA',concepto:'insumos',monto:'1299408',tipo:'INSUMO',vto:'45976',estado:'COBRADO'},
+    {cheque:'189',fechaCobro:'46008',beneficiario:'Serimax SRL',concepto:'compra de insumos',monto:'3916500',tipo:'INSUMO',vto:'45887',estado:'COBRADO'},
+    {cheque:'188',fechaCobro:'46007',beneficiario:'ITAiPU TEXTILES SA',concepto:'compra de tela',monto:'6857000',tipo:'INSUMO',vto:'45978',estado:'COBRADO'},
+    {cheque:'187',fechaCobro:'46004',beneficiario:'Politex Importaciones SA',concepto:'insumos',monto:'1273728',tipo:'INSUMO',vto:'45971',estado:'COBRADO'},
+    {cheque:'186',fechaCobro:'46002',beneficiario:'Paraguay Textil SA',concepto:'insumos',monto:'3431747',tipo:'INSUMO',vto:'45968',estado:'COBRADO'},
+    {cheque:'183',fechaCobro:'46000',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1923392',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'181',fechaCobro:'45999',beneficiario:'Paraguay Textil SA',concepto:'insumos',monto:'3174454',tipo:'INSUMO',vto:'45968',estado:'COBRADO'},
+    {cheque:'182',fechaCobro:'45999',beneficiario:'Paraguay Textil SA',concepto:'insumos',monto:'2143241',tipo:'INSUMO',vto:'45968',estado:'COBRADO'},
+    {cheque:'185',fechaCobro:'45997',beneficiario:'Corporacion Textil SA',concepto:'compra de papel',monto:'1973364',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'180',fechaCobro:'45992',beneficiario:'Serimax SRL',concepto:'compra de tinta',monto:'1972000',tipo:'INSUMO',vto:'45891',estado:'COBRADO'},
+    {cheque:'184',fechaCobro:'45989',beneficiario:'GM Textil',concepto:'COMPRA DE INSUMOS',monto:'1935000',tipo:'INSUMO',vto:'45957',estado:'COBRADO'},
+    {cheque:'179',fechaCobro:'45977',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'837168',tipo:'INSUMO',vto:'45947',estado:'COBRADO'},
+    {cheque:'178',fechaCobro:'45975',beneficiario:'ITAIPU TEXTILES SA',concepto:'compra de tela',monto:'11689500',tipo:'INSUMO',vto:'45944',estado:'COBRADO'},
+    {cheque:'176',fechaCobro:'45973',beneficiario:'Corporacion Textil SA',concepto:'COMPRA DE TELA',monto:'2001000',tipo:'INSUMO',vto:'45940',estado:'COBRADO'},
+    {cheque:'177',fechaCobro:'45973',beneficiario:'GM Textil',concepto:'compra de papel',monto:'3870000',tipo:'INSUMO',vto:'45940',estado:'COBRADO'},
+    {cheque:'174',fechaCobro:'45972',beneficiario:'Paraguay Textil SA',concepto:'compra tela',monto:'3589696',tipo:'INSUMO',vto:'45805',estado:'COBRADO'},
+    {cheque:'173',fechaCobro:'45971',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'2187909',tipo:'INSUMO',vto:'45867',estado:'COBRADO'},
+    {cheque:'175',fechaCobro:'45971',beneficiario:'ITAIPU TEXTILES SA',concepto:'COMPRA DE TELA',monto:'20162500',tipo:'INSUMO',vto:'45923',estado:'COBRADO'},
+    {cheque:'171',fechaCobro:'45970',beneficiario:'Corporacion Textil SA',concepto:'Compra de tela',monto:'5536136',tipo:'INSUMO',vto:'45867',estado:'COBRADO'},
+    {cheque:'170',fechaCobro:'45969',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1330464',tipo:'INSUMO',vto:'45940',estado:'COBRADO'},
+    {cheque:'172',fechaCobro:'45969',beneficiario:'Serimax SRL',concepto:'COMPRA DE PAPEL',monto:'1779500',tipo:'INSUMO',vto:'45880',estado:'COBRADO'},
+    {cheque:'169',fechaCobro:'45967',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3435000',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'168',fechaCobro:'45964',beneficiario:'Paraguay Textil SA',concepto:'DEUDA TELA',monto:'6976233',tipo:'INSUMO',vto:'45929',estado:'COBRADO'},
+    {cheque:'167',fechaCobro:'45962',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1042000',tipo:'INSUMO',vto:'45931',estado:'COBRADO'},
+    {cheque:'165',fechaCobro:'45960',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1061872',tipo:'INSUMO',vto:'45869',estado:'COBRADO'},
+    {cheque:'166',fechaCobro:'45953',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa 38/90',monto:'5695609',tipo:'PRESTAMO',vto:'45875',estado:'COBRADO'},
+    {cheque:'164',fechaCobro:'45952',beneficiario:'Serimax SRL',concepto:'compra de tinta',monto:'1100000',tipo:'INSUMO',vto:'45888',estado:'COBRADO'},
+    {cheque:'163',fechaCobro:'45950',beneficiario:'GM Textil',concepto:'compra de papel',monto:'3227500',tipo:'INSUMO',vto:'45917',estado:'COBRADO'},
+    {cheque:'162',fechaCobro:'45949',beneficiario:'MAQUICENTER',concepto:'CUOTA CALANDRA',monto:'5850000',tipo:'ACTIVO FIJO',vto:'45919',estado:'COBRADO'},
+    {cheque:'160',fechaCobro:'45946',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1297387',tipo:'INSUMO',vto:'45880',estado:'COBRADO'},
+    {cheque:'161',fechaCobro:'45946',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'761040',tipo:'INSUMO',vto:'45917',estado:'COBRADO'},
+    {cheque:'157',fechaCobro:'45939',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1922000',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'159',fechaCobro:'45938',beneficiario:'GM Textil',concepto:'compra de papel',monto:'3275000',tipo:'INSUMO',vto:'45906',estado:'COBRADO'},
+    {cheque:'156',fechaCobro:'45937',beneficiario:'Serimax SRL',concepto:'compra de tintas',monto:'1876000',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'155',fechaCobro:'45936',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1023856',tipo:'INSUMO',vto:'45901',estado:'COBRADO'},
+    {cheque:'158',fechaCobro:'45936',beneficiario:'Corporacion Textil SA',concepto:'compra de papel',monto:'1950000',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'154',fechaCobro:'45932',beneficiario:'Serimax SRL',concepto:'compra de tinta',monto:'1968000',tipo:'INSUMO',vto:'45891',estado:'COBRADO'},
+    {cheque:'152',fechaCobro:'45931',beneficiario:'Serimax SRL',concepto:'Compra de papel',monto:'2920300',tipo:'INSUMO',vto:'45889',estado:'COBRADO'},
+    {cheque:'153',fechaCobro:'45931',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1060600',tipo:'INSUMO',vto:'45869',estado:'COBRADO'},
+    {cheque:'150',fechaCobro:'45929',beneficiario:'Serimax SRL',concepto:'compra de papel',monto:'1282500',tipo:'INSUMO',vto:'45842',estado:'COBRADO'},
+    {cheque:'151',fechaCobro:'45927',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'CUOTA 40/90',monto:'5689921',tipo:'PRESTAMO',vto:'45927',estado:'COBRADO'},
+    {cheque:'148',fechaCobro:'45925',beneficiario:'Paraguay Textil SA',concepto:'DEUDA TELA',monto:'9888648',tipo:'INSUMO',vto:'45925',estado:'COBRADO'},
+    {cheque:'147',fechaCobro:'45924',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1284000',tipo:'INSUMO',vto:'45888',estado:'COBRADO'},
+    {cheque:'145',fechaCobro:'45923',beneficiario:'Serimax SRL',concepto:'Compra de papel',monto:'917000',tipo:'INSUMO',vto:'45831',estado:'COBRADO'},
+    {cheque:'146',fechaCobro:'45923',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'2428378',tipo:'INSUMO',vto:'45797',estado:'COBRADO'},
+    {cheque:'143',fechaCobro:'45922',beneficiario:'Serimax SRL',concepto:'compra de tinta',monto:'1165000',tipo:'INSUMO',vto:'45888',estado:'COBRADO'},
+    {cheque:'144',fechaCobro:'45920',beneficiario:'GM Textil',concepto:'compra de papel',monto:'6455000',tipo:'INSUMO',vto:'45885',estado:'COBRADO'},
+    {cheque:'149',fechaCobro:'45919',beneficiario:'MAQUICENTER',concepto:'ENTREGA CALANDRA',monto:'33500000',tipo:'ACTIVO FIJO',vto:'45919',estado:'COBRADO'},
+    {cheque:'142',fechaCobro:'45917',beneficiario:'Serimax SRL',concepto:'compra de insumos',monto:'3914000',tipo:'INSUMO',vto:'45887',estado:'COBRADO'},
+    {cheque:'140',fechaCobro:'45916',beneficiario:'Politex Importaciones SA',concepto:'Compra de tela',monto:'1303250',tipo:'INSUMO',vto:'45882',estado:'COBRADO'},
+    {cheque:'141',fechaCobro:'45916',beneficiario:'Politex Importaciones SA',concepto:'COMPRA DE TELA',monto:'1304000',tipo:'INSUMO',vto:'45880',estado:'COBRADO'},
+    {cheque:'139',fechaCobro:'45913',beneficiario:'Paraguay Textil SA',concepto:'Compra de tela',monto:'4591894',tipo:'INSUMO',vto:'45847',estado:'COBRADO'},
+    {cheque:'133',fechaCobro:'45910',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'2190000',tipo:'INSUMO',vto:'45867',estado:'COBRADO'},
+    {cheque:'134',fechaCobro:'45910',beneficiario:'Serimax SRL',concepto:'compra de papel',monto:'1770000',tipo:'INSUMO',vto:'45880',estado:'COBRADO'},
+    {cheque:'135',fechaCobro:'45910',beneficiario:'Politex Importaciones SA',concepto:'Compra de tela',monto:'710280',tipo:'INSUMO',vto:'45818',estado:'COBRADO'},
+    {cheque:'132',fechaCobro:'45909',beneficiario:'Corporacion Textil SA',concepto:'compra de tela',monto:'5540000',tipo:'INSUMO',vto:'45847',estado:'COBRADO'},
+    {cheque:'137',fechaCobro:'45908',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'3730421',tipo:'INSUMO',vto:'45904',estado:'COBRADO'},
+    {cheque:'131',fechaCobro:'45907',beneficiario:'Serimax SRL',concepto:'compra de papel',monto:'1878000',tipo:'INSUMO',vto:'45815',estado:'COBRADO'},
+    {cheque:'129',fechaCobro:'45903',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1060000',tipo:'INSUMO',vto:'45869',estado:'COBRADO'},
+    {cheque:'127',fechaCobro:'45901',beneficiario:'Corporacion Textil SA',concepto:'Compra de tela',monto:'6108849',tipo:'INSUMO',vto:'45841',estado:'COBRADO'},
+    {cheque:'130',fechaCobro:'45901',beneficiario:'Serimax SRL',concepto:'compra de tintas',monto:'1209000',tipo:'INSUMO',vto:'45901',estado:'COBRADO'},
+    {cheque:'136',fechaCobro:'45901',beneficiario:'GM Textil',concepto:'compra de papel',monto:'2618400',tipo:'INSUMO',vto:'45870',estado:'COBRADO'},
+    {cheque:'138',fechaCobro:'45901',beneficiario:'GM Textil',concepto:'compra de papel',monto:'1965000',tipo:'INSUMO',vto:'45901',estado:'COBRADO'},
+    {cheque:'126',fechaCobro:'45897',beneficiario:'Politex Importaciones SA',concepto:'compra de tela',monto:'1041268',tipo:'INSUMO',vto:'45868',estado:'COBRADO'},
+    {cheque:'128',fechaCobro:'45895',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa 39/90',monto:'5692727',tipo:'PRESTAMO',vto:'45895',estado:'COBRADO'},
+    {cheque:'123',fechaCobro:'45894',beneficiario:'Texturas Sa',concepto:'compra de tela',monto:'2114444',tipo:'INSUMO',vto:'45870',estado:'COBRADO'},
+    {cheque:'124',fechaCobro:'45891',beneficiario:'Paraguay Textil SA',concepto:'compra de tela',monto:'20000000',tipo:'INSUMO',vto:'45891',estado:'COBRADO'},
+    {cheque:'122',fechaCobro:'45889',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2368500',tipo:'',vto:'45797',estado:'COBRADO'},
+    {cheque:'120',fechaCobro:'45888',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa 37/90',monto:'5698273',tipo:'PRESTAMO',vto:'45855',estado:'COBRADO'},
+    {cheque:'121',fechaCobro:'45884',beneficiario:'PY TEXTIL SA',concepto:'COMPRA DE TELA',monto:'22285172',tipo:'INSUMO',vto:'45882',estado:'COBRADO'},
+    {cheque:'117',fechaCobro:'45882',beneficiario:'Paraguay Textil SA',concepto:'Compra de tela',monto:'4592000',tipo:'INSUMO',vto:'45847',estado:'COBRADO'},
+    {cheque:'116',fechaCobro:'45878',beneficiario:'Politex Importaciones SA',concepto:'Compra de tela',monto:'1353000',tipo:'INSUMO',vto:'45847',estado:'COBRADO'},
+    {cheque:'125',fechaCobro:'45877',beneficiario:'ADELA RIOS',concepto:'alquier fabrica',monto:'3300000',tipo:'ALQUILER',vto:'45875',estado:'COBRADO'},
+    {cheque:'119',fechaCobro:'45876',beneficiario:'Corporacion Textil SA',concepto:'Compra de tela',monto:'5400000',tipo:'INSUMO',vto:'45847',estado:'COBRADO'},
+    {cheque:'114',fechaCobro:'45875',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1838000',tipo:'',vto:'45785',estado:'COBRADO'},
+    {cheque:'115',fechaCobro:'45875',beneficiario:'Serimax SRL',concepto:'compra de tinta',monto:'738500',tipo:'INSUMO',vto:'45861',estado:'COBRADO'},
+    {cheque:'113',fechaCobro:'45874',beneficiario:'Politex Importaciones SA',concepto:'Compra de tela',monto:'1671775',tipo:'INSUMO',vto:'45847',estado:'COBRADO'},
+    {cheque:'112',fechaCobro:'45872',beneficiario:'Politex Importaciones SA',concepto:'Compra de tela',monto:'1043081',tipo:'INSUMO',vto:'45841',estado:'COBRADO'},
+    {cheque:'111',fechaCobro:'45869',beneficiario:'Serimax SRL',concepto:'compra de papel',monto:'1280000',tipo:'INSUMO',vto:'45835',estado:'COBRADO'},
+    {cheque:'118',fechaCobro:'45869',beneficiario:'GM Textil',concepto:'compra de papel',monto:'1309200',tipo:'INSUMO',vto:'45838',estado:'COBRADO'},
+    {cheque:'109',fechaCobro:'45863',beneficiario:'Al portador',concepto:'Salario semanal',monto:'6500000',tipo:'SALARIOS',vto:'45861',estado:'COBRADO'},
+    {cheque:'108',fechaCobro:'45861',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2508294',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'107',fechaCobro:'45860',beneficiario:'Serimax SRL',concepto:'Compra de papel',monto:'916000',tipo:'INSUMO',vto:'45831',estado:'COBRADO'},
+    {cheque:'110',fechaCobro:'45860',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa',monto:'5711150',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'106',fechaCobro:'45856',beneficiario:'AL PORTADOR',concepto:'Fondo FIJO',monto:'2500000',tipo:'FONDO FIJO',vto:'45855',estado:'COBRADO'},
+    {cheque:'105',fechaCobro:'45854',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1660166',tipo:'',vto:'45763',estado:'COBRADO'},
+    {cheque:'104',fechaCobro:'45852',beneficiario:'Texturas Sa',concepto:'Compra de tela',monto:'3512340',tipo:'INSUMO',vto:'45822',estado:'COBRADO'},
+    {cheque:'103',fechaCobro:'45848',beneficiario:'Politex Importaciones SA',concepto:'Compra de tela',monto:'712000',tipo:'INSUMO',vto:'45818',estado:'COBRADO'},
+    {cheque:'102',fechaCobro:'45847',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2773126',tipo:'',vto:'45758',estado:'COBRADO'},
+    {cheque:'100',fechaCobro:'45846',beneficiario:'Serimax SRL',concepto:'compra de papel',monto:'1890000',tipo:'INSUMO',vto:'45813',estado:'COBRADO'},
+    {cheque:'99',fechaCobro:'45845',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1830000',tipo:'INSUMO',vto:'45785',estado:'COBRADO'},
+    {cheque:'101',fechaCobro:'45844',beneficiario:'Corporacion Textil SA',concepto:'Compra de tela',monto:'6150000',tipo:'INSUMO',vto:'45841',estado:'COBRADO'},
+    {cheque:'98',fechaCobro:'45841',beneficiario:'Al portador',concepto:'Reposicion Fondo Fijo',monto:'2000000',tipo:'FONDO FIJO',vto:'45841',estado:'COBRADO'},
+    {cheque:'97',fechaCobro:'45839',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2192743',tipo:'',vto:'45779',estado:'COBRADO'},
+    {cheque:'96',fechaCobro:'45838',beneficiario:'Paraguay Textil SA',concepto:'compra tela',monto:'3500000',tipo:'INSUMO',vto:'',estado:'COBRADO'},
+    {cheque:'91',fechaCobro:'45837',beneficiario:'Al portador',concepto:'Fondo fijo',monto:'1800000',tipo:'SALARIOS',vto:'45836',estado:'COBRADO'},
+    {cheque:'92',fechaCobro:'45837',beneficiario:'Al portador',concepto:'Salario Semanal',monto:'7000000',tipo:'SALARIOS',vto:'45836',estado:'COBRADO'},
+    {cheque:'95',fechaCobro:'45837',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'1280000',tipo:'INSUMO',vto:'45803',estado:'COBRADO'},
+    {cheque:'94',fechaCobro:'45836',beneficiario:'PRUEBA',concepto:'PRUEBA',monto:'1',tipo:'SISTEMA',vto:'45836',estado:'COBRADO'},
+    {cheque:'88',fechaCobro:'45831',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'2450000',tipo:'',vto:'45797',estado:'COBRADO'},
+    {cheque:'89',fechaCobro:'45831',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'1142195',tipo:'INSUMO',vto:'45799',estado:'COBRADO'},
+    {cheque:'87',fechaCobro:'45828',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2370000',tipo:'',vto:'45797',estado:'COBRADO'},
+    {cheque:'86',fechaCobro:'45827',beneficiario:'Al Portador',concepto:'Salario Semanal',monto:'7000000',tipo:'SALARIOS',vto:'45887',estado:'COBRADO'},
+    {cheque:'90',fechaCobro:'45826',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa',monto:'5687095',tipo:'',vto:'45822',estado:'COBRADO'},
+    {cheque:'85',fechaCobro:'45825',beneficiario:'PRUEBA',concepto:'PRUEBA',monto:'1000000',tipo:'SISTEMA',vto:'45825',estado:'COBRADO'},
+    {cheque:'84',fechaCobro:'45819',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa',monto:'5700000',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'81',fechaCobro:'45816',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2500000',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'83',fechaCobro:'45815',beneficiario:'Corporacion TEXTIL',concepto:'Compra tela',monto:'1985050',tipo:'',vto:'45695',estado:'COBRADO'},
+    {cheque:'80',fechaCobro:'45814',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'6500000',tipo:'SALARIOS',vto:'45813',estado:'COBRADO'},
+    {cheque:'13',fechaCobro:'45810',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2193000',tipo:'',vto:'45779',estado:'COBRADO'},
+    {cheque:'12',fechaCobro:'45808',beneficiario:'Serimax SRL',concepto:'Compra tela',monto:'1990000',tipo:'',vto:'45748',estado:'COBRADO'},
+    {cheque:'82',fechaCobro:'45806',beneficiario:'Adela Rios',concepto:'Alquiler Fabrica',monto:'3300000',tipo:'',vto:'45776',estado:'COBRADO'},
+    {cheque:'73',fechaCobro:'45803',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2770000',tipo:'',vto:'45758',estado:'COBRADO'},
+    {cheque:'75',fechaCobro:'45801',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2167500',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'70',fechaCobro:'45798',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'1609846',tipo:'',vto:'45723',estado:'COBRADO'},
+    {cheque:'69',fechaCobro:'45796',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1791000',tipo:'',vto:'45722',estado:'COBRADO'},
+    {cheque:'74',fechaCobro:'45794',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1660167',tipo:'',vto:'45763',estado:'COBRADO'},
+    {cheque:'71',fechaCobro:'45791',beneficiario:'Texturas SA',concepto:'Insumos',monto:'2136000',tipo:'',vto:'45735',estado:'COBRADO'},
+    {cheque:'72',fechaCobro:'45790',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2275000',tipo:'',vto:'45735',estado:'COBRADO'},
+    {cheque:'76',fechaCobro:'45789',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'3252400',tipo:'',vto:'45687',estado:'COBRADO'},
+    {cheque:'78',fechaCobro:'45785',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'8950000',tipo:'',vto:'45785',estado:'COBRADO'},
+    {cheque:'77',fechaCobro:'45776',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'6405000',tipo:'',vto:'45776',estado:'COBRADO'},
+    {cheque:'61',fechaCobro:'45773',beneficiario:'ITAIPU TEXTILES SA',concepto:'Compra tela',monto:'8135000',tipo:'',vto:'45729',estado:'COBRADO'},
+    {cheque:'79',fechaCobro:'45773',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2584413',tipo:'',vto:'45681',estado:'COBRADO'},
+    {cheque:'63',fechaCobro:'45771',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa',monto:'5709120',tipo:'',vto:'45743',estado:'COBRADO'},
+    {cheque:'64',fechaCobro:'45771',beneficiario:'AL PORTADOR',concepto:'A',monto:'5100000',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'65',fechaCobro:'45771',beneficiario:'AL PORTADOR',concepto:'A',monto:'3204100',tipo:'',vto:'45771',estado:'COBRADO'},
+    {cheque:'67',fechaCobro:'45768',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2263000',tipo:'',vto:'45692',estado:'COBRADO'},
+    {cheque:'59',fechaCobro:'45767',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2756490',tipo:'',vto:'45716',estado:'COBRADO'},
+    {cheque:'62',fechaCobro:'45763',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2609253',tipo:'',vto:'45742',estado:'COBRADO'},
+    {cheque:'68',fechaCobro:'45763',beneficiario:'GM Textil',concepto:'Papel kraft',monto:'1963800',tipo:'',vto:'45748',estado:'COBRADO'},
+    {cheque:'60',fechaCobro:'45762',beneficiario:'GM Textil',concepto:'Insumos',monto:'2010000',tipo:'',vto:'45716',estado:'COBRADO'},
+    {cheque:'66',fechaCobro:'45758',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'5125000',tipo:'',vto:'45758',estado:'COBRADO'},
+    {cheque:'58',fechaCobro:'45757',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2067332',tipo:'',vto:'45667',estado:'COBRADO'},
+    {cheque:'57',fechaCobro:'45756',beneficiario:'Jorge denis',concepto:'etiquetas',monto:'3300000',tipo:'',vto:'45701',estado:'COBRADO'},
+    {cheque:'56',fechaCobro:'45755',beneficiario:'Corporacion TEXTIL',concepto:'Compra tela',monto:'1990000',tipo:'',vto:'45695',estado:'COBRADO'},
+    {cheque:'46',fechaCobro:'45743',beneficiario:'AL PORTADOR',concepto:'A',monto:'5000000',tipo:'',vto:'45743',estado:'COBRADO'},
+    {cheque:'47',fechaCobro:'45743',beneficiario:'AL PORTADOR',concepto:'Reposicion Fondo F',monto:'2967000',tipo:'',vto:'45743',estado:'COBRADO'},
+    {cheque:'54',fechaCobro:'45742',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'3610051',tipo:'',vto:'45679',estado:'COBRADO'},
+    {cheque:'48',fechaCobro:'45736',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1426000',tipo:'',vto:'45709',estado:'COBRADO'},
+    {cheque:'51',fechaCobro:'45736',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2260000',tipo:'',vto:'45692',estado:'COBRADO'},
+    {cheque:'2',fechaCobro:'45733',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'819772',tipo:'',vto:'45624',estado:'COBRADO'},
+    {cheque:'50',fechaCobro:'45729',beneficiario:'Manufactura Indutex',concepto:'remeras',monto:'2271400',tipo:'',vto:'45695',estado:'COBRADO'},
+    {cheque:'53',fechaCobro:'45728',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'3252399',tipo:'',vto:'45687',estado:'COBRADO'},
+    {cheque:'49',fechaCobro:'45727',beneficiario:'GM Textil',concepto:'Papel kraft',monto:'1440000',tipo:'',vto:'45698',estado:'COBRADO'},
+    {cheque:'45',fechaCobro:'45723',beneficiario:'AL PORTADOR',concepto:'Reposicion Fondo F',monto:'3003300',tipo:'',vto:'45723',estado:'COBRADO'},
+    {cheque:'52',fechaCobro:'45717',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2684111',tipo:'',vto:'45687',estado:'COBRADO'},
+    {cheque:'27',fechaCobro:'45716',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'5500000',tipo:'',vto:'45716',estado:'COBRADO'},
+    {cheque:'26',fechaCobro:'45714',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'2584414',tipo:'',vto:'45681',estado:'COBRADO'},
+    {cheque:'40',fechaCobro:'45714',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'3610050',tipo:'',vto:'45679',estado:'COBRADO'},
+    {cheque:'19',fechaCobro:'45712',beneficiario:'Corporacion TEXTIL',concepto:'Insumos',monto:'446640',tipo:'',vto:'45639',estado:'COBRADO'},
+    {cheque:'20',fechaCobro:'45712',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'1000000',tipo:'',vto:'45639',estado:'COBRADO'},
+    {cheque:'55',fechaCobro:'45711',beneficiario:'Adela Rios',concepto:'Alquiler Fabrica',monto:'3300000',tipo:'',vto:'45680',estado:'COBRADO'},
+    {cheque:'41',fechaCobro:'45710',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'751500',tipo:'',vto:'45679',estado:'COBRADO'},
+    {cheque:'42',fechaCobro:'45710',beneficiario:'GM Textil',concepto:'Insumos',monto:'2160000',tipo:'',vto:'45679',estado:'COBRADO'},
+    {cheque:'22',fechaCobro:'45707',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'9189400',tipo:'',vto:'45707',estado:'COBRADO'},
+    {cheque:'18',fechaCobro:'45706',beneficiario:'Politex Importaciones SA',concepto:'Compra tela',monto:'627876',tipo:'',vto:'45646',estado:'COBRADO'},
+    {cheque:'43',fechaCobro:'45706',beneficiario:'Paraguay Textil SA',concepto:'Compra tela',monto:'3125673',tipo:'',vto:'45675',estado:'COBRADO'},
+    {cheque:'17',fechaCobro:'45705',beneficiario:'Texturas SA',concepto:'Compra tela',monto:'1421455',tipo:'',vto:'45638',estado:'COBRADO'},
+    {cheque:'44',fechaCobro:'45703',beneficiario:'GM Textil',concepto:'Insumos',monto:'1390000',tipo:'',vto:'45672',estado:'COBRADO'},
+    {cheque:'23',fechaCobro:'45701',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'6250000',tipo:'',vto:'45701',estado:'COBRADO'},
+    {cheque:'10',fechaCobro:'45699',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1016666',tipo:'',vto:'45637',estado:'COBRADO'},
+    {cheque:'24',fechaCobro:'45699',beneficiario:'IPS',concepto:'IPS',monto:'14377430',tipo:'',vto:'45699',estado:'COBRADO'},
+    {cheque:'25',fechaCobro:'45699',beneficiario:'AL PORTADOR',concepto:'A',monto:'2097750',tipo:'',vto:'45699',estado:'COBRADO'},
+    {cheque:'21',fechaCobro:'45698',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'2067334',tipo:'',vto:'45667',estado:'COBRADO'},
+    {cheque:'39',fechaCobro:'45694',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'5930000',tipo:'',vto:'45694',estado:'COBRADO'},
+    {cheque:'38',fechaCobro:'45692',beneficiario:'AL PORTADOR',concepto:'A',monto:'3242050',tipo:'',vto:'45692',estado:'COBRADO'},
+    {cheque:'35',fechaCobro:'45688',beneficiario:'AL PORTADOR',concepto:'A',monto:'7741600',tipo:'',vto:'45688',estado:'COBRADO'},
+    {cheque:'37',fechaCobro:'45687',beneficiario:'Transporte Nueva Asuncion Sa',concepto:'Prestamo casa',monto:'5714424',tipo:'',vto:'45687',estado:'COBRADO'},
+    {cheque:'36',fechaCobro:'45686',beneficiario:'IPS',concepto:'IPS',monto:'15218779',tipo:'',vto:'45686',estado:'COBRADO'},
+    {cheque:'28',fechaCobro:'45681',beneficiario:'Corporacion TEXTIL',concepto:'Insumos',monto:'446650',tipo:'',vto:'45639',estado:'COBRADO'},
+    {cheque:'34',fechaCobro:'45675',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'7832800',tipo:'',vto:'45675',estado:'COBRADO'},
+    {cheque:'33',fechaCobro:'45670',beneficiario:'AL PORTADOR',concepto:'a',monto:'2034300',tipo:'',vto:'45670',estado:'COBRADO'},
+    {cheque:'11',fechaCobro:'45668',beneficiario:'Serimax SRL',concepto:'Insumos',monto:'1016667',tipo:'',vto:'45637',estado:'COBRADO'},
+    {cheque:'32',fechaCobro:'45667',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'4000000',tipo:'',vto:'45667',estado:'COBRADO'},
+    {cheque:'31',fechaCobro:'45663',beneficiario:'AL PORTADOR',concepto:'a',monto:'8786511',tipo:'',vto:'45663',estado:'COBRADO'},
+    {cheque:'1',fechaCobro:'45660',beneficiario:'GM Textil',concepto:'Insumos',monto:'3350000',tipo:'',vto:'45630',estado:'COBRADO'},
+    {cheque:'7',fechaCobro:'45660',beneficiario:'Adela Rios',concepto:'Alquiler Fabrica',monto:'4300000',tipo:'ALQUILER',vto:'45630',estado:'COBRADO'},
+    {cheque:'29',fechaCobro:'45659',beneficiario:'ips',concepto:'ips',monto:'16364216',tipo:'',vto:'45659',estado:'COBRADO'},
+    {cheque:'30',fechaCobro:'45659',beneficiario:'AL PORTADOR',concepto:'a',monto:'4500000',tipo:'',vto:'45659',estado:'COBRADO'},
+    {cheque:'5',fechaCobro:'45654',beneficiario:'GM Textil',concepto:'Insumos',monto:'1340000',tipo:'',vto:'45624',estado:'COBRADO'},
+    {cheque:'16',fechaCobro:'45646',beneficiario:'AL PORTADOR',concepto:'Reposicion Fondo F',monto:'2709498',tipo:'',vto:'45646',estado:'COBRADO'},
+    {cheque:'14',fechaCobro:'45639',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'6000000',tipo:'',vto:'45639',estado:'COBRADO'},
+    {cheque:'15',fechaCobro:'45639',beneficiario:'AL PORTADOR',concepto:'Reposicion Fondo F',monto:'2887902',tipo:'',vto:'45639',estado:'COBRADO'},
+    {cheque:'6',fechaCobro:'45630',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'7000000',tipo:'',vto:'45630',estado:'COBRADO'},
+    {cheque:'8',fechaCobro:'45630',beneficiario:'Liliana Cuenca',concepto:'salario',monto:'3000000',tipo:'',vto:'45630',estado:'COBRADO'},
+    {cheque:'9',fechaCobro:'45630',beneficiario:'AL PORTADOR',concepto:'Reposicion Fondo F',monto:'2644405',tipo:'',vto:'45630',estado:'COBRADO'},
+    {cheque:'3',fechaCobro:'45624',beneficiario:'AL PORTADOR',concepto:'Salario Semanal',monto:'7000000',tipo:'',vto:'45624',estado:'COBRADO'},
+    {cheque:'4',fechaCobro:'45624',beneficiario:'IPS',concepto:'ips',monto:'15810283',tipo:'',vto:'45624',estado:'COBRADO'}
   ],
   transferenciasRealizadas: [
-    {fecha:'46227',beneficiario:'Multiespacio',concepto:'compra de tela',monto:'2893800',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46094',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46090',beneficiario:'Nico Jara',concepto:'cortes',monto:'700000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46090',beneficiario:'MILI',concepto:'marketing',monto:'3000000',tipo:'MARKETING',estado:'COBRADO'},
-    {fecha:'46087',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46087',beneficiario:'nova',concepto:'tintas',monto:'2394000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46087',beneficiario:'delfino',concepto:'medias',monto:'2438000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46087',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46087',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'5328909',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46086',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'23000000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46086',beneficiario:'solutech',concepto:'insumos',monto:'5800000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46085',beneficiario:'set',concepto:'impuesto',monto:'12193991',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46081',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'3000000',tipo:'ANDE',estado:'COBRADO'},
-    {fecha:'46081',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',monto:'510000',tipo:'MUNICIPALIDAD',estado:'COBRADO'},
-    {fecha:'46081',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'1500000',tipo:'FONDO FIJO',estado:'COBRADO'},
-    {fecha:'46080',beneficiario:'victor gimenez',concepto:'electricista',monto:'3900000',tipo:'SERVICIOS',estado:'COBRADO'},
-    {fecha:'46080',beneficiario:'delfino',concepto:'medias',monto:'2000000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46080',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'4922000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46080',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46079',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'COBRADO'},
-    {fecha:'46079',beneficiario:'PERSONAL',concepto:'TELEFONIA',monto:'802360',tipo:'TELEFONIA',estado:'COBRADO'},
-    {fecha:'46074',beneficiario:'veta sytems',concepto:'sistema',monto:'438000',tipo:'SISTEMA',estado:'COBRADO'},
-    {fecha:'46074',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'2000000',tipo:'FONDO FIJO',estado:'COBRADO'},
-    {fecha:'46074',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'COBRADO'},
-    {fecha:'46073',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46073',beneficiario:'DELFINO',concepto:'MEDIAS',monto:'1448000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46073',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'6685027',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46073',beneficiario:'SERIMAX SRL',concepto:'TINTAS Y PAPEL',monto:'635000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46068',beneficiario:'SET',concepto:'CUOTA GRUPO SET',monto:'11750000',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46068',beneficiario:'SET',concepto:'DEUDAS PENDIENTES',monto:'9135533',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46066',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46066',beneficiario:'CHARLES GAMARRA',concepto:'MANTENIMIENTO AIRES',monto:'1200000',tipo:'MANTENIMIENTO EQUIPOS',estado:'COBRADO'},
-    {fecha:'46066',beneficiario:'FATIMA VAZQUEZ',concepto:'CONFECCION',monto:'2936000',tipo:'CONFECCION',estado:'COBRADO'},
-    {fecha:'46066',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7500000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46064',beneficiario:'IPS',concepto:'IPS',monto:'6515631',tipo:'IPS',estado:'COBRADO'},
-    {fecha:'46062',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'1000000',tipo:'FONDO FIJO',estado:'COBRADO'},
-    {fecha:'46060',beneficiario:'FATIMA VAZQUEZ',concepto:'CONFECCION',monto:'5693000',tipo:'CONFECCION',estado:'COBRADO'},
-    {fecha:'46059',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46059',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46059',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'8140640',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46058',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'24020500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46058',beneficiario:'SOLUTECH',concepto:'TINTA Y PAPEL',monto:'14760000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46052',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46052',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',monto:'507000',tipo:'MUNICIPALIDAD',estado:'COBRADO'},
-    {fecha:'46052',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'7093553',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46052',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46051',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',monto:'1100000',tipo:'ANDE',estado:'COBRADO'},
-    {fecha:'46048',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'COBRADO'},
-    {fecha:'46046',beneficiario:'DELFINO',concepto:'MEDIAS',monto:'1009000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46046',beneficiario:'FATIMA VAZQUEZ',concepto:'MOLDERIA',monto:'225000',tipo:'CONFECCION',estado:'COBRADO'},
-    {fecha:'46045',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46045',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46045',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'5732716',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46043',beneficiario:'PERSONAL',concepto:'TELEFONIA',monto:'795500',tipo:'TELEFONIA',estado:'COBRADO'},
-    {fecha:'46042',beneficiario:'MILI',concepto:'Social Media',monto:'3250000',tipo:'MARKETING',estado:'COBRADO'},
-    {fecha:'46038',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46038',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46038',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'5289912',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46037',beneficiario:'SET',concepto:'CUOTA GRUPO SET',monto:'3867427',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46037',beneficiario:'SET',concepto:'DEUDAS PENDIENTES',monto:'8770639',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46034',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'COBRADO'},
-    {fecha:'46033',beneficiario:'SET',concepto:'DEUDA RENTA ANDREA',monto:'1406157',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46033',beneficiario:'IPS',concepto:'IPS',monto:'6522893',tipo:'IPS',estado:'COBRADO'},
-    {fecha:'46031',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46031',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',monto:'2500000',tipo:'ALQUILER',estado:'COBRADO'},
-    {fecha:'46031',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'4500000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46028',beneficiario:'LILI',concepto:'SALARIO MENSUAL',monto:'2623480',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46028',beneficiario:'NOVA HELENA',concepto:'TINTAS',monto:'2448000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46028',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'1677765',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46027',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',monto:'14098000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46027',beneficiario:'SALARIO MENSUAL',concepto:'VENDEDORAS',monto:'11257084',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46027',beneficiario:'SOLUTECH',concepto:'TINTA Y PAPEL',monto:'3444000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46024',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1350000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46021',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',monto:'520000',tipo:'MUNICIPALIDAD',estado:'COBRADO'},
-    {fecha:'46020',beneficiario:'MILI',concepto:'Social Media',monto:'1700000',tipo:'MARKETING',estado:'COBRADO'},
-    {fecha:'46020',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',monto:'2500000',tipo:'ACTIVO FIJO',estado:'COBRADO'},
-    {fecha:'46019',beneficiario:'IPS',concepto:'IPS',monto:'6362779',tipo:'IPS',estado:'COBRADO'},
-    {fecha:'46019',beneficiario:'SET',concepto:'IVA NOV',monto:'5000000',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46018',beneficiario:'VETA SYSTEM',concepto:'SISTEMA',monto:'438000',tipo:'SISTEMA',estado:'COBRADO'},
-    {fecha:'46018',beneficiario:'ANDE',concepto:'ANDE',monto:'3051000',tipo:'ANDE',estado:'COBRADO'},
-    {fecha:'46017',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',monto:'3500000',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46017',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',monto:'1320000',tipo:'SERVICIO CONTABLE',estado:'COBRADO'},
-    {fecha:'46017',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',monto:'1687500',tipo:'SALARIOS',estado:'COBRADO'},
-    {fecha:'46017',beneficiario:'PDP IMPRENTA',concepto:'ETIQUETAS',monto:'1500000',tipo:'INSUMO',estado:'COBRADO'},
-    {fecha:'46015',beneficiario:'PERSONAL',concepto:'INTERNET',monto:'819000',tipo:'INTERNET',estado:'COBRADO'},
-    {fecha:'46014',beneficiario:'SET',concepto:'DEUDA EDUARDO',monto:'1452080',tipo:'IMPUESTO',estado:'COBRADO'},
-    {fecha:'46013',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',monto:'1000000',tipo:'FONDO FIJO',estado:'COBRADO'}
+    {fecha:'46227',beneficiario:'Multiespacio',concepto:'compra de tela',tipo:'INSUMO',monto:'2893800',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46096',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46095',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46095',beneficiario:'ITAIPU TEXTIL',concepto:'compra de tela',tipo:'INSUMO',monto:'5729500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'delfino',concepto:'medias',tipo:'INSUMO',monto:'2284000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',tipo:'ACTIVO FIJO',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'Sandra fernandez',concepto:'adelanto',tipo:'SALARIOS',monto:'800000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'1500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'SERIMAX SRL',concepto:'cuota software',tipo:'ACTIVO FIJO',monto:'5770500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',tipo:'ANDE',monto:'2260000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46094',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'7923592',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46092',beneficiario:'elida imprenta',concepto:'talonarios',tipo:'INSUMO',monto:'275000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46092',beneficiario:'plastifoarm',concepto:'bolsas',tipo:'INSUMO',monto:'414000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46092',beneficiario:'Victor Gimenez',concepto:'electricista',tipo:'SERVICIOS',monto:'1350000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46092',beneficiario:'ips',concepto:'ips',tipo:'IPS',monto:'6509000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46090',beneficiario:'Nico Jara',concepto:'cortes',tipo:'SALARIOS',monto:'700000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46090',beneficiario:'MILI',concepto:'marketing',tipo:'MARKETING',monto:'3000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46087',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46087',beneficiario:'nova',concepto:'tintas',tipo:'INSUMO',monto:'2394000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46087',beneficiario:'delfino',concepto:'medias',tipo:'INSUMO',monto:'2438000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46087',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46087',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'5328909',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46086',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',tipo:'SALARIOS',monto:'23000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46086',beneficiario:'solutech',concepto:'insumos',tipo:'INSUMO',monto:'5800000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46085',beneficiario:'set',concepto:'impuesto',tipo:'IMPUESTO',monto:'12193991',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46081',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',tipo:'ANDE',monto:'3000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46081',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',tipo:'MUNICIPALIDAD',monto:'510000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46081',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'1500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46080',beneficiario:'victor gimenez',concepto:'electricista',tipo:'SERVICIOS',monto:'3900000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46080',beneficiario:'delfino',concepto:'medias',tipo:'INSUMO',monto:'2000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46080',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'4922000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46080',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46079',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',tipo:'SERVICIO CONTABLE',monto:'1320000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46079',beneficiario:'PERSONAL',concepto:'TELEFONIA',tipo:'TELEFONIA',monto:'802360',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46078',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46074',beneficiario:'veta sytems',concepto:'sistema',tipo:'SISTEMA',monto:'438000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46074',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'2000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46074',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',tipo:'ACTIVO FIJO',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46073',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46073',beneficiario:'DELFINO',concepto:'MEDIAS',tipo:'INSUMO',monto:'1448000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46073',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'6685027',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46073',beneficiario:'SERIMAX SRL',concepto:'TINTAS Y PAPEL',tipo:'INSUMO',monto:'635000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46071',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'3587600',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46071',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'1000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46068',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46068',beneficiario:'SET',concepto:'CUOTA GRUPO SET',tipo:'IMPUESTO',monto:'11750000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46068',beneficiario:'SET',concepto:'DEUDAS PENDIENTES',tipo:'IMPUESTO',monto:'9135533',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46067',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46066',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46066',beneficiario:'CHARLES GAMARRA',concepto:'MANTENIMIENTO AIRES',tipo:'MANTENIMIENTO EQUIPOS',monto:'1200000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46066',beneficiario:'FATIMA VAZQUEZ',concepto:'CONFECCION',tipo:'CONFECCION',monto:'2936000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46066',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'7500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46064',beneficiario:'IPS',concepto:'IPS',tipo:'IPS',monto:'6515631',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46062',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'1000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46060',beneficiario:'FATIMA VAZQUEZ',concepto:'CONFECCION',tipo:'CONFECCION',monto:'5693000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46059',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46059',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46059',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'8140640',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46058',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',tipo:'SALARIOS',monto:'24020500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46058',beneficiario:'SOLUTECH',concepto:'TINTA Y PAPEL',tipo:'INSUMO',monto:'14760000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46055',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097853',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46052',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1350000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46052',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',tipo:'MUNICIPALIDAD',monto:'507000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46052',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'7093553',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46052',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46051',beneficiario:'ANDE',concepto:'ENERGIA ELECTICA',tipo:'ANDE',monto:'1100000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46048',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',tipo:'SERVICIO CONTABLE',monto:'1320000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46047',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46046',beneficiario:'DELFINO',concepto:'MEDIAS',tipo:'INSUMO',monto:'1009000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46046',beneficiario:'FATIMA VAZQUEZ',concepto:'MOLDERIA',tipo:'CONFECCION',monto:'225000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46045',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46045',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1350000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46045',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'5732716',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46043',beneficiario:'PERSONAL',concepto:'TELEFONIA',tipo:'TELEFONIA',monto:'795500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46042',beneficiario:'MILI',concepto:'Social Media',tipo:'MARKETING',monto:'3250000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46040',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'3587600',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46038',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46038',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1350000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46038',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'5289912',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46037',beneficiario:'SET',concepto:'CUOTA GRUPO SET',tipo:'IMPUESTO',monto:'3867427',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46037',beneficiario:'SET',concepto:'DEUDAS PENDIENTES',tipo:'IMPUESTO',monto:'8770639',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46037',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46036',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46034',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',tipo:'ACTIVO FIJO',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46033',beneficiario:'SET',concepto:'DEUDA RENTA ANDREA',tipo:'IMPUESTO',monto:'1406157',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46033',beneficiario:'IPS',concepto:'IPS',tipo:'IPS',monto:'6522893',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46031',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1350000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46031',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46031',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'4500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46028',beneficiario:'LILI',concepto:'SALARIO MENSUAL',tipo:'SALARIOS',monto:'2623480',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46028',beneficiario:'NOVA HELENA',concepto:'TINTAS',tipo:'INSUMO',monto:'2448000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46028',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'1677765',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46027',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',tipo:'SALARIOS',monto:'14098000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46027',beneficiario:'SALARIO MENSUAL',concepto:'VENDEDORAS',tipo:'SALARIOS',monto:'11257084',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46027',beneficiario:'SOLUTECH',concepto:'TINTA Y PAPEL',tipo:'INSUMO',monto:'3444000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46024',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097852',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46024',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1350000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46021',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',tipo:'MUNICIPALIDAD',monto:'520000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46020',beneficiario:'MILI',concepto:'Social Media',tipo:'MARKETING',monto:'1700000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46020',beneficiario:'SERIMAX SRL',concepto:'CUOTA IMPRESORA',tipo:'ACTIVO FIJO',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46019',beneficiario:'IPS',concepto:'IPS',tipo:'IPS',monto:'6362779',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46019',beneficiario:'SET',concepto:'IVA NOV',tipo:'IMPUESTO',monto:'5000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46018',beneficiario:'VETA SYSTEM',concepto:'SISTEMA',tipo:'SISTEMA',monto:'438000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46018',beneficiario:'ANDE',concepto:'ANDE',tipo:'ANDE',monto:'3051000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46017',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'3500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46017',beneficiario:'ALBERTO VELAZQUEZ',concepto:'SERVICIOS CONTABLES',tipo:'SERVICIO CONTABLE',monto:'1320000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46017',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46017',beneficiario:'PDP IMPRENTA',concepto:'ETIQUETAS',tipo:'INSUMO',monto:'1500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46016',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46015',beneficiario:'PERSONAL',concepto:'INTERNET',tipo:'INTERNET',monto:'819000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46014',beneficiario:'SET',concepto:'DEUDA EDUARDO',tipo:'IMPUESTO',monto:'1452080',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46013',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'1000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46010',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46010',beneficiario:'delfino',concepto:'medias',tipo:'INSUMO',monto:'811000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46010',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'5500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46010',beneficiario:'PDP IMPRENTA',concepto:'ETIQUETAS',tipo:'INSUMO',monto:'1500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46009',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'3809500',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46009',beneficiario:'MTESS',concepto:'Pago Multa Mtess',tipo:'MTESS',monto:'2271684',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46006',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46006',beneficiario:'SET',concepto:'CUOTA GRUPO SET',tipo:'IMPUESTO',monto:'3867427',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46006',beneficiario:'SET',concepto:'DEUDAS PENDIENTES',tipo:'IMPUESTO',monto:'8770839',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46005',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46005',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'1500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46003',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'5466401',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46003',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'46002',beneficiario:'SET',concepto:'DEUDA RENTA ANDREA',tipo:'IMPUESTO',monto:'1406155',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45996',beneficiario:'Nora Benitez',concepto:'DONACION',tipo:'DONACION',monto:'1800000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45996',beneficiario:'CORPORACION TEXTIL SA',concepto:'COMPRA DE TELA',tipo:'INSUMO',monto:'4126600',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45996',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45996',beneficiario:'SOLUTECH',concepto:'TINTA Y PAPEL',tipo:'INSUMO',monto:'6240000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45996',beneficiario:'SALARIO MENSUAL',concepto:'SALARIO MENSUAL',tipo:'SALARIOS',monto:'25736794',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45996',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'11464380',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45993',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097851',estado:'COBRADO',origen:'PRESTAMOS'},
+    {fecha:'45992',beneficiario:'MAQUICENTER',concepto:'COMPRA DE TELA',tipo:'INSUMO',monto:'392641',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45991',beneficiario:'MUNI ASU',concepto:'PATENTE COMERCIAL',tipo:'MUNICIPALIDAD',monto:'507000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'Jorge Vera',concepto:'confeccion',tipo:'CONFECCION',monto:'820000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'CONCEPCION VAZQUEZ',concepto:'confeccion',tipo:'CONFECCION',monto:'1851000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'Cecilio Jara',concepto:'confeccion',tipo:'CONFECCION',monto:'321000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'FONDO FIJO',concepto:'FONDO FIJO',tipo:'FONDO FIJO',monto:'2500000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'MARIA RODRIGUEZ',concepto:'SALARIOS',tipo:'SALARIOS',monto:'523250',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'FATIMA VAZQUEZ',concepto:'CONFECCION',tipo:'CONFECCION',monto:'4390000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45990',beneficiario:'TUPI',concepto:'COMPRA DE AIRE',tipo:'ACTIVO FIJO',monto:'3363000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45989',beneficiario:'delfino',concepto:'medIAS',tipo:'INSUMO',monto:'1508000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45989',beneficiario:'JUANJO SALINAS',concepto:'Honorarios de Diseño',tipo:'SALARIOS',monto:'1687500',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45989',beneficiario:'CIPESA',concepto:'ALQUILER LOCALES SHOPPING',tipo:'ALQUILER',monto:'2000000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45989',beneficiario:'SALARIO SEMANAL',concepto:'SALARIO SEMANAL',tipo:'SALARIOS',monto:'8376000',estado:'COBRADO',origen:'TRANSFERENCIAS'},
+    {fecha:'45987',beneficiario:'SET',concepto:'CUOTA IVA',tipo:'IMPUESTO',monto:'3867427',estado:'COBRADO',origen:'TRANSFERENCIAS'}
   ],
   prestamosPagados: [
-    {fecha:'46078',beneficiario:'Mutual Andrea',concepto:'Prestamo',monto:'7802300',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46071',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',monto:'3587600',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46068',beneficiario:'Mutual Eduardo',concepto:'Prestamo',monto:'2568400',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46067',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',monto:'2745800',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46047',beneficiario:'Mutual Andrea',concepto:'Prestamo',monto:'7802300',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46040',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',monto:'3587600',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46037',beneficiario:'Mutual Eduardo',concepto:'Prestamo',monto:'2568400',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46036',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',monto:'2745800',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46055',beneficiario:'Banco Continental',concepto:'Prestamo',monto:'6097853',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46024',beneficiario:'Banco Continental',concepto:'Prestamo',monto:'6097852',tipo:'PRESTAMO',estado:'PAGADO'},
-    {fecha:'46016',beneficiario:'Mutual Andrea',concepto:'Prestamo',monto:'7802300',tipo:'PRESTAMO',estado:'PAGADO'}
+    {fecha:'46096',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46095',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46078',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46071',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'3587600',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46068',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46067',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46055',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097853',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46047',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46040',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'3587600',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46037',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46036',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46024',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097852',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46016',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46009',beneficiario:'Mutual Eduardo 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'3809500',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46006',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'46005',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45993',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097851',estado:'COBRADO',origen:'PRESTAMOS'},
+    {fecha:'45986',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45976',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45975',beneficiario:'Mutual Andrea 2',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2745800',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45963',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097850',estado:'COBRADO',origen:'PRESTAMOS'},
+    {fecha:'45955',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45945',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45932',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097849',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45925',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45915',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45902',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097848',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45894',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45884',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45871',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097847',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45863',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45853',beneficiario:'Mutual Eduardo',concepto:'Prestamo',tipo:'PRESTAMO',monto:'2568400',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45840',beneficiario:'Banco Continental',concepto:'Prestamo',tipo:'PRESTAMO',monto:'6097846',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45833',beneficiario:'Mutual Andrea',concepto:'Prestamo',tipo:'PRESTAMO',monto:'7802300',estado:'PAGADO',origen:'PRESTAMOS'},
+    {fecha:'45802',beneficiario:'CAJA MUTUAL',concepto:'PRESTAMO ANDREA',tipo:'PRESTAMO',monto:'7802300',estado:'COBRADO',origen:'TRANSFERENCIAS'}
   ],
   cajachica: [],
   efectivo: []
@@ -1311,16 +1906,34 @@ const firebaseConfig = {
   messagingSenderId: "495597476558",
   appId: "1:495597476558:web:664d4ec0ca882dea044e9f"
 };
-firebase.initializeApp(firebaseConfig);
-var FBDB = firebase.database();
+// Firebase globals (initialized after DOM ready)
+var FBDB = null;
 var FB_PATH = 'tesoreria/gdv_v4';
 var FB_CONNECTED = false;
 var FB_SAVE_TIMEOUT = null;
+
+function initFirebase() {
+  try {
+    if (typeof firebase === 'undefined') throw new Error('SDK not loaded');
+    // Avoid re-initializing if already done
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    FBDB = firebase.database();
+    console.log('Firebase initialized OK');
+  } catch(e) {
+    console.warn('Firebase init failed:', e.message);
+    FBDB = null;
+    FB_CONNECTED = false;
+    updateOnlineIndicator(false);
+  }
+}
 
 
 let DB = {};
 
 function initDB() {
+  initFirebase();
   // Start with default data
   DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
   // Safety defaults
@@ -1336,8 +1949,20 @@ function initDB() {
   if(loader) loader.style.display='flex';
 
   // Load from Firebase first, fallback to localStorage
+  if(!FBDB) {
+    // No Firebase - use localStorage only
+    try {
+      var ls = localStorage.getItem(LS_KEY);
+      if(ls) applyExtra(JSON.parse(ls));
+    } catch(e) {}
+    updateOnlineIndicator(false);
+    renderDashboard();
+    updateBadges();
+    return;
+  }
   FBDB.ref(FB_PATH).once('value').then(function(snap) {
     FB_CONNECTED = true;
+    updateOnlineIndicator(true);
     var extra = snap.val();
     if(extra) {
       applyExtra(extra);
@@ -1358,24 +1983,33 @@ function initDB() {
     updateBadges();
 
     // Set up real-time listener for changes from other users
-    FBDB.ref(FB_PATH).on('value', function(snap) {
+    var _firstLoad = true;
+    if(FBDB) FBDB.ref(FB_PATH).on('value', function(snap) {
+      if(_firstLoad) { _firstLoad = false; return; } // skip initial load (already applied above)
       var extra = snap.val();
-      if(extra) {
-        DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
-        if(!DB.cajachica) DB.cajachica=[];
-        if(!DB.chequesCobrados) DB.chequesCobrados=[];
-        if(!DB.prestamosPagados) DB.prestamosPagados=[];
-        if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas=[];
-        if(!DB.efectivo) DB.efectivo=[];
-        if(!DB.realizados) DB.realizados=DB.transferenciasRealizadas;
-        applyExtra(extra);
-        updateBadges();
+      DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      if(!DB.cajachica) DB.cajachica=[];
+      if(!DB.chequesCobrados) DB.chequesCobrados=[];
+      if(!DB.prestamosPagados) DB.prestamosPagados=[];
+      if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas=[];
+      if(!DB.efectivo) DB.efectivo=[];
+      if(!DB.realizados) DB.realizados=DB.transferenciasRealizadas;
+      if(extra) applyExtra(extra);
+      updateBadges();
+      // Re-render current active view
+      var activeView = document.querySelector('.view.active');
+      if(activeView) {
+        var vname = activeView.id.replace('view-','');
+        renderView(vname);
       }
+      // Show sync notification
+      showSyncToast();
     });
 
   }).catch(function(err) {
     console.warn('Firebase no disponible, usando localStorage:', err);
     FB_CONNECTED = false;
+    updateOnlineIndicator(false);
     try {
       var ls = localStorage.getItem(LS_KEY);
       if(ls) applyExtra(JSON.parse(ls));
@@ -1422,7 +2056,7 @@ function saveExtra() {
 function guardarEstado() {
   var extra = buildExtra();
   // Save to Firebase (debounced 800ms)
-  if(FB_CONNECTED) {
+  if(FB_CONNECTED && FBDB) {
     if(FB_SAVE_TIMEOUT) clearTimeout(FB_SAVE_TIMEOUT);
     FB_SAVE_TIMEOUT = setTimeout(function() {
       FBDB.ref(FB_PATH).set(extra).catch(function(e){ console.warn('Firebase save error:', e); });
@@ -1479,6 +2113,22 @@ function showSaveIndicator() {
   el.textContent = FB_CONNECTED ? '☁ Guardado' : '💾 Local';
   el.style.opacity='1';
   setTimeout(function(){ el.style.opacity='0'; }, 2000);
+}
+
+function showSyncToast() {
+  var el = document.getElementById('sync-toast');
+  if(!el) return;
+  el.style.opacity='1'; el.style.transform='translateY(0)';
+  setTimeout(function(){ el.style.opacity='0'; el.style.transform='translateY(10px)'; }, 3000);
+}
+
+function updateOnlineIndicator(online) {
+  var el = document.getElementById('online-indicator');
+  if(!el) return;
+  el.innerHTML = online
+    ? '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#4caf50;border-radius:50%;display:inline-block;animation:pulse-grn 2s infinite"></span>Firebase conectado</span>'
+    : '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#f44336;border-radius:50%;display:inline-block"></span>Sin conexión — guardando local</span>';
+  el.style.color = online ? '#4caf50' : '#f44336';
 }
 
 function guardarPagodasPrestamo(id, pagadas) {
@@ -1574,6 +2224,15 @@ function badge(s) {
   if (u === 'PENDIENTE') return '<span class="badge badge-pend">Pendiente</span>';
   if (u === 'COBRADO') return '<span class="badge badge-paid">Cobrado</span>';
   return '<span class="badge badge-info">'+s+'</span>';
+}
+
+function marcarPagado(mod, idx) {
+  var r = DB[mod] && DB[mod][idx];
+  if(!r) return;
+  r.estado = 'COBRADO';
+  guardarEstado();
+  renderTabla(mod);
+  updateBadges();
 }
 
 function actionBtns(mod, idx) {
@@ -2598,7 +3257,12 @@ function renderReportes() {
 
 function eliminar(mod, idx) {
   if (!confirm('Eliminar este registro?')) return;
-  if (DB[mod]) { DB[mod].splice(idx, 1); renderTabla(mod); updateBadges(); }
+  if (DB[mod]) {
+    DB[mod].splice(idx, 1);
+    guardarEstado();
+    renderTabla(mod);
+    updateBadges();
+  }
 }
 
 // ══════════════════════════════════════
@@ -3172,14 +3836,15 @@ function openKpiDetail(tipo) {
 function marcarChequePagado(idx) {
   var c = DB.cheques[idx];
   if(!c) return;
-  document.getElementById('mcob-title').textContent = 'Marcar Cheque como Cobrado';
-  document.getElementById('mcob-ben').textContent = c.beneficiario + ' — Gs ' + fGs(c.monto);
-  document.getElementById('mcob-fecha').value = new Date().toISOString().slice(0,10);
-  document.getElementById('mcob-cuenta').value = 'Continental';
+  var infoEl = document.getElementById('cobrar-info');
+  if(infoEl) infoEl.innerHTML = '<strong>' + c.beneficiario + '</strong> — Cheque #' + (c.cheque||'') + ' — <strong>' + fGs(c.monto) + '</strong>';
+  var fechaEl = document.getElementById('ci-fecha');
+  if(fechaEl) fechaEl.value = new Date().toISOString().slice(0,10);
+  var cuentaEl = document.getElementById('ci-cuenta');
+  if(cuentaEl) cuentaEl.value = 'Continental';
   window._pendingChqIdx = idx;
-  openModal('m-cobrar', '');
-  // Override confirmar to use cheque logic
   window._cobrarMode = 'cheque';
+  openModal('m-cobrar', '');
 }
 
 function marcarCobro(idx) {
@@ -3194,20 +3859,19 @@ function marcarCobro(idx) {
 }
 
 function confirmarCobro() {
-  var fecha = document.getElementById('mcob-fecha').value;
-  var cuenta = document.getElementById('mcob-cuenta').value;
+  var fecha = document.getElementById('ci-fecha').value;
+  var cuenta = document.getElementById('ci-cuenta').value;
   if(!fecha) { alert('Ingresá una fecha'); return; }
 
   if(window._cobrarMode === 'cheque') {
-    // Marcar cheque como cobrado
     var idx = window._pendingChqIdx;
     var c = DB.cheques[idx];
     if(!c) { closeModal('m-cobrar'); return; }
     var xl = dateStrToXl(fecha);
-    var cobrado = Object.assign({}, c, {estado:'COBRADO', fechaCobro: xl, cuenta: cuenta});
+    var cobrado = Object.assign({}, c, {estado:'COBRADO', fechaCobro:xl, cuenta:cuenta});
     if(!DB.chequesCobrados) DB.chequesCobrados = [];
     DB.chequesCobrados.unshift(cobrado);
-    DB.cheques.splice(idx,1);
+    DB.cheques.splice(idx, 1);
     window._cobrarMode = null;
     window._pendingChqIdx = null;
     guardarEstado();
@@ -3217,18 +3881,18 @@ function confirmarCobro() {
     return;
   }
 
-  // Normal cobro pendiente mode
+  // Normal cobro mode
   var idx = window._pendingCobroIdx;
-  var co = DB.cobros[idx];
+  var co = DB.cobros && DB.cobros[idx];
   if(!co) { closeModal('m-cobrar'); return; }
   var xl = dateStrToXl(fecha);
   var rec = Object.assign({}, co, {
-    estado:'RECIBIDO', fechaCobro: xl, cuenta: cuenta,
+    estado:'RECIBIDO', fechaCobro:xl, cuenta:cuenta,
     tipo: co.tipoCobro || co.tipo
   });
   if(!DB.cobrosRecibidos) DB.cobrosRecibidos = [];
   DB.cobrosRecibidos.unshift(rec);
-  DB.cobros.splice(idx,1);
+  DB.cobros.splice(idx, 1);
   window._pendingCobroIdx = null;
   guardarEstado();
   closeModal('m-cobrar');
