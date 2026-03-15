@@ -1923,7 +1923,7 @@ const DEFAULT_DATA = {
   efectivo: []
 };
 
-const LS_KEY = 'gdv_teso_v4_extra'; // fallback only
+const LS_KEY = 'gdv_teso_v4b_extra'; // fallback only
 
 // ══════════════════════════════════════
 // FIREBASE CONFIG
@@ -1939,7 +1939,7 @@ const firebaseConfig = {
 };
 // Firebase globals (initialized after DOM ready)
 var FBDB = null;
-var FB_PATH = 'tesoreria/gdv_v4';
+var FB_PATH = 'tesoreria/gdv_v4b';
 var FB_CONNECTED = false;
 var FB_SAVE_TIMEOUT = null;
 
@@ -2053,27 +2053,66 @@ function initDB() {
 
 function applyExtra(extra) {
   if(!extra) return;
-  if(extra.cheques_extra) DB.cheques = extra.cheques_extra.concat(DB.cheques);
-  if(extra.transferencias_extra) DB.transferencias = extra.transferencias_extra.concat(DB.transferencias);
+
+  // Cheques: add user-added, apply state changes
+  if(extra.cheques_extra && extra.cheques_extra.length)
+    DB.cheques = extra.cheques_extra.concat(DB.cheques);
+  if(extra.cheques_estados) {
+    extra.cheques_estados.forEach(function(s){
+      if(s.estado==='COBRADO') {
+        // Remove from pending
+        DB.cheques = DB.cheques.filter(function(r){return !(r.cheque===s.cheque&&r.fecha===s.fecha);});
+      } else {
+        var r = DB.cheques.find(function(r){return r.cheque===s.cheque&&r.fecha===s.fecha;});
+        if(r) r.estado = s.estado;
+      }
+    });
+  }
+
+  // Transferencias: add user-added, apply state/edit changes
+  if(extra.transferencias_extra && extra.transferencias_extra.length)
+    DB.transferencias = extra.transferencias_extra.concat(DB.transferencias);
+  if(extra.transferencias_estados) {
+    extra.transferencias_estados.forEach(function(s){
+      var key = s._key || (s.beneficiario+'|'+s.fecha+'|'+s.monto);
+      var r = DB.transferencias.find(function(r){
+        return (r.beneficiario+'|'+r.fecha+'|'+r.monto)===key ||
+               (r.beneficiario===s.beneficiario&&r.fecha===s.fecha&&r.monto===s.monto);
+      });
+      if(r) Object.assign(r, s);
+    });
+  }
+
   if(extra.efectivo_extra) DB.efectivo = extra.efectivo_extra.concat(DB.efectivo);
   if(extra.prestamos_extra) DB.prestamos = extra.prestamos_extra.concat(DB.prestamos);
-  if(extra.cobros_extra) DB.cobros = extra.cobros_extra.concat(DB.cobros);
+
+  // Cobros: add user-added, remove ones marked as received
+  if(extra.cobros_extra && extra.cobros_extra.length)
+    DB.cobros = extra.cobros_extra.concat(DB.cobros);
+  if(extra.cobros_removidos && extra.cobros_removidos.length) {
+    var removedSet = new Set(extra.cobros_removidos);
+    DB.cobros = DB.cobros.filter(function(r){
+      return !removedSet.has(r.fechaCobro+'|'+r.cliente+'|'+r.monto);
+    });
+  }
+
   if(extra.cobrosRecibidos_extra) DB.cobrosRecibidos = extra.cobrosRecibidos_extra.concat(DB.cobrosRecibidos);
   if(extra.realizados_extra) DB.realizados = extra.realizados_extra.concat(DB.realizados);
   if(extra.disponible_extra) DB.disponible = extra.disponible_extra.concat(DB.disponible);
   if(extra.chequesCobrados_extra) DB.chequesCobrados = extra.chequesCobrados_extra.concat(DB.chequesCobrados||[]);
   if(extra.prestamosPagados_extra) DB.prestamosPagados = extra.prestamosPagados_extra.concat(DB.prestamosPagados||[]);
   if(extra.cajachica_extra) DB.cajachica = extra.cajachica_extra.concat(DB.cajachica||[]);
+
   if(extra.estados) {
-    extra.estados.forEach(function(s) {
-      var arr = DB[s.mod];
-      if(arr && arr[s.idx]) arr[s.idx].estado = s.estado;
+    extra.estados.forEach(function(s){
+      var arr=DB[s.mod];
+      if(arr&&arr[s.idx]) arr[s.idx].estado=s.estado;
     });
   }
   if(extra.prestamos_pagadas) {
-    extra.prestamos_pagadas.forEach(function(p) {
-      var pr = DB.prestamos.find(function(x){return x.id===p.id;});
-      if(pr) pr.pagadas = p.pagadas;
+    extra.prestamos_pagadas.forEach(function(p){
+      var pr=DB.prestamos.find(function(x){return x.id===p.id;});
+      if(pr) pr.pagadas=p.pagadas;
     });
   }
 }
@@ -2099,24 +2138,52 @@ function guardarEstado() {
 }
 
 function buildExtra() {
-  // Only save user-added data (not DEFAULT_DATA)
   var def = DEFAULT_DATA;
   var extra = {};
-  var defChqIds = new Set(def.cheques.map(function(r){return r.cheque+r.fecha;}));
-  var userChq = DB.cheques.filter(function(r){return !defChqIds.has(r.cheque+r.fecha);});
-  if(userChq.length) extra.cheques_extra = userChq;
 
-  var defTraIds = new Set(def.transferencias.map(function(r){return r.beneficiario+r.fecha+r.monto;}));
-  var userTra = DB.transferencias.filter(function(r){return !defTraIds.has(r.beneficiario+r.fecha+r.monto);});
+  // Cheques: save only user-added + track state changes of default ones
+  var defChqKeys = new Set(def.cheques.map(function(r){return r.cheque+'|'+r.fecha;}));
+  var userChq = DB.cheques.filter(function(r){return !defChqKeys.has(r.cheque+'|'+r.fecha);});
+  if(userChq.length) extra.cheques_extra = userChq;
+  // Track which default cheques changed state
+  var chqEstados = [];
+  def.cheques.forEach(function(dc, idx){
+    var live = DB.cheques.find(function(r){return r.cheque===dc.cheque&&r.fecha===dc.fecha;});
+    if(!live) chqEstados.push({cheque:dc.cheque,fecha:dc.fecha,estado:'COBRADO'}); // removed = cobrado
+    else if(live.estado !== dc.estado) chqEstados.push({cheque:dc.cheque,fecha:dc.fecha,estado:live.estado});
+  });
+  if(chqEstados.length) extra.cheques_estados = chqEstados;
+
+  // Transferencias: save only user-added
+  var defTraKeys = new Set(def.transferencias.map(function(r){return r.beneficiario+'|'+r.fecha+'|'+r.monto;}));
+  var userTra = DB.transferencias.filter(function(r){return !defTraKeys.has(r.beneficiario+'|'+r.fecha+'|'+r.monto);});
   if(userTra.length) extra.transferencias_extra = userTra;
+  // Track state changes on default transferencias
+  var traEstados = [];
+  def.transferencias.forEach(function(dt){
+    var live = DB.transferencias.find(function(r){return r.beneficiario===dt.beneficiario&&r.fecha===dt.fecha&&r.monto===dt.monto;});
+    if(live && live.estado !== dt.estado) traEstados.push({beneficiario:dt.beneficiario,fecha:dt.fecha,monto:dt.monto,estado:live.estado});
+    // Also capture edits
+    if(live && JSON.stringify(live) !== JSON.stringify(dt)) traEstados.push(Object.assign({},live,{_key:dt.beneficiario+'|'+dt.fecha+'|'+dt.monto}));
+  });
+  if(traEstados.length) extra.transferencias_estados = traEstados;
 
   if(DB.efectivo&&DB.efectivo.length) extra.efectivo_extra = DB.efectivo;
-  
+
   var defPresIds = new Set(def.prestamos.map(function(r){return r.id;}));
   var userPres = DB.prestamos.filter(function(r){return !defPresIds.has(r.id);});
   if(userPres.length) extra.prestamos_extra = userPres;
 
-  if(DB.cobros&&DB.cobros.length) extra.cobros_extra = DB.cobros;
+  // Cobros: save ONLY user-added (not DEFAULT ones)
+  var defCobroKeys = new Set(def.cobros.map(function(r){return r.fechaCobro+'|'+r.cliente+'|'+r.monto;}));
+  var userCobros = DB.cobros.filter(function(r){return !defCobroKeys.has(r.fechaCobro+'|'+r.cliente+'|'+r.monto);});
+  if(userCobros.length) extra.cobros_extra = userCobros;
+  // Track removed default cobros (marked as received)
+  var cobrosRemovidos = def.cobros.filter(function(dc){
+    return !DB.cobros.find(function(r){return r.fechaCobro===dc.fechaCobro&&r.cliente===dc.cliente&&r.monto===dc.monto;});
+  }).map(function(r){return r.fechaCobro+'|'+r.cliente+'|'+r.monto;});
+  if(cobrosRemovidos.length) extra.cobros_removidos = cobrosRemovidos;
+
   if(DB.cobrosRecibidos&&DB.cobrosRecibidos.length > def.cobrosRecibidos.length)
     extra.cobrosRecibidos_extra = DB.cobrosRecibidos.slice(0, DB.cobrosRecibidos.length - def.cobrosRecibidos.length);
   if(DB.realizados&&DB.realizados.length > (def.transferenciasRealizadas||[]).length)
@@ -2128,7 +2195,6 @@ function buildExtra() {
     extra.prestamosPagados_extra = DB.prestamosPagados.slice(0, DB.prestamosPagados.length - def.prestamosPagados.length);
   if(DB.cajachica&&DB.cajachica.length) extra.cajachica_extra = DB.cajachica;
 
-  // Save loan pagadas state
   var pagadasChanged = DB.prestamos.filter(function(p){
     var def_p = def.prestamos.find(function(x){return x.id===p.id;});
     return def_p && p.pagadas !== def_p.pagadas;
@@ -2587,6 +2653,7 @@ function renderTabla(mod) {
     });
   } else if (mod === 'cobros') {
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Sin registros</td></tr>'; return; }
+    data.sort(function(a,b){return (parseFloat(a.fechaCobro)||0)-(parseFloat(b.fechaCobro)||0);});
     data.forEach(function(r) {
       var idx = origData.indexOf(r);
       html += '<tr>' +
