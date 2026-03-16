@@ -2541,7 +2541,7 @@ const DEFAULT_DATA = {
   efectivo: []
 };
 
-const LS_KEY = 'gdv_teso_v4c_extra'; // fallback only
+const LS_KEY = 'gdv_teso_v4d_extra'; // fallback only
 
 // ══════════════════════════════════════
 // FIREBASE CONFIG
@@ -2557,7 +2557,7 @@ const firebaseConfig = {
 };
 // Firebase globals (initialized after DOM ready)
 var FBDB = null;
-var FB_PATH = 'tesoreria/gdv_v4c';
+var FB_PATH = 'tesoreria/gdv_v4d';
 var FB_CONNECTED = false;
 var FB_SAVE_TIMEOUT = null;
 
@@ -2717,7 +2717,12 @@ function applyExtra(extra) {
   if(extra.cobrosRecibidos_extra) DB.cobrosRecibidos = extra.cobrosRecibidos_extra.concat(DB.cobrosRecibidos);
   // realizados_extra: intentionally ignored — comes only from DEFAULT_DATA
   if(extra.disponible_extra) DB.disponible = extra.disponible_extra.concat(DB.disponible);
-  if(extra.chequesCobrados_extra) DB.chequesCobrados = extra.chequesCobrados_extra.concat(DB.chequesCobrados||[]);
+  if(extra.chequesCobrados_extra && extra.chequesCobrados_extra.length) {
+    // Only add records not already in the default dataset
+    var existChqKeys = new Set((DB.chequesCobrados||[]).map(function(r){return r.cheque+'|'+(r.fechaCobro||r.fecha);}));
+    var newChqCob = extra.chequesCobrados_extra.filter(function(r){return !existChqKeys.has(r.cheque+'|'+(r.fechaCobro||r.fecha));});
+    if(newChqCob.length) DB.chequesCobrados = newChqCob.concat(DB.chequesCobrados||[]);
+  }
   if(extra.prestamosPagados_extra) DB.prestamosPagados = extra.prestamosPagados_extra.concat(DB.prestamosPagados||[]);
   if(extra.cajachica_extra) DB.cajachica = extra.cajachica_extra.concat(DB.cajachica||[]);
 
@@ -2807,7 +2812,10 @@ function buildExtra() {
   // realizados: NOT saved to Firebase — bulk historical data, updated via Excel deploy only
   if(DB.disponible&&DB.disponible.length > def.disponible.length)
     extra.disponible_extra = DB.disponible.slice(0, DB.disponible.length - def.disponible.length);
-  if(DB.chequesCobrados&&DB.chequesCobrados.length) extra.chequesCobrados_extra = DB.chequesCobrados;
+  // chequesCobrados: only save user-added (not in DEFAULT_DATA)
+  var defChqCobKeys = new Set((DEFAULT_DATA.chequesCobrados||[]).map(function(r){return r.cheque+'|'+r.fechaCobro;}));
+  var userChqCob = (DB.chequesCobrados||[]).filter(function(r){return !defChqCobKeys.has(r.cheque+'|'+r.fechaCobro);});
+  if(userChqCob.length) extra.chequesCobrados_extra = userChqCob;
   if(DB.prestamosPagados&&DB.prestamosPagados.length > def.prestamosPagados.length)
     extra.prestamosPagados_extra = DB.prestamosPagados.slice(0, DB.prestamosPagados.length - def.prestamosPagados.length);
   if(DB.cajachica&&DB.cajachica.length) extra.cajachica_extra = DB.cajachica;
