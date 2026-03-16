@@ -2900,11 +2900,14 @@ function dateToXl(d) {
 }
 
 function todayXl() {
-  // Fecha local Paraguay (UTC-4)
+  // Paraguay = UTC-4, forzar fecha local correcta
   var now = new Date();
-  var utcMs = now.getTime() + now.getTimezoneOffset()*60000;
-  var py = new Date(utcMs + (-4*60*60000));
-  return Math.round((new Date(py.getFullYear(),py.getMonth(),py.getDate()) - new Date(1899,11,30)) / 86400000);
+  // Construir fecha en UTC-4 independientemente del timezone del browser
+  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000; // convertir a UTC
+  var pyMs = utcMs - (4 * 3600000); // restar 4 horas para Paraguay
+  var py = new Date(pyMs);
+  var local = new Date(py.getUTCFullYear(), py.getUTCMonth(), py.getUTCDate());
+  return Math.round((local - new Date(1899,11,30)) / 86400000);
 }
 
 function fGs(v) {
@@ -3722,12 +3725,8 @@ function buscar(mod, val) {
 // BALANCE
 // ══════════════════════════════════════
 function renderBalance() {
-  // ── Fecha local Paraguay (UTC-4) ──
-  var now = new Date();
-  var pyOffset = -4 * 60; // UTC-4 en minutos
-  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  var pyDate = new Date(utcMs + pyOffset * 60000);
-  var hoyXl = Math.round((new Date(pyDate.getFullYear(), pyDate.getMonth(), pyDate.getDate()) - new Date(1899,11,30)) / 86400000);
+  // ── Fecha Paraguay: usar la misma que todayXl() ──
+  var hoyXl = todayXl();
 
   // ── Disponible inicial ──
   var dispInicial = 0;
@@ -3737,13 +3736,14 @@ function renderBalance() {
   }
 
   // ── Build flow map ──
-  // Items VENCIDOS (fecha < hoy) se acumulan en hoy
+  // Pagos vencidos (fecha < hoy) se acumulan en hoy
+  // Pagos futuros van en su fecha
   var flowMap = {};
-  function addFlow(xl, monto, tipo, concepto) {
-    var x = parseFloat(xl)||0;
+
+  function addFlow(xl, monto, tipo) {
+    var x = Math.round(parseFloat(xl)||0);
     if(!x) return;
-    // Acumular vencidos en hoy
-    var targetXl = x < hoyXl ? hoyXl : Math.round(x);
+    var targetXl = (x < hoyXl) ? hoyXl : x;  // vencidos → hoy
     if(!flowMap[targetXl]) flowMap[targetXl] = {pagar:0, cobrar:0};
     monto = parseFloat(monto)||0;
     if(tipo==='egr') flowMap[targetXl].pagar += monto;
@@ -3753,12 +3753,12 @@ function renderBalance() {
   // Cheques pendientes (por vto)
   (DB.cheques||[]).forEach(function(c){
     if(c.estado==='COBRADO') return;
-    addFlow(c.vto||c.fecha, c.monto, 'egr', c.beneficiario);
+    addFlow(c.vto||c.fecha, c.monto, 'egr');
   });
   // Transferencias pendientes
   (DB.transferencias||[]).forEach(function(t){
     if(t.estado==='COBRADO'||t.estado==='PAGADO') return;
-    addFlow(t.fecha, t.monto, 'egr', t.beneficiario);
+    addFlow(t.fecha, t.monto, 'egr');
   });
   // Cuotas préstamos
   (DB.prestamos||[]).forEach(function(p){
@@ -3770,29 +3770,28 @@ function renderBalance() {
       var mo = (moOff%12);
       var dt = new Date(yr, mo, p.dia);
       var xl = Math.round((dt - new Date(1899,11,30)) / 86400000);
-      addFlow(xl, p.cuota, 'egr', p.nombre);
+      addFlow(xl, p.cuota, 'egr');
     }
   });
   // Cobros pendientes
   (DB.cobros||[]).forEach(function(c){
     if(c.estado==='RECIBIDO') return;
-    addFlow(c.fechaCobro||c.fecha, c.monto, 'ing', c.cliente);
+    addFlow(c.fechaCobro||c.fecha, c.monto, 'ing');
   });
 
-  // ── Sorted days from today forward ──
+  // ── Iterar desde hoy hasta último pago ──
   var xlDays = Object.keys(flowMap).map(Number).sort(function(a,b){return a-b;});
   var lastXl = xlDays.length ? xlDays[xlDays.length-1] : hoyXl+30;
 
-  // ── Calculate running saldo ──
   var saldo = dispInicial;
   var rows = [];
   for(var d = hoyXl; d <= lastXl; d++){
     var f = flowMap[d] || {pagar:0, cobrar:0};
+    var dispBefore = saldo;
+    saldo += (f.cobrar - f.pagar);
+    // Solo mostrar filas con actividad o el día de hoy
     if(f.pagar > 0 || f.cobrar > 0 || d === hoyXl){
-      var dispBefore = saldo;
-      saldo += (f.cobrar - f.pagar);
       rows.push({
-        xl: d,
         fecha: xlToDate(String(d)),
         pagar: f.pagar,
         cobrar: f.cobrar,
@@ -3801,9 +3800,6 @@ function renderBalance() {
         isToday: d === hoyXl,
         isNeg: saldo < 0
       });
-    } else {
-      // Days with no activity still move saldo
-      saldo += (f.cobrar - f.pagar);
     }
   }
 
@@ -3934,6 +3930,7 @@ function renderCalendario() {
   // Build unified payment map from cheques + transferencias + pagos
   function buildMap() {
     var pm = {};
+    var calHoyXl = todayXl(); // fecha hoy Paraguay para acumular vencidos
     // Build a set of paid keys from realizados + chequesCobrados for marking
     var paidKeys = new Set();
     (DB.transferenciasRealizadas||[]).forEach(function(r){
@@ -3943,7 +3940,11 @@ function renderCalendario() {
     });
 
     function addItem(dateXl, ben, monto, tipo, paid) {
-      var ds = xlToDate(dateXl);
+      var xlN = Math.round(parseFloat(dateXl)||0);
+      if(!xlN) return;
+      // Pagos vencidos (no pagados) se muestran en HOY del calendario
+      var targetXl = (!paid && xlN < calHoyXl) ? calHoyXl : xlN;
+      var ds = xlToDate(String(targetXl));
       if(!ds || ds==='—') return;
       var pts = ds.split('/');
       if(pts.length!==3) return;
@@ -3954,7 +3955,9 @@ function renderCalendario() {
       var isPaid = paid || paidKeys.has(y+'-'+m+'-'+d+'|'+(ben||'').toLowerCase());
       if(!isPaid) pm[k].total += monto;
       else pm[k].paidTotal += monto;
-      pm[k].items.push({ben:ben, monto:monto, tipo:tipo||'—', paid:isPaid});
+      // Mark as overdue if original date was before today
+      var isOverdue = !paid && xlN < calHoyXl;
+      pm[k].items.push({ben:ben, monto:monto, tipo:tipo||'—', paid:isPaid, overdue:isOverdue, origDate:xlToDate(String(xlN))});
     }
     // Cheques por vencimiento
     DB.cheques.forEach(function(c){
@@ -4027,7 +4030,8 @@ function renderCalendario() {
         var pendItems=pago.items.filter(function(it){return !it.paid;});
         var paidItemsC=pago.items.filter(function(it){return it.paid;});
         pendItems.slice(0,2).forEach(function(it){
-          items+='<div class="cal-pay">'+it.ben.substring(0,15)+'</div>';
+          var overdueTag = it.overdue ? ' <span style="font-size:8px;color:#f44336">(vto '+it.origDate.substring(0,5)+')</span>' : '';
+          items+='<div class="cal-pay">'+it.ben.substring(0,14)+overdueTag+'</div>';
         });
         if(pendItems.length>2) items+='<div class="cal-pay" style="color:var(--ink3)">+'+(pendItems.length-2)+' más</div>';
         if(paidItemsC.length) items+='<div class="cal-pay" style="color:var(--grn);text-decoration:line-through;opacity:.7">✓ '+paidItemsC.length+' pagado'+(paidItemsC.length>1?'s':'')+'</div>';
