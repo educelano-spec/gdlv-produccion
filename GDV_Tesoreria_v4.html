@@ -359,41 +359,113 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
 <!-- DASHBOARD -->
 <div id="view-dashboard" class="view active">
   <div class="ph">
-    <div><div class="ph-title">Panel <em>Principal</em></div><div class="ph-sub">Resumen financiero · Marzo 2026</div></div>
+    <div><div class="ph-title">Panel <em>Principal</em></div><div id="dash-subtitle" class="ph-sub">Resumen financiero ejecutivo</div></div>
     <div class="ph-actions">
-      <button class="btn btn-xl btn-sm" onclick="exportarResumen()">⬇ Exportar Todo</button>
+      <button class="btn btn-xl btn-sm" onclick="exportarResumen()">⬇ Exportar</button>
       <button class="btn btn-p" onclick="openModal('m-pago','transferencias')">+ Registrar Pago</button>
     </div>
   </div>
-  <div id="dash-alerts"></div>
-  <div class="kpi-grid">
-    <div class="kpi bl"><div class="kpi-ico bl">🏦</div><div class="kpi-lbl">Disponible Ahora</div><div class="kpi-val acc" id="kpi-disp">—</div><div class="kpi-delta">Cuenta Continental</div></div>
-    <div class="kpi rd" onclick="openKpiDetail('pagar')" style="cursor:pointer"><div class="kpi-ico rd">⬆</div><div class="kpi-lbl">Total a Pagar</div><div class="kpi-val neg" id="kpi-pagar">—</div><div class="kpi-delta">Ver detalle completo → este mes</div></div>
-    <div class="kpi gn" onclick="openKpiDetail('cobrar')" style="cursor:pointer"><div class="kpi-ico gn">⬇</div><div class="kpi-lbl">Total a Cobrar</div><div class="kpi-val pos" id="kpi-cobrar">—</div><div class="kpi-delta">Cobros pendientes</div></div>
-    <div class="kpi am" onclick="openKpiDetail('neto')" style="cursor:pointer"><div class="kpi-ico am">⚖</div><div class="kpi-lbl">Saldo Neto Final</div><div class="kpi-val neg" id="kpi-neto">—</div><div class="kpi-delta">Proyección 31/03/2026</div></div>
+
+  <!-- ALERTAS CRÍTICAS -->
+  <div id="dash-alerts" style="margin-bottom:12px"></div>
+
+  <!-- FILA 1: KPIs DISPONIBILIDAD -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px" id="dash-kpis-top"></div>
+
+  <!-- FILA 2: MES ACTUAL (destacado) -->
+  <div class="panel" style="margin-bottom:14px;border-left:4px solid var(--acc)">
+    <div class="panel-hdr">
+      <div class="panel-title" id="dash-mes-title">📅 Mes Actual</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px" id="dash-mes-kpis"></div>
   </div>
-  <div class="g2" style="margin-bottom:16px">
+
+  <!-- FILA 3: SEMÁFORO MENSUAL próximos 6 meses -->
+  <div class="panel" style="margin-bottom:14px">
+    <div class="panel-hdr">
+      <div class="panel-title">🚦 Semáforo Financiero — Próximos 6 Meses</div>
+      <button class="btn btn-g btn-sm" onclick="showView('proyecciones')">Ver proyección completa →</button>
+    </div>
+    <div id="dash-semaforo" style="display:flex;gap:8px;flex-wrap:wrap;padding:12px"></div>
+  </div>
+
+  <!-- FILA 4: DOS COLUMNAS — flujo de caja + categorías -->
+  <div class="g2" style="margin-bottom:14px">
     <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">Flujo de Caja — Marzo 2026</div></div>
-      <div class="chart-wrap"><div class="bars" id="dash-bars"></div><div class="blbls" id="dash-lbls"></div></div>
+      <div class="panel-hdr">
+        <div class="panel-title">📈 Flujo de Caja — Mes Actual</div>
+        <button class="btn btn-g btn-sm" onclick="showView('balance')">Balance completo →</button>
+      </div>
+      <div class="chart-wrap"><div class="bars" id="dash-bars" style="height:110px"></div><div class="blbls" id="dash-lbls"></div></div>
     </div>
     <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">Gastos por Categoría</div></div>
+      <div class="panel-hdr">
+        <div class="panel-title">🥧 Gastos por Categoría — Mes Actual</div>
+        <button class="btn btn-g btn-sm" onclick="showView('rubros')">Ver historial →</button>
+      </div>
       <div class="donut-wrap"><canvas id="donut-c" width="130" height="130"></canvas><div class="dleg" id="donut-leg"></div></div>
+      <div id="dash-cat-mes" style="padding:8px 12px;font-size:11px;color:var(--ink3)"></div>
     </div>
   </div>
-  <div class="g2">
+
+  <!-- FILA 5: COMPARATIVO MES ANTERIOR vs MES ACTUAL -->
+  <div class="panel" style="margin-bottom:14px">
+    <div class="panel-hdr">
+      <div class="panel-title" id="dash-comp-title">📊 Comparativo — Mes Anterior vs Mes Actual</div>
+    </div>
+    <div id="dash-comparativo" style="display:grid;grid-template-columns:1fr 1fr;gap:0"></div>
+  </div>
+
+  <!-- FILA 6: VENCIMIENTOS + COBROS -->
+  <div class="g2" style="margin-bottom:14px">
     <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">Próximos Vencimientos</div><button class="btn btn-g btn-sm" onclick="showView('pagos-dia')">Ver todos →</button></div>
-      <table><thead><tr><th>Fecha</th><th>Beneficiario</th><th>Tipo</th><th class="r">Monto</th></tr></thead><tbody id="tb-proximos"></tbody></table>
+      <div class="panel-hdr">
+        <div class="panel-title">⚠ Próximos Vencimientos</div>
+        <button class="btn btn-g btn-sm" onclick="showView('pagos-dia')">Ver agenda →</button>
+      </div>
+      <table><thead><tr><th>Fecha</th><th>Beneficiario</th><th>Tipo</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody id="tb-proximos"></tbody></table>
     </div>
     <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">Cobros Pendientes</div><button class="btn btn-g btn-sm" onclick="showView('cobros')">Ver todos →</button></div>
-      <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Forma</th><th class="r">Monto</th></tr></thead><tbody id="tb-dash-cobros"></tbody></table>
+      <div class="panel-hdr">
+        <div class="panel-title">💰 Cobros Pendientes</div>
+        <button class="btn btn-g btn-sm" onclick="showView('cobros')">Ver todos →</button>
+      </div>
+      <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Forma</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody id="tb-dash-cobros"></tbody></table>
+    </div>
+  </div>
+
+  <!-- FILA 7: ALERTAS PREVENTIVAS / ACCIONES RECOMENDADAS -->
+  <div class="panel" style="margin-bottom:14px;border-left:4px solid var(--amb)">
+    <div class="panel-hdr"><div class="panel-title">🎯 Acciones Preventivas Recomendadas</div></div>
+    <div id="dash-acciones" style="padding:8px"></div>
+  </div>
+
+  <!-- FILA 8: TABLA RESUMEN MESES FUTUROS -->
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-title">📅 Resumen Financiero por Mes</div>
+      <button class="btn btn-g btn-sm" onclick="showView('rubros')">Detalle por rubro →</button>
+    </div>
+    <div class="tscroll">
+      <table><thead><tr>
+        <th>Mes</th>
+        <th style="text-align:right">Egresos Plan.</th>
+        <th style="text-align:right">Ingresos Esp.</th>
+        <th style="text-align:right">Neto Mes</th>
+        <th style="text-align:right">Saldo Acum.</th>
+        <th style="text-align:right">Cheques</th>
+        <th style="text-align:right">Transf.</th>
+        <th>Situación</th>
+      </tr></thead>
+      <tbody id="tb-dash-meses"></tbody></table>
     </div>
   </div>
 </div>
 
+<!-- ALERTAS -->
+<div 
 <!-- ALERTAS -->
 <div id="view-alertas" class="view">
   <div class="ph"><div><div class="ph-title">Centro de <em>Alertas</em></div><div class="ph-sub">Notificaciones y eventos críticos</div></div></div>
@@ -2971,58 +3043,336 @@ function renderAlertas() {
 // DASHBOARD
 // ══════════════════════════════════════
 function renderDashboard() {
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  var hoyXl = todayXl();
+  var mesMes = hoy.getMonth()+1;
+  var mesAnio = hoy.getFullYear();
+  var mesNombre = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mesMes-1];
+
+  // Update subtitle
+  var subEl = document.getElementById('dash-subtitle');
+  if(subEl) subEl.textContent = 'Resumen ejecutivo · '+mesNombre+' '+mesAnio;
+
+  // ── Helpers ──
+  function xlMes(xl) {
+    var d = xlToDate(xl); if(!d||d==='—') return {m:0,a:0};
+    var p=d.split('/'); return p.length===3?{m:parseInt(p[1]),a:parseInt(p[2])}:{m:0,a:0};
+  }
+  function isThisMes(xl) { var r=xlMes(xl); return r.m===mesMes&&r.a===mesAnio; }
+  function isPrevMes(xl) {
+    var pm=mesMes-1, pa=mesAnio;
+    if(pm===0){pm=12;pa--;}
+    var r=xlMes(xl); return r.m===pm&&r.a===pa;
+  }
+  function isFuture(xl) { return parseFloat(xl)>hoyXl; }
+
+  // ── Disponible ──
+  var disp = DB.disponible[0] ? parseFloat(DB.disponible[0].total||0) : 0;
+
+  // ── Totales GENERAL (todos los pendientes) ──
+  var totalEgrPend=0, totalEgrMes=0, totalEgrMesPrev=0;
+  var chqMes=0, traMes=0, chqMesPrev=0, traMesPrev=0;
+  var chqMesN=0, traMesN=0;
+
+  (DB.cheques||[]).forEach(function(r){
+    if(r.estado==='COBRADO') return;
+    var m=parseFloat(r.monto||0), xl=r.vto||r.fecha;
+    totalEgrPend+=m;
+    if(isThisMes(xl)){totalEgrMes+=m;chqMes+=m;chqMesN++;}
+    if(isPrevMes(xl)){totalEgrMesPrev+=m;chqMesPrev+=m;}
+  });
+  (DB.transferencias||[]).forEach(function(r){
+    if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+    var m=parseFloat(r.monto||0), xl=r.fecha;
+    totalEgrPend+=m;
+    if(isThisMes(xl)){totalEgrMes+=m;traMes+=m;traMesN++;}
+    if(isPrevMes(xl)){totalEgrMesPrev+=m;traMesPrev+=m;}
+  });
+  (DB.prestamos||[]).forEach(function(p){
+    var ini=new Date(p.inicio);
+    for(var q=1;q<=p.nCuotas;q++){
+      if(q<=(p.pagadas||0)) continue;
+      var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia);
+      var xlQ=Math.round(dt.getTime()/86400000+25569);
+      var m=parseFloat(p.cuota||0);
+      totalEgrPend+=m;
+      var r={m:dt.getMonth()+1,a:dt.getFullYear()};
+      if(r.m===mesMes&&r.a===mesAnio) totalEgrMes+=m;
+    }
+  });
+
+  var totalCobrPend=0, totalCobrMes=0, totalCobrMesPrev=0;
+  (DB.cobros||[]).forEach(function(r){
+    var m=parseFloat(r.monto||0), xl=r.fechaCobro||r.fecha;
+    totalCobrPend+=m;
+    if(isThisMes(xl)) totalCobrMes+=m;
+    if(isPrevMes(xl)) totalCobrMesPrev+=m;
+  });
+
+  // Historical this month
+  var realMes=0, realMesPrev=0;
+  (DB.transferenciasRealizadas||[]).forEach(function(r){
+    if(isThisMes(r.fecha)) realMes+=parseFloat(r.monto||0);
+    if(isPrevMes(r.fecha)) realMesPrev+=parseFloat(r.monto||0);
+  });
+  (DB.chequesCobrados||[]).forEach(function(r){
+    var xl=r.fechaCobro||r.fecha;
+    if(isThisMes(xl)) realMes+=parseFloat(r.monto||0);
+    if(isPrevMes(xl)) realMesPrev+=parseFloat(r.monto||0);
+  });
+
+  var netoMes = totalCobrMes - totalEgrMes;
+  var saldoFinMes = disp + totalCobrMes - totalEgrMes;
+  var coberturaMes = totalEgrMes>0 ? (disp/totalEgrMes*100) : 100;
+  var diasHastaCrisis = 999;
+  var runSaldo = disp;
+
+  // ── ALERTAS ──
   var al = getAlertas().filter(function(a){return a.type!=='ok';});
-  document.getElementById('dash-alerts').innerHTML = al.map(function(a) {
-    return '<div class="al-item '+a.type+'" style="margin-bottom:8px"><div class="al-ico">'+a.ico+'</div><div><span class="al-title">'+a.title+'</span><span class="al-desc">'+a.desc+'</span></div></div>';
+  document.getElementById('dash-alerts').innerHTML = al.slice(0,3).map(function(a){
+    return '<div class="al-item '+a.type+'" style="margin-bottom:6px"><div class="al-ico">'+a.ico+'</div><div><span class="al-title">'+a.title+'</span><span class="al-desc">'+a.desc+'</span></div></div>';
   }).join('');
 
-  var disp = DB.disponible[0] ? DB.disponible[0].total : 28855000;
-  var tPagar = DB.cheques.filter(function(c){return c.estado!=='COBRADO';}).reduce(function(s,c){return s+parseFloat(c.monto||0);},0)
-    + DB.transferencias.filter(function(t){return t.estado!=='COBRADO';}).reduce(function(s,t){return s+parseFloat(t.monto||0);},0)
-    + DB.efectivo.filter(function(e){return e.estado!=='COBRADO';}).reduce(function(s,e){return s+parseFloat(e.monto||0);},0);
-  var tCobrar = DB.cobros.reduce(function(s,c){return s+parseFloat(c.monto||0);},0);
-  var netoFinal = DB.balance[DB.balance.length-1] ? DB.balance[DB.balance.length-1].neto : 0;
+  // ── FILA 1: KPIs TOP ──
+  var kpisTop = document.getElementById('dash-kpis-top');
+  if(kpisTop) {
+    var cobVsEgr = totalEgrPend>0?(totalCobrPend/totalEgrPend*100).toFixed(0):100;
+    kpisTop.innerHTML =
+      '<div class="kpi bl" style="cursor:pointer" onclick="showView(\'disponible\')">'+
+        '<div class="kpi-ico bl">🏦</div><div class="kpi-lbl">Disponible Ahora</div>'+
+        '<div class="kpi-val acc">'+fGs(disp)+'</div>'+
+        '<div class="kpi-delta">Continental · clic para historial</div></div>'+
+      '<div class="kpi rd" style="cursor:pointer" onclick="showView(\'cheques\')">'+
+        '<div class="kpi-ico rd">📤</div><div class="kpi-lbl">Total Egresos Pendientes</div>'+
+        '<div class="kpi-val neg">'+fGs(totalEgrPend)+'</div>'+
+        '<div class="kpi-delta">Cheques + transf. + préstamos</div></div>'+
+      '<div class="kpi gn" style="cursor:pointer" onclick="showView(\'cobros\')">'+
+        '<div class="kpi-ico gn">📥</div><div class="kpi-lbl">Total Cobros Esperados</div>'+
+        '<div class="kpi-val pos">'+fGs(totalCobrPend)+'</div>'+
+        '<div class="kpi-delta">'+cobVsEgr+'% cubre los egresos</div></div>'+
+      '<div class="kpi '+(saldoFinMes>=0?'gn':'rd')+'" style="cursor:pointer" onclick="showView(\'proyecciones\')">'+
+        '<div class="kpi-ico '+(saldoFinMes>=0?'gn':'rd')+'">'+(saldoFinMes>=0?'📈':'📉')+'</div>'+
+        '<div class="kpi-lbl">Saldo Fin de '+mesNombre+'</div>'+
+        '<div class="kpi-val '+(saldoFinMes>=0?'pos':'neg')+'">'+fGsSigned(saldoFinMes)+'</div>'+
+        '<div class="kpi-delta">'+(saldoFinMes>=0?'Situación controlada':'⚠ Déficit proyectado')+'</div></div>';
+  }
 
-  (document.getElementById('kpi-disp')||{}).textContent = fGs(disp);
-  (document.getElementById('kpi-pagar')||{}).textContent = fGs(tPagar);
-  (document.getElementById('kpi-cobrar')||{}).textContent = fGs(tCobrar);
-  (document.getElementById('kpi-neto')||{}).textContent = fGsSigned(netoFinal);
+  // ── FILA 2: MES ACTUAL ──
+  var mesTitle = document.getElementById('dash-mes-title');
+  if(mesTitle) mesTitle.textContent = '📅 '+mesNombre+' '+mesAnio+' — Estado Actual';
 
-  // Liq bar
-  var pct = tPagar > 0 ? Math.min(100, Math.max(0, (disp/tPagar)*100)) : 100;
-  var fill = document.getElementById('liq-fill');
-  fill.style.width = pct+'%';
-  fill.className = 'liq-fill '+(pct>60?'g':pct>30?'w':'d');
-  (document.getElementById('liq-pct')||{}).textContent = pct.toFixed(0)+'%';
-  (document.getElementById('liq-disp')||{}).textContent = fGs(disp);
-  var next7 = DB.balance.slice(0,7).reduce(function(s,r){return s+r.pagar;},0);
-  (document.getElementById('liq-7d')||{}).textContent = fGs(next7);
-  var diasPos = DB.balance.filter(function(r){return r.neto>=0;}).length;
-  (document.getElementById('liq-dias')||{}).textContent = diasPos+' de '+DB.balance.length;
-  (document.getElementById('liq-proy')||{}).textContent = fGsSigned(netoFinal);
+  var mesKpis = document.getElementById('dash-mes-kpis');
+  if(mesKpis) {
+    var pct = totalEgrMes>0?Math.min(100,(disp/totalEgrMes*100)).toFixed(0):100;
+    var colorCob = coberturaMes>=80?'var(--grn)':coberturaMes>=50?'var(--amb)':'var(--red)';
+    mesKpis.innerHTML =
+      '<div style="text-align:center;padding:8px;background:var(--redl);border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">EGRESOS MES</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--red)">'+fGs(totalEgrMes)+'</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">'+chqMesN+' cheques · '+traMesN+' transf.</div></div>'+
+      '<div style="text-align:center;padding:8px;background:var(--grnl);border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">INGRESOS MES</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--grn)">'+fGs(totalCobrMes)+'</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Cobros pendientes</div></div>'+
+      '<div style="text-align:center;padding:8px;background:'+(netoMes>=0?'var(--grnl)':'var(--redl)')+';border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">NETO MES</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:'+(netoMes>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(netoMes)+'</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">'+(netoMes>=0?'Superávit':'Déficit')+'</div></div>'+
+      '<div style="text-align:center;padding:8px;background:var(--ambl);border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">YA PAGADO MES</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--amb)">'+fGs(realMes)+'</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Transferencias+cheques</div></div>'+
+      '<div style="text-align:center;padding:8px;background:var(--sur2);border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">COBERTURA</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:20px;font-weight:700;color:'+colorCob+'">'+pct+'%</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Disponible / Egresos</div></div>';
+  }
 
+  // ── SEMÁFORO 6 MESES ──
+  var semEl = document.getElementById('dash-semaforo');
+  if(semEl) {
+    var semHtml = '';
+    for(var ms=0; ms<6; ms++) {
+      var targetMes = ((mesMes-1+ms)%12)+1;
+      var targetAnio = mesAnio + Math.floor((mesMes-1+ms)/12);
+      var mNom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][targetMes-1];
+      var egr=0, ing=0;
+      (DB.cheques||[]).forEach(function(r){
+        if(r.estado==='COBRADO') return;
+        var rm=xlMes(r.vto||r.fecha);
+        if(rm.m===targetMes&&rm.a===targetAnio) egr+=parseFloat(r.monto||0);
+      });
+      (DB.transferencias||[]).forEach(function(r){
+        if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+        var rm=xlMes(r.fecha);
+        if(rm.m===targetMes&&rm.a===targetAnio) egr+=parseFloat(r.monto||0);
+      });
+      (DB.cobros||[]).forEach(function(r){
+        var rm=xlMes(r.fechaCobro||r.fecha);
+        if(rm.m===targetMes&&rm.a===targetAnio) ing+=parseFloat(r.monto||0);
+      });
+      var neto = ing-egr;
+      var disp_proj = ms===0 ? disp : 0; // only current month uses real disponible
+      var icon = egr===0?'✅': neto>=0?'🟢': egr<10000000?'🟡': egr<30000000?'🟠':'🔴';
+      var bg = egr===0?'#e8f5e9': neto>=0?'#e8f5e9': egr<10000000?'#fffde7': egr<30000000?'#fff3e0':'#ffebee';
+      var isHoy = ms===0;
+      semHtml += '<div style="background:'+bg+';border:1.5px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 14px;flex:1;min-width:110px;'+(isHoy?'border-color:var(--acc);box-shadow:0 0 0 2px rgba(29,68,196,.15)':'')+'" onclick="showView(\'proyecciones\')" style="cursor:pointer">'+
+        '<div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:4px">'+mNom+' '+targetAnio+(isHoy?' ◀':'')+' '+icon+'</div>'+
+        (egr>0?'<div style="font-size:11px;color:var(--red)">-'+fGs(egr)+'</div>':'<div style="font-size:11px;color:var(--grn)">Sin egresos plan.</div>')+
+        (ing>0?'<div style="font-size:11px;color:var(--grn)">+'+fGs(ing)+'</div>':'')+
+        (egr>0?'<div style="font-size:11px;font-weight:700;color:'+(neto>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(neto)+'</div>':'')+
+        '</div>';
+    }
+    semEl.innerHTML = semHtml;
+  }
+
+  // ── COMPARATIVO MES ANTERIOR VS ACTUAL ──
+  var compEl = document.getElementById('dash-comparativo');
+  var prevNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][(mesMes-2+12)%12];
+  var compTitle = document.getElementById('dash-comp-title');
+  if(compTitle) compTitle.textContent = '📊 Comparativo — '+prevNom+' vs '+mesNombre;
+
+  if(compEl) {
+    function colCard(titulo, val1, val2, label1, label2, color) {
+      var diff = val2-val1;
+      var pct = val1>0?((diff/val1)*100).toFixed(1):'—';
+      var arrow = diff>0?'▲':'▼';
+      var arrowColor = color==='neg'?(diff>0?'var(--red)':'var(--grn)'):(diff>0?'var(--grn)':'var(--red)');
+      return '<div style="padding:14px;border-right:1px solid var(--bdr)">'+
+        '<div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;margin-bottom:10px">'+titulo+'</div>'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:8px">'+
+          '<div><div style="font-size:10px;color:var(--ink3)">'+label1+'</div>'+
+          '<div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:600;color:var(--ink2)">'+fGs(val1)+'</div></div>'+
+          '<div style="font-size:20px;color:var(--ink3);align-self:center">→</div>'+
+          '<div style="text-align:right"><div style="font-size:10px;color:var(--ink3)">'+label2+'</div>'+
+          '<div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:'+(color==='neg'?'var(--red)':'var(--grn)')+'">'+fGs(val2)+'</div></div>'+
+        '</div>'+
+        '<div style="font-size:12px;color:'+arrowColor+';font-weight:600">'+arrow+' '+Math.abs(pct)+'% vs mes anterior</div>'+
+      '</div>';
+    }
+    compEl.innerHTML =
+      colCard('Egresos', realMesPrev+totalEgrMesPrev*0, totalEgrMes, prevNom, mesNombre, 'neg')+
+      colCard('Ya Pagado', realMesPrev, realMes, prevNom, mesNombre, 'neg')+
+      colCard('Cobros', totalCobrMesPrev, totalCobrMes, prevNom, mesNombre, 'pos')+
+      colCard('Resultado', totalCobrMesPrev-totalEgrMesPrev, netoMes, prevNom, mesNombre, 'pos');
+  }
+
+  // ── ACCIONES PREVENTIVAS ──
+  var accionesEl = document.getElementById('dash-acciones');
+  if(accionesEl) {
+    var acciones = [];
+    if(coberturaMes < 50) acciones.push({ico:'🚨',color:'var(--red)',titulo:'Liquidez crítica este mes',desc:'El disponible cubre solo el '+Math.round(coberturaMes)+'% de los egresos de '+mesNombre+'. Urge gestionar cobros o diferir pagos.'});
+    if(coberturaMes < 80 && coberturaMes >= 50) acciones.push({ico:'⚠',color:'var(--amb)',titulo:'Liquidez ajustada en '+mesNombre,desc:'Disponible cubre el '+Math.round(coberturaMes)+'% de egresos planificados. Monitorear cobros de SPORT GROUP.'});
+    if(totalCobrMes > 0 && totalCobrMes < totalEgrMes) acciones.push({ico:'📞',color:'var(--amb)',titulo:'Gestionar cobros pendientes',desc:'Cobros esperados ('+fGs(totalCobrMes)+') no alcanzan a cubrir egresos ('+fGs(totalEgrMes)+'). Contactar clientes.'});
+    // Check for big payments next 7 days
+    var next7Egr = 0;
+    var bigNext = [];
+    (DB.cheques||[]).concat(DB.transferencias||[]).forEach(function(r){
+      if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+      var xl=parseFloat(r.vto||r.fecha||0);
+      if(xl>=hoyXl && xl<=hoyXl+7){
+        next7Egr+=parseFloat(r.monto||0);
+        if(parseFloat(r.monto||0)>5000000) bigNext.push(r.beneficiario||r.cliente||'');
+      }
+    });
+    if(next7Egr > disp*0.5) acciones.push({ico:'📅',color:'var(--red)',titulo:'Vencimientos altos próximos 7 días',desc:'Gs '+fGs(next7Egr)+' vence esta semana ('+bigNext.slice(0,3).join(', ')+'). Verificar fondos disponibles.'});
+    // Months with deficit
+    var deficitMeses = [];
+    for(var ms2=1;ms2<6;ms2++){
+      var tm=((mesMes-1+ms2)%12)+1, ta=mesAnio+Math.floor((mesMes-1+ms2)/12);
+      var egr2=0;
+      (DB.cheques||[]).forEach(function(r){if(r.estado==='COBRADO')return;var rm=xlMes(r.vto||r.fecha);if(rm.m===tm&&rm.a===ta)egr2+=parseFloat(r.monto||0);});
+      (DB.transferencias||[]).forEach(function(r){if(r.estado==='COBRADO'||r.estado==='PAGADO')return;var rm=xlMes(r.fecha);if(rm.m===tm&&rm.a===ta)egr2+=parseFloat(r.monto||0);});
+      var nom=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][tm-1];
+      if(egr2>20000000) deficitMeses.push(nom+' ('+fGs(egr2)+')');
+    }
+    if(deficitMeses.length) acciones.push({ico:'🔮',color:'var(--ink3)',titulo:'Meses futuros con alta carga',desc:deficitMeses.join(' · ')+'. Planificar financiamiento o diferimiento con anticipación.'});
+    if(!acciones.length) acciones.push({ico:'✅',color:'var(--grn)',titulo:'Situación financiera bajo control',desc:'No se detectan alertas críticas para el período analizado.'});
+    accionesEl.innerHTML = acciones.map(function(a){
+      return '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--bdr)">'+
+        '<span style="font-size:22px;flex-shrink:0">'+a.ico+'</span>'+
+        '<div><div style="font-weight:700;font-size:13px;color:'+a.color+';margin-bottom:2px">'+a.titulo+'</div>'+
+        '<div style="font-size:12px;color:var(--ink3)">'+a.desc+'</div></div></div>';
+    }).join('');
+  }
+
+  // ── TABLA MESES FUTUROS ──
+  var tbMeses = document.getElementById('tb-dash-meses');
+  if(tbMeses) {
+    var rows = [];
+    var saldoAcum = disp;
+    for(var ms3=0; ms3<8; ms3++) {
+      var tm=((mesMes-1+ms3)%12)+1, ta=mesAnio+Math.floor((mesMes-1+ms3)/12);
+      var nom=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][tm-1]+' '+ta;
+      var egr3=0,ing3=0,nChq=0,nTra=0;
+      (DB.cheques||[]).forEach(function(r){if(r.estado==='COBRADO')return;var rm=xlMes(r.vto||r.fecha);if(rm.m===tm&&rm.a===ta){egr3+=parseFloat(r.monto||0);nChq++;}});
+      (DB.transferencias||[]).forEach(function(r){if(r.estado==='COBRADO'||r.estado==='PAGADO')return;var rm=xlMes(r.fecha);if(rm.m===tm&&rm.a===ta){egr3+=parseFloat(r.monto||0);nTra++;}});
+      (DB.cobros||[]).forEach(function(r){var rm=xlMes(r.fechaCobro||r.fecha);if(rm.m===tm&&rm.a===ta)ing3+=parseFloat(r.monto||0);});
+      var neto3=ing3-egr3; saldoAcum+=neto3;
+      var sit = saldoAcum<0?'<span class="badge badge-venc">⚠ Déficit</span>':
+                neto3<0?'<span class="badge badge-pend">Ajustado</span>':
+                '<span class="badge badge-paid">OK</span>';
+      var isThis = ms3===0;
+      rows.push('<tr style="'+(isThis?'background:var(--accl,#eef2ff);font-weight:600':'')+'">'+
+        '<td class="mn"><strong>'+nom+'</strong>'+(isThis?' ◀':'')+' </td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+(egr3>0?fGs(egr3):'—')+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+(ing3>0?fGs(ing3):'—')+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:'+(neto3>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(neto3)+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700;color:'+(saldoAcum>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(saldoAcum)+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+(nChq>0?nChq+' ('+fGs(chqMes)+')':'—')+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+(nTra>0?nTra+' ('+fGs(traMes)+')':'—')+'</td>'+
+        '<td>'+sit+'</td></tr>');
+    }
+    tbMeses.innerHTML = rows.join('');
+  }
+
+  // ── FLUJO DE CAJA (gráfico barra) ──
   renderBars('dash-bars', 'dash-lbls', DB.balance, 110);
-  renderDonut();
 
-  // Proximos pagos
-  var pend = [];
-  DB.cheques.filter(function(c){return c.estado!=='COBRADO';}).forEach(function(c){
-    pend.push({f:parseFloat(c.vto)||parseFloat(c.fecha)||99999,ben:c.beneficiario,tipo:c.tipo,monto:c.monto});
-  });
-  DB.transferencias.filter(function(t){return t.estado!=='COBRADO';}).forEach(function(t){
-    pend.push({f:parseFloat(t.fecha)||99999,ben:t.beneficiario,tipo:t.tipo,monto:t.monto});
-  });
-  DB.efectivo.filter(function(e){return e.estado!=='COBRADO';}).forEach(function(e){
-    pend.push({f:parseFloat(e.fechaVto)||99999,ben:e.beneficiario,tipo:e.tipo,monto:e.monto});
-  });
+  // ── DONUT CATEGORÍAS MES ACTUAL ──
+  var bt={};
+  (DB.cheques||[]).forEach(function(r){if(r.estado==='COBRADO')return;if(!isThisMes(r.vto||r.fecha))return;var t=r.tipo||'OTROS';if(!bt[t])bt[t]=0;bt[t]+=parseFloat(r.monto||0);});
+  (DB.transferencias||[]).forEach(function(r){if(r.estado==='COBRADO'||r.estado==='PAGADO')return;if(!isThisMes(r.fecha))return;var t=r.tipo||'OTROS';if(!bt[t])bt[t]=0;bt[t]+=parseFloat(r.monto||0);});
+  var sorted=Object.entries(bt).sort(function(a,b){return b[1]-a[1];});
+  var total=sorted.reduce(function(s,x){return s+x[1];},0)||1;
+  var COLORS=['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669','#d97706','#6b7280'];
+  var canvas=document.getElementById('donut-c');
+  if(canvas){
+    var ctx=canvas.getContext('2d'),cx=65,cy=65,R=52,ri=34;
+    ctx.clearRect(0,0,130,130);
+    var a=-Math.PI/2;
+    sorted.slice(0,10).forEach(function(item,ii){var sl=(item[1]/total)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a,a+sl);ctx.closePath();ctx.fillStyle=COLORS[ii%10];ctx.fill();a+=sl;});
+    ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='var(--bg,#fff)';ctx.fill();
+  }
+  var legEl=document.getElementById('donut-leg');
+  if(legEl) legEl.innerHTML=sorted.slice(0,6).map(function(item,ii){
+    return '<div class="dleg-item"><div class="dleg-dot" style="background:'+COLORS[ii%10]+'"></div>'+
+      '<span class="dleg-lbl">'+item[0]+'</span><span class="dleg-val">'+fGs(item[1])+'</span>'+
+      '<span class="dleg-pct">'+((item[1]/total)*100).toFixed(0)+'%</span></div>';
+  }).join('');
+  var catMesEl=document.getElementById('dash-cat-mes');
+  if(catMesEl) catMesEl.textContent='Solo '+mesNombre+' · '+Object.keys(bt).length+' categorías · Total: '+fGs(totalEgrMes);
+
+  // ── PRÓXIMOS VENCIMIENTOS ──
+  var pend=[];
+  (DB.cheques||[]).filter(function(c){return c.estado!=='COBRADO';}).forEach(function(c){pend.push({f:parseFloat(c.vto||c.fecha)||99999,ben:c.beneficiario,tipo:c.tipo,monto:c.monto});});
+  (DB.transferencias||[]).filter(function(t){return t.estado!=='COBRADO'&&t.estado!=='PAGADO';}).forEach(function(t){pend.push({f:parseFloat(t.fecha)||99999,ben:t.beneficiario,tipo:t.tipo,monto:t.monto});});
   pend.sort(function(a,b){return a.f-b.f;});
-  document.getElementById('tb-proximos').innerHTML = pend.slice(0,8).map(function(r) {
-    return '<tr><td class="mn">'+xlToDate(String(r.f))+'</td><td><strong>'+r.ben.substring(0,22)+'</strong></td><td>'+chip(r.tipo)+'</td><td class="neg">'+fGs(r.monto)+'</td></tr>';
-  }).join('') || '<tr><td colspan="4" class="empty">Sin pendientes</td></tr>';
+  document.getElementById('tb-proximos').innerHTML=pend.slice(0,8).map(function(r){
+    var isVenc=r.f<hoyXl;
+    return '<tr style="'+(isVenc?'background:#fff5f5':'')+'">'+
+      '<td class="mn">'+xlToDate(String(r.f))+(isVenc?' <span style="color:var(--red);font-size:9px">VENC</span>':'')+'</td>'+
+      '<td><strong>'+(r.ben||'').substring(0,20)+'</strong></td>'+
+      '<td>'+chip(r.tipo)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(r.monto)+'</td></tr>';
+  }).join('')||'<tr><td colspan="4" class="empty">Sin pendientes</td></tr>';
 
-  document.getElementById('tb-dash-cobros').innerHTML = DB.cobros.slice(0,6).map(function(r) {
-    return '<tr><td class="mn">'+xlToDate(r.fechaCobro)+'</td><td><strong>'+r.cliente+'</strong></td><td><span class="badge badge-info">'+r.tipoCobro+'</span></td><td class="pos">'+fGs(r.monto)+'</td></tr>';
-  }).join('') || '<tr><td colspan="4" class="empty">Sin cobros</td></tr>';
+  document.getElementById('tb-dash-cobros').innerHTML=(DB.cobros||[]).slice(0,6).map(function(r){
+    return '<tr><td class="mn">'+xlToDate(r.fechaCobro)+'</td>'+
+      '<td><strong>'+r.cliente+'</strong></td>'+
+      '<td><span class="badge badge-info">'+r.tipoCobro+'</span></td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+fGs(r.monto)+'</td></tr>';
+  }).join('')||'<tr><td colspan="4" class="empty">Sin cobros</td></tr>';
 }
 
 // ══════════════════════════════════════
