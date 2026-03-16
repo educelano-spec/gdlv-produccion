@@ -2900,8 +2900,11 @@ function dateToXl(d) {
 }
 
 function todayXl() {
-  var dt = new Date();
-  return Math.round((dt - new Date(1899,11,30)) / 86400000);
+  // Fecha local Paraguay (UTC-4)
+  var now = new Date();
+  var utcMs = now.getTime() + now.getTimezoneOffset()*60000;
+  var py = new Date(utcMs + (-4*60*60000));
+  return Math.round((new Date(py.getFullYear(),py.getMonth(),py.getDate()) - new Date(1899,11,30)) / 86400000);
 }
 
 function fGs(v) {
@@ -3719,7 +3722,12 @@ function buscar(mod, val) {
 // BALANCE
 // ══════════════════════════════════════
 function renderBalance() {
-  var hoyXl = todayXl();
+  // ── Fecha local Paraguay (UTC-4) ──
+  var now = new Date();
+  var pyOffset = -4 * 60; // UTC-4 en minutos
+  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  var pyDate = new Date(utcMs + pyOffset * 60000);
+  var hoyXl = Math.round((new Date(pyDate.getFullYear(), pyDate.getMonth(), pyDate.getDate()) - new Date(1899,11,30)) / 86400000);
 
   // ── Disponible inicial ──
   var dispInicial = 0;
@@ -3728,74 +3736,76 @@ function renderBalance() {
     dispInicial = parseFloat(sd[0].total || sd[0].conti || 0);
   }
 
-  // ── Build flow map: xl_date → {pagar, cobrar} ──
+  // ── Build flow map ──
+  // Items VENCIDOS (fecha < hoy) se acumulan en hoy
   var flowMap = {};
-  function addFlow(xl, monto, tipo) {
-    var x = Math.round(parseFloat(xl)||0);
-    if(!x || x < hoyXl - 1) return; // only today onwards
-    if(!flowMap[x]) flowMap[x] = {pagar:0, cobrar:0, items:[]};
+  function addFlow(xl, monto, tipo, concepto) {
+    var x = parseFloat(xl)||0;
+    if(!x) return;
+    // Acumular vencidos en hoy
+    var targetXl = x < hoyXl ? hoyXl : Math.round(x);
+    if(!flowMap[targetXl]) flowMap[targetXl] = {pagar:0, cobrar:0};
     monto = parseFloat(monto)||0;
-    if(tipo==='egr') { flowMap[x].pagar += monto; flowMap[x].items.push({tipo:'egr',monto:monto}); }
-    else             { flowMap[x].cobrar += monto; flowMap[x].items.push({tipo:'ing',monto:monto}); }
+    if(tipo==='egr') flowMap[targetXl].pagar += monto;
+    else             flowMap[targetXl].cobrar += monto;
   }
 
-  // Cheques pendientes — por fecha de vencimiento
+  // Cheques pendientes (por vto)
   (DB.cheques||[]).forEach(function(c){
     if(c.estado==='COBRADO') return;
-    addFlow(c.vto||c.fecha, c.monto, 'egr');
+    addFlow(c.vto||c.fecha, c.monto, 'egr', c.beneficiario);
   });
   // Transferencias pendientes
   (DB.transferencias||[]).forEach(function(t){
     if(t.estado==='COBRADO'||t.estado==='PAGADO') return;
-    addFlow(t.fecha, t.monto, 'egr');
+    addFlow(t.fecha, t.monto, 'egr', t.beneficiario);
   });
   // Cuotas préstamos
   (DB.prestamos||[]).forEach(function(p){
     var ini = new Date(p.inicio);
     for(var q=1; q<=p.nCuotas; q++){
       if(q<=(p.pagadas||0)) continue;
-      var dt = new Date(ini.getFullYear(), ini.getMonth()+(q-1), p.dia);
-      var xl = Math.round(dt.getTime()/86400000 + 25569);
-      addFlow(xl, p.cuota, 'egr');
+      var moOff = ini.getMonth()+(q-1);
+      var yr = ini.getFullYear()+Math.floor(moOff/12);
+      var mo = (moOff%12);
+      var dt = new Date(yr, mo, p.dia);
+      var xl = Math.round((dt - new Date(1899,11,30)) / 86400000);
+      addFlow(xl, p.cuota, 'egr', p.nombre);
     }
   });
   // Cobros pendientes
   (DB.cobros||[]).forEach(function(c){
     if(c.estado==='RECIBIDO') return;
-    addFlow(c.fechaCobro||c.fecha, c.monto, 'ing');
+    addFlow(c.fechaCobro||c.fecha, c.monto, 'ing', c.cliente);
   });
 
-  // ── Build sorted day list ──
+  // ── Sorted days from today forward ──
   var xlDays = Object.keys(flowMap).map(Number).sort(function(a,b){return a-b;});
-
-  // Fill in ALL days from today to last flow day (including days with no flows)
   var lastXl = xlDays.length ? xlDays[xlDays.length-1] : hoyXl+30;
-  var allDays = [];
-  for(var d = hoyXl; d <= lastXl; d++) {
-    allDays.push(d);
-  }
 
   // ── Calculate running saldo ──
   var saldo = dispInicial;
   var rows = [];
-  allDays.forEach(function(xl){
-    var f = flowMap[xl] || {pagar:0, cobrar:0};
-    var netoDia = f.cobrar - f.pagar;
-    saldo += netoDia;
-    // Only include rows that have activity OR is today
-    if(f.pagar > 0 || f.cobrar > 0 || xl === hoyXl) {
+  for(var d = hoyXl; d <= lastXl; d++){
+    var f = flowMap[d] || {pagar:0, cobrar:0};
+    if(f.pagar > 0 || f.cobrar > 0 || d === hoyXl){
+      var dispBefore = saldo;
+      saldo += (f.cobrar - f.pagar);
       rows.push({
-        fecha: xlToDate(String(xl)),
+        xl: d,
+        fecha: xlToDate(String(d)),
         pagar: f.pagar,
         cobrar: f.cobrar,
-        disponible: saldo - netoDia, // saldo BEFORE this day's flows
-        neto: saldo,                  // saldo AFTER
-        isToday: xl === hoyXl,
-        isPast: xl < hoyXl,
+        disponible: dispBefore,
+        neto: saldo,
+        isToday: d === hoyXl,
         isNeg: saldo < 0
       });
+    } else {
+      // Days with no activity still move saldo
+      saldo += (f.cobrar - f.pagar);
     }
-  });
+  }
 
   var html = rows.map(function(r){
     var rowStyle = r.isToday
@@ -3806,12 +3816,14 @@ function renderBalance() {
       '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+(r.pagar>0?fGs(r.pagar):'—')+'</td>' +
       '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+(r.cobrar>0?fGs(r.cobrar):'—')+'</td>' +
       '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--ink2)">'+fGs(r.disponible)+'</td>' +
-      '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700;color:'+(r.neto>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(r.neto)+'</td>' +
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700;color:'+(r.neto>=0?'var(--grn)':'var(--red)')+'">' +
+        fGsSigned(r.neto)+
+      '</td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('tb-balance').innerHTML = html ||
-    '<tr><td colspan="5" class="empty">Sin datos. Actualizá el saldo disponible para ver la proyección.</td></tr>';
+    '<tr><td colspan="5" class="empty">Sin datos. Actualizá el saldo disponible.</td></tr>';
 }
 
 
