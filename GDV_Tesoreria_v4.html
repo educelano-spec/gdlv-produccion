@@ -377,7 +377,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="panel-hdr">
       <div class="panel-title" id="dash-mes-title">📅 Mes Actual</div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px" id="dash-mes-kpis"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px" id="dash-mes-kpis"></div>
   </div>
 
   <!-- FILA 3: SEMÁFORO MENSUAL próximos 6 meses -->
@@ -552,9 +552,11 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
         <thead><tr>
           <th>Mes</th>
           <th style="text-align:right">Egresos</th>
+          <th style="text-align:right">N° Pagos</th>
           <th style="text-align:right">Ingresos</th>
           <th style="text-align:right">Neto Mes</th>
-          <th style="text-align:right">Saldo Fin Mes</th>
+          <th style="text-align:right">Saldo Acum.</th>
+          <th style="text-align:right">vs Hist.</th>
           <th>Situación</th>
         </tr></thead>
         <tbody id="tb-proj-mensual"></tbody>
@@ -3012,23 +3014,52 @@ function renderView(name) {
 function getAlertas() {
   var al = [];
   var hoy = todayXl();
-  var bal = DB.balance;
-  var neg = null;
-  for (var i=0; i<bal.length; i++) { if (bal[i].neto < 0) { neg = bal[i]; break; } }
-  if (neg) al.push({type:'danger',ico:'🔴',title:'Saldo negativo el '+neg.fecha,desc:'El balance proyecta '+fGsSigned(neg.neto)+'. Se requiere accion urgente.'});
-  var venq = DB.cheques.filter(function(c) {
-    if (c.estado === 'COBRADO') return false;
-    var v = parseFloat(c.vto); return !isNaN(v) && v > 0 && v <= hoy+5 && v >= hoy;
+
+  // Cheques vencidos (pasada la fecha)
+  var venc = (DB.cheques||[]).filter(function(c){
+    if(c.estado==='COBRADO') return false;
+    var v=parseFloat(c.vto); return !isNaN(v)&&v>0&&v<hoy;
   });
-  if (venq.length) al.push({type:'warn',ico:'⚠',title:venq.length+' cheque(s) vencen en 5 dias',desc:venq.map(function(c){return c.beneficiario+' — '+fGs(c.monto)+' (vto: '+xlToDate(c.vto)+')'}).join(' | ')});
-  var venc = DB.cheques.filter(function(c) {
-    if (c.estado === 'COBRADO') return false;
-    var v = parseFloat(c.vto); return !isNaN(v) && v > 0 && v < hoy;
+  if(venc.length) al.push({type:'danger',ico:'🚨',
+    title: venc.length+' cheque'+(venc.length>1?'s':'')+' VENCIDO'+(venc.length>1?'S':''),
+    desc: venc.map(function(c){
+      return '• #'+c.cheque+' '+c.beneficiario+' — '+fGs(c.monto)+' (vto: '+xlToDate(c.vto)+')';
+    }).join('<br>')
   });
-  if (venc.length) al.push({type:'danger',ico:'🚨',title:venc.length+' cheque(s) VENCIDOS',desc:'Cheques con fecha de vencimiento pasada pendientes.'});
-  var tCobrar = DB.cobros.reduce(function(s,c){return s+parseFloat(c.monto||0);},0);
-  if (tCobrar > 0) al.push({type:'info',ico:'💰',title:fGs(tCobrar)+' pendientes de cobro',desc:DB.cobros.length+' cobros (SPORT GROUP) por recibir.'});
-  if (!al.length) al.push({type:'ok',ico:'✅',title:'Sin alertas criticas',desc:'El sistema no detecta problemas urgentes.'});
+
+  // Cheques próximos a vencer (≤5 días)
+  var venq = (DB.cheques||[]).filter(function(c){
+    if(c.estado==='COBRADO') return false;
+    var v=parseFloat(c.vto); return !isNaN(v)&&v>0&&v<=hoy+5&&v>=hoy;
+  });
+  if(venq.length) al.push({type:'warn',ico:'⚠',
+    title: venq.length+' cheque'+(venq.length>1?'s':'')+' vence'+(venq.length===1?'':'n')+' en 5 días',
+    desc: venq.map(function(c){
+      var dias=Math.round(parseFloat(c.vto)-hoy);
+      return '• #'+c.cheque+' '+c.beneficiario+' — '+fGs(c.monto)+' — vence en '+dias+' día'+(dias===1?'':'s')+' ('+xlToDate(c.vto)+')';
+    }).join('<br>')
+  });
+
+  // Transferencias vencidas
+  var travenc = (DB.transferencias||[]).filter(function(t){
+    if(t.estado==='COBRADO'||t.estado==='PAGADO') return false;
+    var v=parseFloat(t.fecha); return !isNaN(v)&&v>0&&v<hoy;
+  });
+  if(travenc.length) al.push({type:'warn',ico:'⏰',
+    title: travenc.length+' transferencia'+(travenc.length>1?'s':'')+' vencida'+(travenc.length>1?'s':''),
+    desc: travenc.slice(0,3).map(function(t){
+      return '• '+t.beneficiario+' — '+fGs(t.monto)+' ('+xlToDate(t.fecha)+')';
+    }).join('<br>')+(travenc.length>3?' + '+(travenc.length-3)+' más':'')
+  });
+
+  // Cobros pendientes
+  var tCobrar=(DB.cobros||[]).reduce(function(s,c){return s+parseFloat(c.monto||0);},0);
+  if(tCobrar>0) al.push({type:'info',ico:'💰',
+    title: fGs(tCobrar)+' pendientes de cobro',
+    desc: (DB.cobros||[]).map(function(c){return '• '+c.cliente+' — '+fGs(c.monto)+' ('+xlToDate(c.fechaCobro)+')'}).join('<br>')
+  });
+
+  if(!al.length) al.push({type:'ok',ico:'✅',title:'Sin alertas críticas',desc:'Sistema sin problemas urgentes detectados.'});
   return al;
 }
 
@@ -3137,22 +3168,28 @@ function renderDashboard() {
   var kpisTop = document.getElementById('dash-kpis-top');
   if(kpisTop) {
     var cobVsEgr = totalEgrPend>0?(totalCobrPend/totalEgrPend*100).toFixed(0):100;
+    // Egresos año actual
+    var anioActual = mesAnio;
+    var totalEgrAnio = 0;
+    (DB.cheques||[]).forEach(function(r){if(r.estado==='COBRADO')return;var rm=xlMes(r.vto||r.fecha);if(rm.a===anioActual)totalEgrAnio+=parseFloat(r.monto||0);});
+    (DB.transferencias||[]).forEach(function(r){if(r.estado==='COBRADO'||r.estado==='PAGADO')return;var rm=xlMes(r.fecha);if(rm.a===anioActual)totalEgrAnio+=parseFloat(r.monto||0);});
+
     kpisTop.innerHTML =
       '<div class="kpi bl" style="cursor:pointer" onclick="showView(\'disponible\')">'+
         '<div class="kpi-ico bl">🏦</div><div class="kpi-lbl">Disponible Ahora</div>'+
         '<div class="kpi-val acc">'+fGs(disp)+'</div>'+
-        '<div class="kpi-delta">Continental · clic para historial</div></div>'+
+        '<div class="kpi-delta">Continental · '+xlToDate(String(DB.disponible[0].fecha))+'</div></div>'+
       '<div class="kpi rd" style="cursor:pointer" onclick="showView(\'cheques\')">'+
-        '<div class="kpi-ico rd">📤</div><div class="kpi-lbl">Total Egresos Pendientes</div>'+
-        '<div class="kpi-val neg">'+fGs(totalEgrPend)+'</div>'+
-        '<div class="kpi-delta">Cheques + transf. + préstamos</div></div>'+
+        '<div class="kpi-ico rd">📤</div><div class="kpi-lbl">Egresos — '+mesNombre+'</div>'+
+        '<div class="kpi-val neg">'+fGs(totalEgrMes)+'</div>'+
+        '<div class="kpi-delta">Total año '+anioActual+': '+fGs(totalEgrAnio)+'</div></div>'+
       '<div class="kpi gn" style="cursor:pointer" onclick="showView(\'cobros\')">'+
-        '<div class="kpi-ico gn">📥</div><div class="kpi-lbl">Total Cobros Esperados</div>'+
-        '<div class="kpi-val pos">'+fGs(totalCobrPend)+'</div>'+
-        '<div class="kpi-delta">'+cobVsEgr+'% cubre los egresos</div></div>'+
+        '<div class="kpi-ico gn">📥</div><div class="kpi-lbl">Cobros — '+mesNombre+'</div>'+
+        '<div class="kpi-val pos">'+fGs(totalCobrMes)+'</div>'+
+        '<div class="kpi-delta">Total pend. año: '+fGs(totalCobrPend)+'</div></div>'+
       '<div class="kpi '+(saldoFinMes>=0?'gn':'rd')+'" style="cursor:pointer" onclick="showView(\'proyecciones\')">'+
         '<div class="kpi-ico '+(saldoFinMes>=0?'gn':'rd')+'">'+(saldoFinMes>=0?'📈':'📉')+'</div>'+
-        '<div class="kpi-lbl">Saldo Fin de '+mesNombre+'</div>'+
+        '<div class="kpi-lbl">Saldo Fin '+mesNombre+'</div>'+
         '<div class="kpi-val '+(saldoFinMes>=0?'pos':'neg')+'">'+fGsSigned(saldoFinMes)+'</div>'+
         '<div class="kpi-delta">'+(saldoFinMes>=0?'Situación controlada':'⚠ Déficit proyectado')+'</div></div>';
   }
@@ -3160,6 +3197,18 @@ function renderDashboard() {
   // ── FILA 2: MES ACTUAL ──
   var mesTitle = document.getElementById('dash-mes-title');
   if(mesTitle) mesTitle.textContent = '📅 '+mesNombre+' '+mesAnio+' — Estado Actual';
+
+  // Cobros recibidos este mes
+  var cobrRecMes = 0;
+  (DB.cobrosRecibidos||[]).forEach(function(r){
+    if(isThisMes(r.fechaCobro||r.fecha)) cobrRecMes+=parseFloat(r.monto||0);
+  });
+
+  // Días que cubre el disponible (burn rate based on monthly spend)
+  var avgDiario = totalEgrMes>0 ? totalEgrMes/30 : 0;
+  var diasCubre = avgDiario>0 ? Math.round(disp/avgDiario) : 999;
+  var diasCubreLabel = diasCubre>=999?'∞':diasCubre+' días';
+  var diasCubreColor = diasCubre<7?'var(--red)':diasCubre<15?'var(--amb)':'var(--grn)';
 
   var mesKpis = document.getElementById('dash-mes-kpis');
   if(mesKpis) {
@@ -3171,9 +3220,13 @@ function renderDashboard() {
         '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--red)">'+fGs(totalEgrMes)+'</div>'+
         '<div style="font-size:10px;color:var(--ink3);margin-top:3px">'+chqMesN+' cheques · '+traMesN+' transf.</div></div>'+
       '<div style="text-align:center;padding:8px;background:var(--grnl);border-radius:var(--r)">'+
-        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">INGRESOS MES</div>'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">COBROS PEND. MES</div>'+
         '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--grn)">'+fGs(totalCobrMes)+'</div>'+
-        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Cobros pendientes</div></div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Por recibir este mes</div></div>'+
+      '<div style="text-align:center;padding:8px;background:var(--grnl);border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">YA COBRADO MES</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--grn)">'+fGs(cobrRecMes)+'</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Cobros recibidos</div></div>'+
       '<div style="text-align:center;padding:8px;background:'+(netoMes>=0?'var(--grnl)':'var(--redl)')+';border-radius:var(--r)">'+
         '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">NETO MES</div>'+
         '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:'+(netoMes>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(netoMes)+'</div>'+
@@ -3181,11 +3234,15 @@ function renderDashboard() {
       '<div style="text-align:center;padding:8px;background:var(--ambl);border-radius:var(--r)">'+
         '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">YA PAGADO MES</div>'+
         '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--amb)">'+fGs(realMes)+'</div>'+
-        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Transferencias+cheques</div></div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Transf.+cheques cobrados</div></div>'+
       '<div style="text-align:center;padding:8px;background:var(--sur2);border-radius:var(--r)">'+
         '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">COBERTURA</div>'+
         '<div style="font-family:JetBrains Mono,monospace;font-size:20px;font-weight:700;color:'+colorCob+'">'+pct+'%</div>'+
-        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Disponible / Egresos</div></div>';
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Disponible/Egresos mes</div></div>'+
+      '<div style="text-align:center;padding:8px;background:var(--sur2);border-radius:var(--r)">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--ink3);margin-bottom:4px">DÍAS CUBIERTOS</div>'+
+        '<div style="font-family:JetBrains Mono,monospace;font-size:20px;font-weight:700;color:'+diasCubreColor+'">'+diasCubreLabel+'</div>'+
+        '<div style="font-size:10px;color:var(--ink3);margin-top:3px">Con disponible actual</div></div>';
   }
 
   // ── SEMÁFORO 6 MESES ──
@@ -3743,226 +3800,233 @@ function calcProj() { renderProyecciones(); }
 function resetProj() { renderProyecciones(); }
 
 function renderProyecciones() {
-  var hoy = new Date();
-  hoy.setHours(0,0,0,0);
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
   var hoyXl = todayXl();
+
+  // ── Disponible: read 'total' field (not 'monto') ──
   var disponible = 0;
   if(DB.disponible && DB.disponible.length) {
-    var last = DB.disponible.slice().sort(function(a,b){return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0);})[0];
-    disponible = parseFloat(last.monto||0);
+    var sorted_disp = DB.disponible.slice().sort(function(a,b){return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0);});
+    disponible = parseFloat(sorted_disp[0].total || sorted_disp[0].conti || sorted_disp[0].monto || 0);
   }
 
-  // Build all flows: egresos (cheques + transferencias + cuotas prestamos) + ingresos (cobros)
+  // ── Build flows ──
   var flows = [];
-
-  // Cheques pendientes
   (DB.cheques||[]).forEach(function(c){
     if(c.estado==='COBRADO') return;
-    var xl = parseFloat(c.vto||c.fecha);
-    if(!xl||isNaN(xl)) return;
-    flows.push({xl:xl, concepto:(c.beneficiario||'')+(c.concepto?' - '+c.concepto:''), tipo:c.tipo||'CHEQUE', monto:-Math.abs(parseFloat(c.monto||0)), origen:'Cheque #'+c.cheque, estado:c.estado||'PENDIENTE'});
+    var xl=parseFloat(c.vto||c.fecha); if(!xl||isNaN(xl)) return;
+    flows.push({xl:xl,concepto:(c.beneficiario||'')+(c.concepto?' — '+c.concepto:''),tipo:c.tipo||'CHEQUE',monto:-Math.abs(parseFloat(c.monto||0)),origen:'Cheque #'+c.cheque,estado:'PENDIENTE'});
   });
-
-  // Transferencias pendientes
   (DB.transferencias||[]).forEach(function(t){
     if(t.estado==='COBRADO'||t.estado==='PAGADO') return;
-    var xl = parseFloat(t.fecha);
-    if(!xl||isNaN(xl)) return;
-    flows.push({xl:xl, concepto:(t.beneficiario||'')+(t.concepto?' - '+t.concepto:''), tipo:t.tipo||'TRANSFERENCIA', monto:-Math.abs(parseFloat(t.monto||0)), origen:'Transf.', estado:t.estado||'PENDIENTE'});
+    var xl=parseFloat(t.fecha); if(!xl||isNaN(xl)) return;
+    flows.push({xl:xl,concepto:(t.beneficiario||'')+(t.concepto?' — '+t.concepto:''),tipo:t.tipo||'TRANSFERENCIA',monto:-Math.abs(parseFloat(t.monto||0)),origen:'Transf.',estado:'PENDIENTE'});
   });
-
-  // Cuotas de préstamos (proyectadas a futuro)
   (DB.prestamos||[]).forEach(function(p){
-    var ini = new Date(p.inicio);
-    for(var q=1; q<=p.nCuotas; q++){
-      if(q <= (p.pagadas||0)) continue;
-      var dt = new Date(ini.getFullYear(), ini.getMonth()+(q-1), p.dia);
-      dt.setHours(0,0,0,0);
-      if(dt < hoy) continue;
-      var xl = Math.round(dt.getTime()/86400000 + 25569);
-      flows.push({xl:xl, concepto:p.nombre+' — Cuota '+q+'/'+p.nCuotas, tipo:'PRÉSTAMO', monto:-Math.abs(parseFloat(p.cuota||0)), origen:'Préstamo', estado:'PENDIENTE'});
+    var ini=new Date(p.inicio);
+    for(var q=1;q<=p.nCuotas;q++){
+      if(q<=(p.pagadas||0)) continue;
+      var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia); dt.setHours(0,0,0,0);
+      if(dt<hoy) continue;
+      var xl=Math.round(dt.getTime()/86400000+25569);
+      flows.push({xl:xl,concepto:p.nombre+' — Cuota '+q+'/'+p.nCuotas,tipo:'PRÉSTAMO',monto:-Math.abs(parseFloat(p.cuota||0)),origen:'Préstamo',estado:'PENDIENTE'});
     }
   });
-
-  // Cobros esperados (ingresos)
   (DB.cobros||[]).forEach(function(c){
     if(c.estado==='RECIBIDO') return;
-    var xl = parseFloat(c.fechaCobro||c.fecha);
-    if(!xl||isNaN(xl)) return;
-    flows.push({xl:xl, concepto:(c.cliente||'')+(c.concepto?' - '+c.concepto:''), tipo:'INGRESO', monto:Math.abs(parseFloat(c.monto||0)), origen:'Cobro', estado:c.estado||'PENDIENTE'});
+    var xl=parseFloat(c.fechaCobro||c.fecha); if(!xl||isNaN(xl)) return;
+    flows.push({xl:xl,concepto:(c.cliente||'')+(c.concepto?' — '+c.concepto:''),tipo:'INGRESO',monto:Math.abs(parseFloat(c.monto||0)),origen:'Cobro',estado:'PENDIENTE'});
   });
-
   flows.sort(function(a,b){return a.xl-b.xl;});
 
-  // Build cumulative saldo
-  var saldo = disponible;
-  flows.forEach(function(f){ f.saldoAntes=saldo; saldo+=f.monto; f.saldoDespues=saldo; });
-  var saldoFinal = saldo;
+  // Cumulative saldo
+  var saldo=disponible;
+  flows.forEach(function(f){f.saldoAntes=saldo;saldo+=f.monto;f.saldoDespues=saldo;});
+  var saldoFinal=saldo;
+
+  // Aggregates
+  var totalEgresos=flows.filter(function(f){return f.monto<0;}).reduce(function(s,f){return s+f.monto;},0);
+  var totalIngresos=flows.filter(function(f){return f.monto>0;}).reduce(function(s,f){return s+f.monto;},0);
+  var saldoMin=disponible; var tmpS=disponible; var mesProximoCrisis=null;
+  flows.forEach(function(f){tmpS+=f.monto;if(tmpS<saldoMin)saldoMin=tmpS;if(tmpS<0&&!mesProximoCrisis)mesProximoCrisis=xlToDate(f.xl);});
+
+  // ── Build month-by-month summary ──
+  var meses={};
+  function getMesKey(xl){
+    var d=xlToDate(xl);if(!d||d==='—')return null;
+    var p=d.split('/');if(p.length!==3)return null;
+    return ('0'+p[1]).slice(-2)+'/'+p[2];
+  }
+  flows.forEach(function(f){
+    var k=getMesKey(f.xl);if(!k)return;
+    if(!meses[k])meses[k]={egr:0,ing:0,nEgr:0,nIng:0,items:[]};
+    if(f.monto<0){meses[k].egr+=Math.abs(f.monto);meses[k].nEgr++;}
+    else{meses[k].ing+=f.monto;meses[k].nIng++;}
+    meses[k].items.push(f);
+  });
+  // Historical monthly averages (last 3 months) for comparison
+  var histMeses={};
+  (DB.transferenciasRealizadas||[]).forEach(function(r){
+    var k=getMesKey(r.fecha);if(!k)return;
+    if(!histMeses[k])histMeses[k]={egr:0,n:0};
+    histMeses[k].egr+=parseFloat(r.monto||0);histMeses[k].n++;
+  });
+  (DB.chequesCobrados||[]).forEach(function(r){
+    var k=getMesKey(r.fechaCobro||r.fecha);if(!k)return;
+    if(!histMeses[k])histMeses[k]={egr:0,n:0};
+    histMeses[k].egr+=parseFloat(r.monto||0);histMeses[k].n++;
+  });
+  var histKeys=Object.keys(histMeses).sort().slice(-3);
+  var avgHistEgr=histKeys.length?histKeys.reduce(function(s,k){return s+histMeses[k].egr;},0)/histKeys.length:0;
 
   // ── KPIs ──
-  var totalEgresos = flows.filter(function(f){return f.monto<0;}).reduce(function(s,f){return s+f.monto;},0);
-  var totalIngresos = flows.filter(function(f){return f.monto>0;}).reduce(function(s,f){return s+f.monto;},0);
-  var diasNegativos = 0; var saldoMin = disponible; var tmpSaldo = disponible;
-  flows.forEach(function(f){ tmpSaldo+=f.monto; if(tmpSaldo<saldoMin)saldoMin=tmpSaldo; if(tmpSaldo<0)diasNegativos++; });
-  var mesProximoCrisis = null;
-  tmpSaldo=disponible;
-  for(var fi=0;fi<flows.length;fi++){
-    tmpSaldo+=flows[fi].monto;
-    if(tmpSaldo<0&&!mesProximoCrisis){mesProximoCrisis=xlToDate(flows[fi].xl);break;}
-  }
-
-  var kpiEl = document.getElementById('proj-kpis');
-  if(kpiEl) kpiEl.innerHTML =
-    '<div class="kpi '+(disponible>0?'gn':'rd')+'"><div class="kpi-ico '+(disponible>0?'gn':'rd')+'">🏦</div><div class="kpi-lbl">Disponible Hoy</div><div class="kpi-val '+(disponible>0?'pos':'neg')+'">'+fGs(disponible)+'</div></div>'+
-    '<div class="kpi rd"><div class="kpi-ico rd">📤</div><div class="kpi-lbl">Total Egresos Proyect.</div><div class="kpi-val neg">'+fGs(Math.abs(totalEgresos))+'</div><div class="kpi-delta">'+flows.filter(function(f){return f.monto<0;}).length+' pagos</div></div>'+
-    '<div class="kpi gn"><div class="kpi-ico gn">📥</div><div class="kpi-lbl">Total Ingresos Esperados</div><div class="kpi-val pos">'+fGs(totalIngresos)+'</div><div class="kpi-delta">'+flows.filter(function(f){return f.monto>0;}).length+' cobros</div></div>'+
-    '<div class="kpi '+(saldoFinal>=0?'gn':'rd')+'"><div class="kpi-ico '+(saldoFinal>=0?'gn':'rd')+'">'+(saldoFinal>=0?'✅':'⚠')+'</div><div class="kpi-lbl">Saldo Final Proyectado</div><div class="kpi-val '+(saldoFinal>=0?'pos':'neg')+'">'+fGsSigned(saldoFinal)+'</div></div>'+
-    '<div class="kpi '+(saldoMin>=0?'gn':'rd')+'"><div class="kpi-ico '+(saldoMin>=0?'gn':'rd')+'">'+(saldoMin>=0?'📈':'📉')+'</div><div class="kpi-lbl">Saldo Mínimo Esperado</div><div class="kpi-val '+(saldoMin>=0?'pos':'neg')+'">'+fGsSigned(saldoMin)+'</div>'+(mesProximoCrisis?'<div class="kpi-delta" style="color:var(--red)">Crisis desde '+mesProximoCrisis+'</div>':'')+'</div>';
+  var kpiEl=document.getElementById('proj-kpis');
+  if(kpiEl) kpiEl.innerHTML=
+    '<div class="kpi '+(disponible>0?'gn':'rd')+'"><div class="kpi-ico '+(disponible>0?'gn':'rd')+'">🏦</div>'+
+      '<div class="kpi-lbl">Disponible Hoy</div>'+
+      '<div class="kpi-val '+(disponible>0?'pos':'neg')+'">'+fGs(disponible)+'</div>'+
+      '<div class="kpi-delta">Cuenta Continental</div></div>'+
+    '<div class="kpi rd"><div class="kpi-ico rd">📤</div>'+
+      '<div class="kpi-lbl">Total Egresos Proyect.</div>'+
+      '<div class="kpi-val neg">'+fGs(Math.abs(totalEgresos))+'</div>'+
+      '<div class="kpi-delta">'+flows.filter(function(f){return f.monto<0;}).length+' pagos pendientes</div></div>'+
+    '<div class="kpi gn"><div class="kpi-ico gn">📥</div>'+
+      '<div class="kpi-lbl">Ingresos Esperados</div>'+
+      '<div class="kpi-val pos">'+fGs(totalIngresos)+'</div>'+
+      '<div class="kpi-delta">'+flows.filter(function(f){return f.monto>0;}).length+' cobros</div></div>'+
+    '<div class="kpi '+(saldoFinal>=0?'gn':'rd')+'"><div class="kpi-ico '+(saldoFinal>=0?'gn':'rd')+'">'+
+      (saldoFinal>=0?'✅':'⚠')+'</div><div class="kpi-lbl">Saldo Final Proyectado</div>'+
+      '<div class="kpi-val '+(saldoFinal>=0?'pos':'neg')+'">'+fGsSigned(saldoFinal)+'</div></div>'+
+    '<div class="kpi '+(saldoMin>=0?'gn':'rd')+'"><div class="kpi-ico '+(saldoMin>=0?'gn':'rd')+'">'+
+      (saldoMin>=0?'📈':'📉')+'</div><div class="kpi-lbl">Saldo Mínimo</div>'+
+      '<div class="kpi-val '+(saldoMin>=0?'pos':'neg')+'">'+fGsSigned(saldoMin)+'</div>'+
+      (mesProximoCrisis?'<div class="kpi-delta" style="color:var(--red)">⚠ Crisis desde '+mesProximoCrisis+'</div>':'')+
+    '</div>'+
+    (avgHistEgr>0?'<div class="kpi am"><div class="kpi-ico am">📊</div>'+
+      '<div class="kpi-lbl">Promedio Hist. Mensual</div>'+
+      '<div class="kpi-val amb">'+fGs(avgHistEgr)+'</div>'+
+      '<div class="kpi-delta">Últimos '+histKeys.length+' meses realizados</div></div>':'');
 
   // ── SEMÁFORO SEMANAL ──
-  var semEl = document.getElementById('proj-semaforo');
+  var semEl=document.getElementById('proj-semaforo');
   if(semEl){
     var semHtml='';
     for(var w=0;w<12;w++){
-      var wStart=new Date(hoy); wStart.setDate(hoy.getDate()+w*7);
-      var wEnd=new Date(wStart); wEnd.setDate(wStart.getDate()+6);
+      var wStart=new Date(hoy);wStart.setDate(hoy.getDate()+w*7);
+      var wEnd=new Date(wStart);wEnd.setDate(wStart.getDate()+6);
       var wStartXl=Math.round(wStart.getTime()/86400000+25569);
       var wEndXl=Math.round(wEnd.getTime()/86400000+25569);
-      var wEgr=0,wIng=0,wItems=0;
-      var wMinSaldo=null;
-      var runningSaldo=flows.filter(function(f){return f.xl<wStartXl;}).reduce(function(s,f){return s+f.monto;},disponible);
+      var wEgr=0,wIng=0,wItems=[];
+      var rS=flows.filter(function(f){return f.xl<wStartXl;}).reduce(function(s,f){return s+f.monto;},disponible);
       flows.filter(function(f){return f.xl>=wStartXl&&f.xl<=wEndXl;}).forEach(function(f){
-        if(f.monto<0)wEgr+=Math.abs(f.monto); else wIng+=f.monto;
-        runningSaldo+=f.monto; wItems++;
-        if(wMinSaldo===null||runningSaldo<wMinSaldo)wMinSaldo=runningSaldo;
+        if(f.monto<0)wEgr+=Math.abs(f.monto);else wIng+=f.monto;
+        rS+=f.monto;wItems.push(f);
       });
-      var color=wMinSaldo===null?'#e8f5e9':wMinSaldo<0?'#ffebee':wMinSaldo<10000000?'#fff8e1':'#e8f5e9';
-      var icon=wMinSaldo===null?'✅':wMinSaldo<0?'🔴':wMinSaldo<10000000?'🟡':'🟢';
-      var wLabel='Sem '+(w+1)+' ('+('0'+wStart.getDate()).slice(-2)+'/'+('0'+(wStart.getMonth()+1)).slice(-2)+')';
-      semHtml+='<div style="background:'+color+';border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:10px 14px;min-width:110px;text-align:center;flex:1">'+
+      var minS=rS;
+      var color=wItems.length===0?'#e8f5e9':minS<0?'#ffebee':minS<10000000?'#fff8e1':'#e8f5e9';
+      var icon=wItems.length===0?'✅':minS<0?'🔴':minS<10000000?'🟡':'🟢';
+      semHtml+='<div style="background:'+color+';border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:10px 12px;min-width:100px;text-align:center;flex:1">'+
         '<div style="font-size:18px">'+icon+'</div>'+
-        '<div style="font-size:10px;font-weight:700;color:#555;margin:3px 0">'+wLabel+'</div>'+
-        (wItems?'<div style="font-size:10px;color:var(--red)">-'+fGs(wEgr)+'</div>':'<div style="font-size:10px;color:var(--ink3)">Sin pagos</div>')+
+        '<div style="font-size:10px;font-weight:700;color:#555;margin:3px 0">Sem '+(w+1)+' ('+('0'+wStart.getDate()).slice(-2)+'/'+('0'+(wStart.getMonth()+1)).slice(-2)+')</div>'+
+        (wItems.length?'<div style="font-size:10px;color:var(--red)">-'+fGs(wEgr)+'</div>':'<div style="font-size:10px;color:var(--grn)">Sin pagos</div>')+
         (wIng?'<div style="font-size:10px;color:var(--grn)">+'+fGs(wIng)+'</div>':'')+
         '</div>';
     }
     semEl.innerHTML=semHtml;
   }
 
+  // ── RESUMEN MES A MES (nueva tabla prominente) ──
+  var tbMens=document.getElementById('tb-proj-mensual');
+  if(tbMens){
+    var mesKeys=Object.keys(meses).sort();
+    var runSm=disponible;
+    tbMens.innerHTML=mesKeys.map(function(k){
+      var mo=meses[k];
+      var neto=mo.ing-mo.egr; runSm+=neto;
+      var histRef=histMeses[k]?histMeses[k].egr:avgHistEgr;
+      var vsHist=histRef>0?((mo.egr-histRef)/histRef*100).toFixed(0):null;
+      var sit=runSm<0?'<span class="badge badge-venc">⚠ Déficit acum.</span>':
+              neto<0?'<span class="badge badge-pend">Ajustado</span>':
+              '<span class="badge badge-paid">OK</span>';
+      return '<tr>'+
+        '<td class="mn"><strong>'+k+'</strong></td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(mo.egr)+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+mo.nEgr+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+(mo.ing>0?fGs(mo.ing):'—')+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:600;color:'+(neto>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(neto)+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700;color:'+(runSm>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(runSm)+'</td>'+
+        (vsHist!==null?'<td style="text-align:right;font-size:11px;color:'+(parseFloat(vsHist)>20?'var(--red)':parseFloat(vsHist)<-20?'var(--grn)':'var(--ink3)')+'">'+vsHist+'% vs hist</td>':'<td>—</td>')+
+        '<td>'+sit+'</td>'+
+        '</tr>';
+    }).join('')||'<tr><td colspan="8" class="empty">Sin flujos proyectados</td></tr>';
+  }
+
+  // Update monthly summary thead
+  var tbMensThead = document.querySelector('#tb-proj-mensual')?.previousElementSibling;
+
   // ── TABLA DETALLADA ──
-  var mesFilter = (document.getElementById('proj-mes-filter')||{}).value||'';
-  // Populate filter select
-  var meses={};
-  flows.forEach(function(f){
-    var d=xlToDate(f.xl);if(!d)return;
-    var p=d.split('/');if(p.length!==3)return;
-    var k=('0'+p[1]).slice(-2)+'/'+p[2];
-    meses[k]=true;
-  });
+  var mesFilter=(document.getElementById('proj-mes-filter')||{}).value||'';
   var mesEl=document.getElementById('proj-mes-filter');
   if(mesEl&&mesEl.options.length<=1){
     Object.keys(meses).sort().forEach(function(k){
       var o=document.createElement('option');o.value=k;o.textContent=k;mesEl.appendChild(o);
     });
   }
-
-  var displayFlows = mesFilter ? flows.filter(function(f){
-    var d=xlToDate(f.xl);if(!d)return false;
-    var p=d.split('/');if(p.length!==3)return false;
-    return (('0'+p[1]).slice(-2)+'/'+p[2])===mesFilter;
-  }) : flows;
-
+  var displayFlows=mesFilter?flows.filter(function(f){return getMesKey(f.xl)===mesFilter;}):flows;
   var tbDet=document.getElementById('tb-proj-detalle');
   if(tbDet){
-    if(!displayFlows.length){tbDet.innerHTML='<tr><td colspan="7" class="empty">Sin movimientos</td></tr>';return;}
-    var runSaldo=disponible;
-    // Apply pre-filter saldo offset
-    if(mesFilter){
-      flows.forEach(function(f){
-        var d=xlToDate(f.xl);if(!d)return;
-        var p=d.split('/');if(p.length!==3)return;
-        var k=(('0'+p[1]).slice(-2)+'/'+p[2]);
-        if(k<mesFilter)runSaldo+=f.monto;
-      });
-    }
-    tbDet.innerHTML=displayFlows.map(function(f){
-      runSaldo+=f.monto;
-      var esSaldo=runSaldo<0;
-      var icoTipo=f.tipo==='INGRESO'?'📥':f.tipo==='PRÉSTAMO'?'🏦':f.tipo==='CHEQUE'?'🗒️':'↔️';
-      return '<tr style="'+(esSaldo?'background:#fff5f5':'')+'">'  +
-        '<td class="mn">'+xlToDate(f.xl)+'</td>'+
-        '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+f.concepto+'">'+f.concepto+'</td>'+
-        '<td>'+icoTipo+' <span style="font-size:11px;color:var(--ink3)">'+f.tipo+'</span></td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+(f.monto<0?fGs(Math.abs(f.monto)):'—')+'</td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+(f.monto>0?fGs(f.monto):'—')+'</td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:600;color:'+(runSaldo>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(runSaldo)+'</td>'+
-        '<td>'+badge(f.estado)+'</td>'+
-        '</tr>';
-    }).join('');
-  }
-
-  // ── EGRESOS POR RUBRO ──
-  var rubros={};
-  flows.filter(function(f){return f.monto<0;}).forEach(function(f){
-    var k=f.tipo||'OTRO';
-    if(!rubros[k])rubros[k]=0;
-    rubros[k]+=Math.abs(f.monto);
-  });
-  var totalEgr=Object.values(rubros).reduce(function(s,v){return s+v;},0)||1;
-  var egEl=document.getElementById('proj-egresos-rubro');
-  if(egEl){
-    egEl.innerHTML=Object.entries(rubros).sort(function(a,b){return b[1]-a[1];}).map(function(e){
-      var pct=(e[1]/totalEgr*100).toFixed(0);
-      return '<div style="margin-bottom:10px;padding:0 12px">'+
-        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'+
-        '<span style="font-weight:600">'+e[0]+'</span><span style="font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(e[1])+'</span></div>'+
-        '<div style="background:var(--sur2);border-radius:4px;height:6px"><div style="background:var(--red);width:'+pct+'%;height:6px;border-radius:4px"></div></div>'+
-        '<div style="font-size:10px;color:var(--ink3);margin-top:2px">'+pct+'% del total egresos</div></div>';
-    }).join('');
-  }
-
-  // ── INGRESOS ESPERADOS ──
-  var ingEl=document.getElementById('proj-ingresos');
-  if(ingEl){
-    var ingresos=flows.filter(function(f){return f.monto>0;});
-    if(!ingresos.length){ingEl.innerHTML='<div class="empty" style="padding:20px">Sin cobros proyectados</div>';}
+    if(!displayFlows.length){tbDet.innerHTML='<tr><td colspan="7" class="empty">Sin movimientos</td></tr>';}
     else{
-      ingEl.innerHTML=ingresos.map(function(f){
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--bdr)">'+
-          '<div><div style="font-weight:600;font-size:13px">'+f.concepto.substring(0,30)+'</div>'+
-          '<div style="font-size:11px;color:var(--ink3)">'+xlToDate(f.xl)+'</div></div>'+
-          '<div style="font-family:JetBrains Mono,monospace;font-size:14px;color:var(--grn);font-weight:600">+'+fGs(f.monto)+'</div></div>';
+      var runS2=disponible;
+      if(mesFilter){
+        flows.forEach(function(f){var k=getMesKey(f.xl);if(k&&k<mesFilter)runS2+=f.monto;});
+      }
+      tbDet.innerHTML=displayFlows.map(function(f){
+        runS2+=f.monto;
+        var ico=f.tipo==='INGRESO'?'📥':f.tipo==='PRÉSTAMO'?'🏦':f.tipo==='CHEQUE'?'🗒️':'↔️';
+        return '<tr style="'+(runS2<0?'background:#fff5f5':'')+'">' +
+          '<td class="mn">'+xlToDate(f.xl)+'</td>'+
+          '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+f.concepto+'">'+f.concepto+'</td>'+
+          '<td>'+ico+' <span style="font-size:11px;color:var(--ink3)">'+f.tipo+'</span></td>'+
+          '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+(f.monto<0?fGs(Math.abs(f.monto)):'—')+'</td>'+
+          '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+(f.monto>0?fGs(f.monto):'—')+'</td>'+
+          '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:600;color:'+(runS2>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(runS2)+'</td>'+
+          '<td>'+badge(f.estado)+'</td>'+
+          '</tr>';
       }).join('');
     }
   }
 
-  // ── RESUMEN MENSUAL ──
-  var mensual={};
-  var runS=disponible;
-  flows.forEach(function(f){
-    var d=xlToDate(f.xl);if(!d)return;
-    var p=d.split('/');if(p.length!==3)return;
-    var k=('0'+p[1]).slice(-2)+'/'+p[2];
-    if(!mensual[k])mensual[k]={egr:0,ing:0};
-    if(f.monto<0)mensual[k].egr+=Math.abs(f.monto);
-    else mensual[k].ing+=f.monto;
+  // ── EGRESOS POR RUBRO ──
+  var rubros2={};
+  flows.filter(function(f){return f.monto<0;}).forEach(function(f){
+    var k=f.tipo||'OTRO';if(!rubros2[k])rubros2[k]=0;rubros2[k]+=Math.abs(f.monto);
   });
-  var tbMens=document.getElementById('tb-proj-mensual');
-  if(tbMens){
-    var runSm=disponible;
-    tbMens.innerHTML=Object.entries(mensual).sort().map(function(e){
-      var neto=e[1].ing-e[1].egr;
-      runSm+=neto;
-      var sit=runSm<0?'<span class="badge badge-venc">⚠ Déficit</span>':neto<0?'<span class="badge badge-pend">Ajustado</span>':'<span class="badge badge-paid">Superávit</span>';
-      return '<tr>'+
-        '<td class="mn"><strong>'+e[0]+'</strong></td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(e[1].egr)+'</td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+fGs(e[1].ing)+'</td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:'+(neto>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(neto)+'</td>'+
-        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700;color:'+(runSm>=0?'var(--grn)':'var(--red)')+'">'+fGsSigned(runSm)+'</td>'+
-        '<td>'+sit+'</td>'+
-        '</tr>';
-    }).join('');
+  var totalEgr2=Object.values(rubros2).reduce(function(s,v){return s+v;},0)||1;
+  var egEl=document.getElementById('proj-egresos-rubro');
+  if(egEl) egEl.innerHTML=Object.entries(rubros2).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+    var pct=(e[1]/totalEgr2*100).toFixed(0);
+    return '<div style="margin-bottom:10px;padding:0 12px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'+
+      '<span style="font-weight:600">'+e[0]+'</span>'+
+      '<span style="font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(e[1])+'</span></div>'+
+      '<div style="background:var(--sur2);border-radius:4px;height:6px">'+
+        '<div style="background:var(--red);width:'+pct+'%;height:6px;border-radius:4px"></div></div>'+
+      '<div style="font-size:10px;color:var(--ink3);margin-top:2px">'+pct+'% del total egresos</div></div>';
+  }).join('');
+
+  // ── INGRESOS ──
+  var ingEl=document.getElementById('proj-ingresos');
+  if(ingEl){
+    var ingresos2=flows.filter(function(f){return f.monto>0;});
+    ingEl.innerHTML=ingresos2.length
+      ? ingresos2.map(function(f){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--bdr)">'+
+            '<div><div style="font-weight:600;font-size:13px">'+f.concepto.substring(0,30)+'</div>'+
+            '<div style="font-size:11px;color:var(--ink3)">'+xlToDate(f.xl)+'</div></div>'+
+            '<div style="font-family:JetBrains Mono,monospace;font-size:14px;color:var(--grn);font-weight:600">+'+fGs(f.monto)+'</div></div>';
+        }).join('')
+      : '<div class="empty" style="padding:20px">Sin cobros proyectados</div>';
   }
 }
 
