@@ -2943,7 +2943,24 @@ function badge(s) {
 function marcarPagado(mod, idx) {
   var r = DB[mod] && DB[mod][idx];
   if(!r) return;
-  r.estado = 'COBRADO';
+  if(mod === 'transferencias') {
+    // Move to realizadas and remove from pending
+    r.estado = 'PAGADO';
+    var hoyXl = String(todayXl());
+    if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas = [];
+    DB.transferenciasRealizadas.unshift({
+      fecha: r.fecha || hoyXl,
+      beneficiario: r.beneficiario,
+      concepto: r.concepto,
+      tipo: r.tipo,
+      monto: r.monto,
+      estado: 'PAGADO',
+      origen: 'TRANSFERENCIAS'
+    });
+    DB.transferencias.splice(idx, 1);
+  } else {
+    r.estado = 'COBRADO';
+  }
   guardarEstado();
   renderTabla(mod);
   updateBadges();
@@ -3557,7 +3574,16 @@ var AS = {}; // active search
 function renderTabla(mod) {
   var data = (DB[mod] || []).slice();
   var f = AF[mod];
-  if (f && f !== 'todos') {
+  // For transferencias: default is to hide PAGADO/COBRADO (they moved to realizados)
+  if(mod === 'transferencias') {
+    if(!f || f === 'todos') {
+      data = data.filter(function(r){return r.estado!=='COBRADO' && r.estado!=='PAGADO';});
+    } else if(f === 'pendientes') {
+      data = data.filter(function(r){return r.estado==='PENDIENTE'||r.estado==='';});
+    } else {
+      data = data.filter(function(r){return r.tipo===f||r.estado===f;});
+    }
+  } else if (f && f !== 'todos') {
     if (f === 'pendientes') data = data.filter(function(r){return r.estado==='PENDIENTE'||r.estado==='';});
     else if (f === 'cobrados') data = data.filter(function(r){return r.estado==='COBRADO';});
     else data = data.filter(function(r){return r.tipo===f||r.estado===f;});
