@@ -3658,6 +3658,10 @@ function renderTabla(mod) {
         '</tr>';
     });
   } else if (mod === 'realizados') {
+    var hoyXlR = todayXl();
+    // Sort newest first, filter out clearly future entries
+    data = data.filter(function(r){ return (parseFloat(r.fecha)||0) <= hoyXlR+1; });
+    data.sort(function(a,b){ return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0); });
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin registros</td></tr>'; return; }
     data.forEach(function(r) {
       html += '<tr>' +
@@ -3707,18 +3711,76 @@ function buscar(mod, val) {
 // BALANCE
 // ══════════════════════════════════════
 function renderBalance() {
-  var html = '';
-  DB.balance.forEach(function(r) {
+  // Build from DB.disponible (real saldo history) + pending flows
+  var rows = [];
+  var hoyXl = todayXl();
+
+  // Real historical data from disponible — sorted newest first
+  var dispSorted = (DB.disponible||[]).slice().sort(function(a,b){
+    return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0);
+  });
+
+  // Build payments map by date (xl serial) for the next 30 days
+  var flowByXl = {};
+  function addFlow(xl, monto, tipo) {
+    var x = Math.round(parseFloat(xl)||0);
+    if(!x) return;
+    if(!flowByXl[x]) flowByXl[x]={pagar:0,cobrar:0};
+    if(tipo==='egr') flowByXl[x].pagar += parseFloat(monto)||0;
+    else             flowByXl[x].cobrar += parseFloat(monto)||0;
+  }
+  (DB.cheques||[]).forEach(function(r){if(r.estado!=='COBRADO') addFlow(r.vto||r.fecha,r.monto,'egr');});
+  (DB.transferencias||[]).forEach(function(r){if(r.estado!=='COBRADO'&&r.estado!=='PAGADO') addFlow(r.fecha,r.monto,'egr');});
+  (DB.prestamos||[]).forEach(function(p){
+    var ini=new Date(p.inicio);
+    for(var q=1;q<=p.nCuotas;q++){
+      if(q<=(p.pagadas||0)) continue;
+      var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia);
+      addFlow(Math.round(dt.getTime()/86400000+25569),p.cuota,'egr');
+    }
+  });
+  (DB.cobros||[]).forEach(function(r){if(r.estado!=='RECIBIDO') addFlow(r.fechaCobro||r.fecha,r.monto,'ing');});
+
+  // SECTION 1: Historical saldo (last 30 real entries)
+  dispSorted.slice(0,30).forEach(function(r){
+    var xl = parseFloat(r.fecha)||0;
+    var flows = flowByXl[Math.round(xl)]||{pagar:0,cobrar:0};
+    var saldo = parseFloat(r.total||r.conti||0);
+    var neto = saldo - flows.pagar + flows.cobrar;
+    var isPast = xl <= hoyXl;
+    rows.push({
+      fecha: xlToDate(String(xl)),
+      pagar: flows.pagar,
+      cobrar: flows.cobrar,
+      disponible: saldo,
+      neto: neto,
+      isPast: isPast,
+      isToday: Math.round(xl)===Math.round(hoyXl)
+    });
+  });
+
+  // Sort rows: newest first
+  rows.sort(function(a,b){
+    var da=a.fecha.split('/'), db=b.fecha.split('/');
+    if(da.length!==3||db.length!==3) return 0;
+    var ya=parseInt(da[2]),yb=parseInt(db[2]);
+    var ma=parseInt(da[1]),mb=parseInt(db[1]);
+    var dd_a=parseInt(da[0]),dd_b=parseInt(db[0]);
+    return yb!==ya?yb-ya:mb!==ma?mb-ma:dd_b-dd_a;
+  });
+
+  var html = rows.map(function(r){
     var n = r.neto;
-    html += '<tr>' +
-      '<td class="mn">'+r.fecha+'</td>' +
+    var rowStyle = r.isToday ? ' style="background:var(--accl,#eef2ff);font-weight:600"' : '';
+    return '<tr'+rowStyle+'>' +
+      '<td class="mn">'+r.fecha+(r.isToday?' <span style="font-size:9px;color:var(--acc)">◀ HOY</span>':'')+'</td>' +
       '<td class="neg">'+(r.pagar>0?fGs(r.pagar):'—')+'</td>' +
       '<td class="pos">'+(r.cobrar>0?fGs(r.cobrar):'—')+'</td>' +
       '<td class="neu">'+fGs(r.disponible)+'</td>' +
       '<td class="'+(n>=0?'pos':'neg')+'">'+fGsSigned(n)+'</td>' +
       '</tr>';
-  });
-  document.getElementById('tb-balance').innerHTML = html || '<tr><td colspan="5" class="empty">Sin datos</td></tr>';
+  }).join('');
+  document.getElementById('tb-balance').innerHTML = html || '<tr><td colspan="5" class="empty">Sin datos de balance. Actualizá el saldo disponible para ver el historial.</td></tr>';
 }
 
 // ══════════════════════════════════════
@@ -3732,27 +3794,37 @@ function renderCalendario() {
   // Build unified payment map from cheques + transferencias + pagos
   function buildMap() {
     var pm = {};
-    function addItem(dateXl, ben, monto, tipo) {
+    // Build a set of paid keys from realizados + chequesCobrados for marking
+    var paidKeys = new Set();
+    (DB.transferenciasRealizadas||[]).forEach(function(r){
+      var ds=xlToDate(r.fecha); if(!ds||ds==='—') return;
+      var pts=ds.split('/'); if(pts.length!==3) return;
+      paidKeys.add(parseInt(pts[2])+'-'+parseInt(pts[1])+'-'+parseInt(pts[0])+'|'+(r.beneficiario||'').toLowerCase());
+    });
+
+    function addItem(dateXl, ben, monto, tipo, paid) {
       var ds = xlToDate(dateXl);
       if(!ds || ds==='—') return;
       var pts = ds.split('/');
       if(pts.length!==3) return;
       var d=parseInt(pts[0]), m=parseInt(pts[1]), y=parseInt(pts[2]);
       var k = y+'-'+m+'-'+d;
-      if(!pm[k]) pm[k]={total:0,items:[],dia:d,mes:m,anio:y};
+      if(!pm[k]) pm[k]={total:0,items:[],dia:d,mes:m,anio:y,paidTotal:0};
       monto = parseFloat(monto)||0;
-      pm[k].total += monto;
-      pm[k].items.push({ben:ben, monto:monto, tipo:tipo||'—'});
+      var isPaid = paid || paidKeys.has(y+'-'+m+'-'+d+'|'+(ben||'').toLowerCase());
+      if(!isPaid) pm[k].total += monto;
+      else pm[k].paidTotal += monto;
+      pm[k].items.push({ben:ben, monto:monto, tipo:tipo||'—', paid:isPaid});
     }
     // Cheques por vencimiento
     DB.cheques.forEach(function(c){
       if(c.estado==='COBRADO') return;
-      addItem(c.vto||c.fecha, c.beneficiario, c.monto, c.tipo);
+      addItem(c.vto||c.fecha, c.beneficiario, c.monto, c.tipo, false);
     });
     // Transferencias por fecha
     DB.transferencias.forEach(function(t){
-      if(t.estado==='COBRADO') return;
-      addItem(t.fecha, t.beneficiario, t.monto, t.tipo);
+      if(t.estado==='COBRADO'||t.estado==='PAGADO') return;
+      addItem(t.fecha, t.beneficiario, t.monto, t.tipo, false);
     });
     // Préstamos
     DB.prestamos.forEach(function(p){
@@ -3803,13 +3875,14 @@ function renderCalendario() {
       }
       var items='';
       if(pago && pago.items && pago.items.length){
-        pago.items.slice(0,2).forEach(function(it){
+        var pendItems=pago.items.filter(function(it){return !it.paid;});
+        var paidItemsC=pago.items.filter(function(it){return it.paid;});
+        pendItems.slice(0,2).forEach(function(it){
           items+='<div class="cal-pay">'+it.ben.substring(0,15)+'</div>';
         });
-        if(pago.items.length>2) items+='<div class="cal-pay" style="color:var(--ink3)">+'+
-          (pago.items.length-2)+' más</div>';
-        items+='<div class="cal-tot" style="color:'+(pago.total>=10000000?'var(--red)':
-          pago.total>=5000000?'var(--amb)':'var(--grn)')+'">'+fGs(pago.total)+'</div>';
+        if(pendItems.length>2) items+='<div class="cal-pay" style="color:var(--ink3)">+'+(pendItems.length-2)+' más</div>';
+        if(paidItemsC.length) items+='<div class="cal-pay" style="color:var(--grn);text-decoration:line-through;opacity:.7">✓ '+paidItemsC.length+' pagado'+(paidItemsC.length>1?'s':'')+'</div>';
+        if(pago.total>0) items+='<div class="cal-tot" style="color:'+(pago.total>=10000000?'var(--red)':pago.total>=5000000?'var(--amb)':'var(--grn)')+'">'+fGs(pago.total)+'</div>';
       }
       var oc = hasPay ? 'onclick="openCalDia('+mo.anio+','+mo.mes+','+d+')" style="cursor:pointer"' : '';
       grid+='<div class="'+cls+'" '+oc+'><div class="cal-num">'+d+'</div>'+items+'</div>';
@@ -4380,11 +4453,19 @@ function renderDisponible() {
 function renderHistorial(search) {
   var sl = (search||'').toLowerCase();
   var all = [];
-  DB.cheques.forEach(function(r){all.push({mod:'Cheque',fecha:r.vto||r.fecha,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:r.estado});});
-  DB.transferencias.forEach(function(r){all.push({mod:'Transferencia',fecha:r.fecha,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:r.estado});});
-  DB.efectivo.forEach(function(r){all.push({mod:'Efectivo',fecha:r.fechaVto,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:r.estado});});
-  DB.cobros.forEach(function(r){all.push({mod:'Cobro',fecha:r.fechaCobro,ben:r.cliente,concepto:r.concepto,tipo:r.tipoCobro,monto:r.monto,estado:r.estado});});
-  DB.realizados.forEach(function(r){all.push({mod:'Realizado',fecha:r.fecha,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:'COBRADO'});});
+  var hoyXl = todayXl();
+  // Only show REALIZED/historical records in historial — no pending future items
+  DB.realizados.forEach(function(r){
+    var xl=parseFloat(r.fecha)||0;
+    if(xl>hoyXl+1) return; // skip clearly future dates
+    all.push({mod:'Realizado',fecha:r.fecha,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:'COBRADO'});
+  });
+  (DB.chequesCobrados||[]).forEach(function(r){
+    all.push({mod:'Cheque Cobrado',fecha:r.fechaCobro||r.fecha,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:'COBRADO'});
+  });
+  (DB.cobrosRecibidos||[]).forEach(function(r){
+    all.push({mod:'Cobro Recibido',fecha:r.fechaCobro,ben:r.cliente,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:'RECIBIDO'});
+  });
   all.sort(function(a,b){return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0);});
   if (sl) all = all.filter(function(r){return JSON.stringify(r).toLowerCase().indexOf(sl)>=0;});
   var html = '';
@@ -4430,12 +4511,12 @@ function renderReportes() {
     else mMap[key].otros+=n;
     mMap[key].total+=n;
   });
-  var repEl = document.getElementById('rep-meses');
+  var repEl = document.getElementById('rep-gastos-rubro');
   if(repEl) {
     if(!Object.keys(mMap).length) {
-      repEl.innerHTML='<div class="empty">Sin gastos realizados registrados aún. Marcá transferencias como realizadas para ver el análisis acá.</div>';
+      repEl.innerHTML='<div class="empty" style="padding:16px">Sin gastos realizados registrados aún.</div>';
     } else {
-      repEl.innerHTML='<div class="g3">'+Object.entries(mMap).sort().map(function(e){
+      repEl.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px">'+Object.entries(mMap).sort().reverse().map(function(e){
         var v=e[1];
         return '<div class="mes-card">'+
           '<div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bdr)">Mes '+e[0]+'</div>'+
