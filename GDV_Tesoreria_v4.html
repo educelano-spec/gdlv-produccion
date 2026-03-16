@@ -4884,7 +4884,12 @@ function renderEvolucion() {
     if(!meses[k])meses[k]={pagado:0,cobrado:0,n:0};
     meses[k].cobrado+=parseFloat(r.monto||0);
   });
-  var keys=Object.keys(meses).sort();
+  var keys=Object.keys(meses).sort(function(a,b){
+    var pa=a.split('/'),pb=b.split('/');
+    var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
+    var ma=parseInt(pa[0]),mb=parseInt(pb[0]);
+    return ya!==yb?ya-yb:ma-mb;
+  });
   var tPag=keys.reduce(function(s,k){return s+meses[k].pagado;},0);
   var tCob=keys.reduce(function(s,k){return s+meses[k].cobrado;},0);
   var saldo=tCob-tPag;
@@ -4910,7 +4915,7 @@ function renderEvolucion() {
     var l=document.createElement('div');l.className='blbl';l.textContent=k;lEl.appendChild(l);
   });
   var mesEl=document.getElementById('evol-meses');
-  if(mesEl) mesEl.innerHTML=keys.map(function(k){
+  if(mesEl) mesEl.innerHTML=keys.slice().reverse().map(function(k){
     var mo=meses[k],net=mo.cobrado-mo.pagado;
     return '<div class="mes-card"><div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">Mes '+k+'</div>'+
       '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span style="color:var(--ink3)">Pagado</span><span style="font-family:JetBrains Mono,monospace;font-weight:600;color:var(--red)">'+fGs(mo.pagado)+'</span></div>'+
@@ -4921,7 +4926,7 @@ function renderEvolucion() {
 
   // Also fill detail table
   var tbEl=document.getElementById('tb-evolucion');
-  if(tbEl) tbEl.innerHTML=keys.map(function(k){
+  if(tbEl) tbEl.innerHTML=keys.slice().reverse().map(function(k){
     var mo=meses[k],net=mo.cobrado-mo.pagado;
     return '<tr>'+
       '<td class="mn"><strong>'+k+'</strong></td>'+
