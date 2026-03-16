@@ -529,53 +529,118 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
 <!-- GASTOS POR RUBRO -->
 <div id="view-rubros" class="view">
   <div class="ph">
-    <div><div class="ph-title">Gastos por <em>Rubro</em></div><div class="ph-sub">Análisis histórico y proyectado por categoría</div></div>
+    <div><div class="ph-title">Gastos por <em>Rubro</em></div><div class="ph-sub">Análisis por categoría — seleccioná período y vista</div></div>
   </div>
 
-  <!-- Filtros -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-    <button class="filter-btn active" onclick="filtrarRubros('todos',this)">Todos (hist+proy)</button>
-    <button class="filter-btn" onclick="filtrarRubros('realizados',this)">✅ Solo Realizados</button>
-    <button class="filter-btn" onclick="filtrarRubros('pendientes',this)">📅 Solo Proyectados</button>
-    <button class="filter-btn" onclick="filtrarRubros('cheques',this)">Cheques</button>
-    <button class="filter-btn" onclick="filtrarRubros('transferencias',this)">Transferencias</button>
+  <!-- Tabs: Proyectado actual / Historial / Comparativo -->
+  <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--bdr)">
+    <button id="rub-tab-proy" onclick="rubSetTab('proy')"
+      style="padding:8px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:3px solid var(--acc);color:var(--acc);margin-bottom:-2px">
+      📅 Proyectado</button>
+    <button id="rub-tab-hist" onclick="rubSetTab('hist')"
+      style="padding:8px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--ink3);margin-bottom:-2px">
+      📋 Historial</button>
+    <button id="rub-tab-comp" onclick="rubSetTab('comp')"
+      style="padding:8px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--ink3);margin-bottom:-2px">
+      📊 Comparativo Mes a Mes</button>
   </div>
 
-  <!-- Info label: histórico vs proyectado totals -->
-  <div id="rub-info" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap"></div>
-  <div id="rub-rango" style="font-size:11px;color:var(--ink3);margin-bottom:14px"></div>
-
-  <div class="g2" style="margin-bottom:14px">
-    <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">Distribución por Rubro</div></div>
-      <div class="donut-wrap">
-        <canvas id="rub-donut" width="130" height="130"></canvas>
-        <div id="rub-leg" class="dleg"></div>
+  <!-- TAB: PROYECTADO (default) -->
+  <div id="rub-panel-proy">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <span style="font-size:12px;font-weight:600;color:var(--ink3)">Período:</span>
+      <input type="date" id="rub-proy-desde" style="font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--sur)" onchange="renderRubros()">
+      <span style="font-size:12px;color:var(--ink3)">→</span>
+      <input type="date" id="rub-proy-hasta" style="font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--sur)" onchange="renderRubros()">
+      <button class="btn btn-g btn-sm" onclick="rubResetProyPeriod()">↺ Reset</button>
+      <div id="rub-proy-info" style="margin-left:8px;font-size:11px;color:var(--ink3)"></div>
+    </div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">Distribución — Proyectado</div></div>
+        <div class="donut-wrap"><canvas id="rub-donut" width="130" height="130"></canvas><div id="rub-leg" class="dleg"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">Barras — Proyectado</div></div>
+        <div id="rub-bars" style="padding:12px"></div>
       </div>
     </div>
     <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">Barras por Rubro</div></div>
-      <div id="rub-bars" style="padding:12px"></div>
-      <div style="padding:4px 12px 10px;font-size:10px;color:var(--ink3)">
-        Barra sólida = realizado · Barra clara = proyectado
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-hdr"><div class="panel-title">📋 Tabla Detallada por Rubro</div></div>
-    <div class="tscroll">
-      <table><thead><tr>
+      <div class="panel-hdr"><div class="panel-title">📋 Detalle por Rubro — Proyectado</div></div>
+      <div class="tscroll"><table><thead><tr>
         <th>Rubro</th>
-        <th style="text-align:right">Total</th>
+        <th style="text-align:right">Total Proyectado</th>
+        <th style="text-align:right">N° pagos</th>
+        <th style="text-align:right">Promedio</th>
+        <th style="text-align:right">% del total</th>
+      </tr></thead><tbody id="tb-rubros"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- TAB: HISTORIAL -->
+  <div id="rub-panel-hist" style="display:none">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <span style="font-size:12px;font-weight:600;color:var(--ink3)">Período:</span>
+      <input type="date" id="rub-hist-desde" style="font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--sur)" onchange="renderRubrosHist()">
+      <span style="font-size:12px;color:var(--ink3)">→</span>
+      <input type="date" id="rub-hist-hasta" style="font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--sur)" onchange="renderRubrosHist()">
+      <button class="btn btn-g btn-sm" onclick="rubResetHistPeriod()">↺ Reset</button>
+      <div id="rub-hist-info" style="margin-left:8px;font-size:11px;color:var(--ink3)"></div>
+    </div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">Distribución — Histórico</div></div>
+        <div class="donut-wrap"><canvas id="rub-donut-hist" width="130" height="130"></canvas><div id="rub-leg-hist" class="dleg"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">Barras — Histórico</div></div>
+        <div id="rub-bars-hist" style="padding:12px"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">📋 Detalle por Rubro — Histórico</div></div>
+      <div class="tscroll"><table><thead><tr>
+        <th>Rubro</th>
+        <th style="text-align:right">Total Realizado</th>
+        <th style="text-align:right">N° pagos</th>
+        <th style="text-align:right">Promedio</th>
+        <th style="text-align:right">% del total</th>
+      </tr></thead><tbody id="tb-rubros-hist"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- TAB: COMPARATIVO MES A MES -->
+  <div id="rub-panel-comp" style="display:none">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <span style="font-size:12px;font-weight:600;color:var(--ink3)">Rubro:</span>
+      <select id="rub-comp-rubro" style="font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--sur)" onchange="renderRubrosComp()">
+        <option value="">Todos los rubros</option>
+      </select>
+      <button class="btn btn-g btn-sm" onclick="renderRubrosComp()">↺ Actualizar</button>
+    </div>
+    <div class="panel" style="margin-bottom:14px">
+      <div class="panel-hdr"><div class="panel-title">📊 Realizado vs Proyectado — Mes a Mes</div></div>
+      <div class="tscroll"><table><thead><tr>
+        <th>Mes</th>
         <th style="text-align:right">Realizado</th>
         <th style="text-align:right">Proyectado</th>
-        <th style="text-align:right">N° pagos</th>
-        <th style="text-align:right">% del total</th>
-      </tr></thead>
-      <tbody id="tb-rubros"></tbody></table>
+        <th style="text-align:right">Total Mes</th>
+        <th style="text-align:right">Diferencia</th>
+        <th>Tendencia</th>
+      </tr></thead><tbody id="tb-comp-mes"></tbody></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">Gráfico Comparativo</div></div>
+      <div class="chart-wrap">
+        <div class="bars" id="comp-bars" style="height:160px"></div>
+        <div class="blbls" id="comp-lbls"></div>
+      </div>
+      <div style="padding:6px 12px;font-size:10px;color:var(--ink3)">
+        🔴 Realizado &nbsp; 🟡 Proyectado
+      </div>
     </div>
   </div>
+
 </div>
 
 <div id="view-evolucion" class="view">
@@ -2856,7 +2921,7 @@ function renderView(name) {
     'cheques': function() { renderTabla('cheques'); renderChqMesHeader(); },
     'transferencias': function() { renderTabla('transferencias'); },
     'cajachica': renderCajachica,
-    'rubros': renderRubros,
+    'rubros': function(){ rubSetTab(_rubTab||'proy'); },
     'prestamos': renderPrestamos,
     'pagos-dia': renderPagosDia,
     'realizados': function() { renderTabla('realizados'); },
@@ -4469,135 +4534,329 @@ function guardarCaja() {
 
 // ─── GASTOS POR RUBRO ─────────────────────────────────────────────────────────
 var _rubroFiltro = 'todos';
-function filtrarRubros(f, el) {
-  _rubroFiltro = f;
-  document.querySelectorAll('#view-rubros .filter-btn').forEach(function(b){ b.classList.remove('active'); });
-  if(el) el.classList.add('active');
+// filtrarRubros merged into renderRubros tabs
+
+// ── RUBROS HELPERS ──
+var _rubTab = 'proy';
+
+function rubSetTab(tab) {
+  _rubTab = tab;
+  ['proy','hist','comp'].forEach(function(t) {
+    var panel = document.getElementById('rub-panel-'+t);
+    var btn   = document.getElementById('rub-tab-'+t);
+    if(panel) panel.style.display = t===tab ? '' : 'none';
+    if(btn) {
+      btn.style.borderBottomColor = t===tab ? 'var(--acc)' : 'transparent';
+      btn.style.color = t===tab ? 'var(--acc)' : 'var(--ink3)';
+    }
+  });
+  if(tab==='proy')  renderRubros();
+  if(tab==='hist')  renderRubrosHist();
+  if(tab==='comp')  renderRubrosComp();
+}
+
+function xlFromDate(dateStr) {
+  // 'YYYY-MM-DD' → xl serial
+  if(!dateStr) return 0;
+  var p = dateStr.split('-');
+  if(p.length!==3) return 0;
+  var d = new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  return Math.round(d.getTime()/86400000 + 25569);
+}
+
+function rubResetProyPeriod() {
+  var hoy = new Date();
+  var desde = hoy.toISOString().slice(0,10);
+  var hasta = hoy.getFullYear()+'-12-31';
+  document.getElementById('rub-proy-desde').value = desde;
+  document.getElementById('rub-proy-hasta').value = hasta;
   renderRubros();
 }
 
+function rubResetHistPeriod() {
+  // Default: past 12 months
+  var hoy = new Date();
+  var hasta = hoy.toISOString().slice(0,10);
+  var desde12 = new Date(hoy); desde12.setFullYear(hoy.getFullYear()-1);
+  document.getElementById('rub-hist-desde').value = desde12.toISOString().slice(0,10);
+  document.getElementById('rub-hist-hasta').value = hasta;
+  renderRubrosHist();
+}
+
+function drawDonut(canvasId, sorted, total, COLORS) {
+  var canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  var ctx=canvas.getContext('2d'),sz=130,cx=65,cy=65,R=52,ri=34;
+  ctx.clearRect(0,0,sz,sz);
+  var a=-Math.PI/2;
+  sorted.slice(0,10).forEach(function(item,i){
+    var sl=(item[1].total/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a,a+sl);
+    ctx.closePath();ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();a+=sl;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='var(--bg,#fff)';ctx.fill();
+}
+
+function buildRubroTable(sorted, total, tbId, colLabel) {
+  var tbEl = document.getElementById(tbId);
+  if(!tbEl) return;
+  tbEl.innerHTML = sorted.map(function(item){
+    return '<tr>'+
+      '<td>'+chip(item[0])+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(item[1].total)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+item[1].n+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+fGs(Math.round(item[1].total/item[1].n))+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+((item[1].total/total)*100).toFixed(1)+'%</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="5" class="empty">Sin datos para el período</td></tr>';
+}
+
+function buildRuboBars(barsId, sorted, total, COLORS) {
+  var barEl = document.getElementById(barsId);
+  if(!barEl) return;
+  barEl.innerHTML = sorted.slice(0,10).map(function(item,i){
+    var pct = ((item[1].total/total)*100).toFixed(1);
+    return '<div class="rub-row">'+
+      '<div class="rub-lbl">'+item[0]+'</div>'+
+      '<div class="rub-bar-wrap">'+
+        '<div class="rub-bar" style="width:'+pct+'%;background:'+COLORS[i%COLORS.length]+'"></div>'+
+      '</div>'+
+      '<div class="rub-val">'+fGs(item[1].total)+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── TAB 1: PROYECTADO ──
 function renderRubros() {
-  var f = _rubroFiltro || 'todos';
+  var COLORS = ['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669','#d97706','#6b7280'];
+  // Init date pickers with defaults (today → Dec 31 current year)
+  var desdeEl = document.getElementById('rub-proy-desde');
+  var hastaEl = document.getElementById('rub-proy-hasta');
+  if(desdeEl && !desdeEl.value) {
+    var hoy = new Date();
+    desdeEl.value = hoy.toISOString().slice(0,10);
+    hastaEl.value = hoy.getFullYear()+'-12-31';
+  }
+  var xlDesde = xlFromDate(desdeEl ? desdeEl.value : '');
+  var xlHasta = xlFromDate(hastaEl ? hastaEl.value : '');
 
-  // Separate: HISTORICAL (realizados + chequesCobrados) vs PROJECTED (cheques pendientes + transferencias pendientes)
-  var historical = [];
-  var projected = [];
-
-  // Historical: pagos realizados
-  (DB.transferenciasRealizadas||[]).forEach(function(r){
-    historical.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.fecha, src:'realizado'});
-  });
-  // Historical: cheques cobrados
-  (DB.chequesCobrados||[]).forEach(function(r){
-    historical.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.fechaCobro||r.fecha, src:'cheque cobrado'});
-  });
-
-  // Projected: cheques pendientes
+  var all = [];
   (DB.cheques||[]).forEach(function(r){
     if(r.estado==='COBRADO') return;
-    projected.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.vto||r.fecha, src:'cheque pendiente'});
+    var xl = parseFloat(r.vto||r.fecha)||0;
+    if(xlDesde && xl < xlDesde) return;
+    if(xlHasta && xl > xlHasta) return;
+    all.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0)});
   });
-  // Projected: transferencias pendientes
   (DB.transferencias||[]).forEach(function(r){
     if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
-    projected.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0), fecha:r.fecha, src:'transferencia'});
+    var xl = parseFloat(r.fecha)||0;
+    if(xlDesde && xl < xlDesde) return;
+    if(xlHasta && xl > xlHasta) return;
+    all.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0)});
   });
 
-  // Decide which to show based on filter
-  var all = [];
-  if(f==='todos') all = historical.concat(projected);
-  else if(f==='realizados') all = historical;
-  else if(f==='pendientes') all = projected;
-  else if(f==='cheques') all = (DB.cheques||[]).map(function(r){return {tipo:r.tipo||'OTROS',monto:parseFloat(r.monto||0),fecha:r.vto||r.fecha,src:'cheque'};});
-  else if(f==='transferencias') all = (DB.transferencias||[]).map(function(r){return {tipo:r.tipo||'OTROS',monto:parseFloat(r.monto||0),fecha:r.fecha,src:'transf'};});
-
-  // Get date range
-  var fechas = all.map(function(r){return parseFloat(r.fecha)||0;}).filter(Boolean).sort(function(a,b){return a-b;});
-  var rangoTxt = fechas.length
-    ? 'Período: '+xlToDate(fechas[0])+' → '+xlToDate(fechas[fechas.length-1])
-    : '';
-  var rangoEl = document.getElementById('rub-rango');
-  if(rangoEl) rangoEl.textContent = rangoTxt;
-
-  // Show info label
-  var infoEl = document.getElementById('rub-info');
-  if(infoEl) {
-    if(f==='realizados'||f==='todos'&&historical.length) {
-      var hTotal = historical.reduce(function(s,r){return s+r.monto;},0);
-      var pTotal = projected.reduce(function(s,r){return s+r.monto;},0);
-      infoEl.innerHTML =
-        '<span style="background:var(--grnl);border:1px solid #a8dcc0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--grn);margin-right:8px">'+
-        '✅ Histórico: '+fGs(hTotal)+' ('+historical.length+' pagos realizados)</span>'+
-        '<span style="background:var(--ambl);border:1px solid #fcd5a0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--amb)">'+
-        '📅 Proyectado: '+fGs(pTotal)+' ('+projected.length+' pagos pendientes)</span>';
-    } else {
-      infoEl.innerHTML = '';
-    }
-  }
-
-  // Group by rubro
-  var bt = {};
+  var bt={};
   all.forEach(function(r){
-    var t = r.tipo||'OTROS';
-    if(!bt[t]) bt[t] = {total:0, n:0, hist:0, proj:0};
-    bt[t].total += r.monto; bt[t].n++;
-    if(r.src==='realizado'||r.src==='cheque cobrado') bt[t].hist += r.monto;
-    else bt[t].proj += r.monto;
+    var t=r.tipo||'OTROS';
+    if(!bt[t]) bt[t]={total:0,n:0};
+    bt[t].total+=r.monto; bt[t].n++;
   });
-  var sorted = Object.entries(bt).sort(function(a,b){return b[1].total-a[1].total;});
-  var total = sorted.reduce(function(s,x){return s+x[1].total;},0)||1;
-  var COLORS=['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669','#d97706','#6b7280'];
+  var sorted=Object.entries(bt).sort(function(a,b){return b[1].total-a[1].total;});
+  var total=sorted.reduce(function(s,x){return s+x[1].total;},0)||1;
 
-  // Donut
-  var canvas = document.getElementById('rub-donut');
-  if(canvas){
-    var ctx=canvas.getContext('2d'),sz=130,cx=65,cy=65,R=52,ri=34;
-    ctx.clearRect(0,0,sz,sz);
-    var a=-Math.PI/2;
-    sorted.slice(0,10).forEach(function(item,i){
-      var sl=(item[1].total/total)*Math.PI*2;
-      ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a,a+sl);
-      ctx.closePath();ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();a+=sl;
-    });
-    ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='var(--bg,#fff)';ctx.fill();
-    ctx.fillStyle='var(--ink,#1a1814)';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
-    ctx.fillText('Rubros',cx,cy);ctx.font='9px sans-serif';ctx.fillStyle='#8c8680';ctx.fillText('por gasto',cx,cy+11);
-  }
+  var infoEl = document.getElementById('rub-proy-info');
+  if(infoEl) infoEl.textContent = all.length+' pagos · Total: '+fGs(total);
 
-  var legEl = document.getElementById('rub-leg');
-  if(legEl) legEl.innerHTML = sorted.slice(0,8).map(function(item,i){
+  drawDonut('rub-donut', sorted, total, COLORS);
+
+  var legEl=document.getElementById('rub-leg');
+  if(legEl) legEl.innerHTML=sorted.slice(0,8).map(function(item,i){
     return '<div class="dleg-item"><div class="dleg-dot" style="background:'+COLORS[i%COLORS.length]+'"></div>'+
       '<span class="dleg-lbl">'+item[0]+'</span>'+
       '<span class="dleg-val">'+fGs(item[1].total)+'</span>'+
       '<span class="dleg-pct">'+((item[1].total/total)*100).toFixed(0)+'%</span></div>';
   }).join('');
 
-  var barEl = document.getElementById('rub-bars');
-  if(barEl) barEl.innerHTML = sorted.slice(0,10).map(function(item,i){
-    var pctH = total>0?((item[1].hist/total)*100).toFixed(1):0;
-    var pctP = total>0?((item[1].proj/total)*100).toFixed(1):0;
-    return '<div class="rub-row">'+
-      '<div class="rub-lbl">'+item[0]+'</div>'+
-      '<div class="rub-bar-wrap" title="'+fGs(item[1].hist)+' realizado / '+fGs(item[1].proj)+' proyectado">'+
-        '<div class="rub-bar" style="width:'+pctH+'%;background:'+COLORS[i%COLORS.length]+';opacity:.9"></div>'+
-        '<div class="rub-bar" style="width:'+pctP+'%;background:'+COLORS[i%COLORS.length]+';opacity:.4;margin-top:2px"></div>'+
-      '</div>'+
-      '<div class="rub-val">'+fGs(item[1].total)+'</div>'+
-    '</div>';
+  buildRuboBars('rub-bars', sorted, total, COLORS);
+  buildRubroTable(sorted, total, 'tb-rubros', 'Proyectado');
+}
+
+// ── TAB 2: HISTORIAL ──
+function renderRubrosHist() {
+  var COLORS = ['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669','#d97706','#6b7280'];
+  // Init date pickers: default past 12 months
+  var desdeEl = document.getElementById('rub-hist-desde');
+  var hastaEl = document.getElementById('rub-hist-hasta');
+  if(desdeEl && !desdeEl.value) {
+    var hoy = new Date();
+    var desde12 = new Date(hoy); desde12.setFullYear(hoy.getFullYear()-1);
+    desdeEl.value = desde12.toISOString().slice(0,10);
+    hastaEl.value = hoy.toISOString().slice(0,10);
+  }
+  var xlDesde = xlFromDate(desdeEl ? desdeEl.value : '');
+  var xlHasta = xlFromDate(hastaEl ? hastaEl.value : '');
+
+  var all = [];
+  (DB.transferenciasRealizadas||[]).forEach(function(r){
+    var xl = parseFloat(r.fecha)||0;
+    if(xlDesde && xl < xlDesde) return;
+    if(xlHasta && xl > xlHasta) return;
+    all.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0)});
+  });
+  (DB.chequesCobrados||[]).forEach(function(r){
+    var xl = parseFloat(r.fechaCobro||r.fecha)||0;
+    if(xlDesde && xl < xlDesde) return;
+    if(xlHasta && xl > xlHasta) return;
+    all.push({tipo:r.tipo||'OTROS', monto:parseFloat(r.monto||0)});
+  });
+
+  var bt={};
+  all.forEach(function(r){
+    var t=r.tipo||'OTROS';
+    if(!bt[t]) bt[t]={total:0,n:0};
+    bt[t].total+=r.monto; bt[t].n++;
+  });
+  var sorted=Object.entries(bt).sort(function(a,b){return b[1].total-a[1].total;});
+  var total=sorted.reduce(function(s,x){return s+x[1].total;},0)||1;
+
+  var infoEl=document.getElementById('rub-hist-info');
+  if(infoEl) infoEl.textContent=all.length+' registros · Total: '+fGs(total);
+
+  drawDonut('rub-donut-hist', sorted, total, COLORS);
+
+  var legEl=document.getElementById('rub-leg-hist');
+  if(legEl) legEl.innerHTML=sorted.slice(0,8).map(function(item,i){
+    return '<div class="dleg-item"><div class="dleg-dot" style="background:'+COLORS[i%COLORS.length]+'"></div>'+
+      '<span class="dleg-lbl">'+item[0]+'</span>'+
+      '<span class="dleg-val">'+fGs(item[1].total)+'</span>'+
+      '<span class="dleg-pct">'+((item[1].total/total)*100).toFixed(0)+'%</span></div>';
   }).join('');
 
-  var tbEl = document.getElementById('tb-rubros');
-  if(tbEl) tbEl.innerHTML = sorted.map(function(item){
-    return '<tr>'+
-      '<td>'+chip(item[0])+'</td>'+
-      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--red)">'+fGs(item[1].total)+'</td>'+
-      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+fGs(item[1].hist)+'</td>'+
-      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--amb)">'+fGs(item[1].proj)+'</td>'+
-      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+item[1].n+'</td>'+
-      '<td style="text-align:right;font-family:JetBrains Mono,monospace">'+((item[1].total/total)*100).toFixed(1)+'%</td>'+
-    '</tr>';
-  }).join('') || '<tr><td colspan="6" class="empty">Sin datos</td></tr>';
+  buildRuboBars('rub-bars-hist', sorted, total, COLORS);
+  buildRubroTable(sorted, total, 'tb-rubros-hist', 'Realizado');
 }
+
+// ── TAB 3: COMPARATIVO MES A MES ──
+function renderRubrosComp() {
+  var COLORS = ['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669','#d97706','#6b7280'];
+  var rubroFiltro = (document.getElementById('rub-comp-rubro')||{}).value || '';
+
+  // Build month map combining historical and projected
+  var meses = {};
+
+  function addToMes(xl, monto, esReal) {
+    var d = xlToDate(xl); if(!d||d==='—') return;
+    var p = d.split('/'); if(p.length!==3) return;
+    var k = ('0'+p[1]).slice(-2)+'/'+p[2];
+    if(!meses[k]) meses[k] = {real:0,proy:0,nReal:0,nProy:0};
+    if(esReal) { meses[k].real+=monto; meses[k].nReal++; }
+    else        { meses[k].proy+=monto; meses[k].nProy++; }
+  }
+
+  // Historical
+  (DB.transferenciasRealizadas||[]).forEach(function(r){
+    if(rubroFiltro && r.tipo!==rubroFiltro) return;
+    addToMes(r.fecha, parseFloat(r.monto||0), true);
+  });
+  (DB.chequesCobrados||[]).forEach(function(r){
+    if(rubroFiltro && r.tipo!==rubroFiltro) return;
+    addToMes(r.fechaCobro||r.fecha, parseFloat(r.monto||0), true);
+  });
+
+  // Projected
+  (DB.cheques||[]).forEach(function(r){
+    if(r.estado==='COBRADO') return;
+    if(rubroFiltro && r.tipo!==rubroFiltro) return;
+    addToMes(r.vto||r.fecha, parseFloat(r.monto||0), false);
+  });
+  (DB.transferencias||[]).forEach(function(r){
+    if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+    if(rubroFiltro && r.tipo!==rubroFiltro) return;
+    addToMes(r.fecha, parseFloat(r.monto||0), false);
+  });
+
+  var keys = Object.keys(meses).sort();
+
+  // Populate rubro filter select
+  var selEl = document.getElementById('rub-comp-rubro');
+  if(selEl && selEl.options.length<=1) {
+    var allTipos = {};
+    (DB.transferenciasRealizadas||[]).forEach(function(r){ if(r.tipo) allTipos[r.tipo]=1; });
+    (DB.chequesCobrados||[]).forEach(function(r){ if(r.tipo) allTipos[r.tipo]=1; });
+    (DB.cheques||[]).forEach(function(r){ if(r.tipo) allTipos[r.tipo]=1; });
+    (DB.transferencias||[]).forEach(function(r){ if(r.tipo) allTipos[r.tipo]=1; });
+    Object.keys(allTipos).sort().forEach(function(t){
+      var o=document.createElement('option'); o.value=t; o.textContent=t; selEl.appendChild(o);
+    });
+  }
+
+  // Table
+  var tb = document.getElementById('tb-comp-mes');
+  if(tb) {
+    var totalReal=0, totalProy=0;
+    var rows = keys.map(function(k){
+      var mo = meses[k];
+      var total = mo.real + mo.proy;
+      var diff = mo.proy - mo.real; // positive = proyectado > realizado
+      totalReal+=mo.real; totalProy+=mo.proy;
+      var hoyXl = Math.round(new Date().getTime()/86400000+25569);
+      var p=k.split('/'); var mesXl = Math.round(new Date(parseInt(p[1]),parseInt(p[0])-1,1).getTime()/86400000+25569);
+      var esFuturo = mesXl >= hoyXl;
+      var tendencia = esFuturo
+        ? '<span style="color:var(--ink3);font-size:11px">📅 Proyectado</span>'
+        : (mo.proy>0
+            ? '<span style="color:var(--amb);font-size:11px">⚠ Mixto</span>'
+            : '<span style="color:var(--grn);font-size:11px">✅ Realizado</span>');
+      return '<tr style="'+(esFuturo?'background:var(--sur2)':'')+'">' +
+        '<td class="mn"><strong>'+k+'</strong></td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+(mo.real>0?fGs(mo.real):'—')+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--amb)">'+(mo.proy>0?fGs(mo.proy):'—')+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:600">'+fGs(total)+'</td>'+
+        '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--ink3)">'+(mo.real>0&&mo.proy>0?fGsSigned(diff):'—')+'</td>'+
+        '<td>'+tendencia+'</td>'+
+      '</tr>';
+    });
+    rows.push('<tr style="background:var(--sur2);font-weight:700;border-top:2px solid var(--bdr)">'+
+      '<td>TOTAL</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--grn)">'+fGs(totalReal)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;color:var(--amb)">'+fGs(totalProy)+'</td>'+
+      '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700">'+fGs(totalReal+totalProy)+'</td>'+
+      '<td></td><td></td></tr>');
+    tb.innerHTML = rows.join('') || '<tr><td colspan="6" class="empty">Sin datos</td></tr>';
+  }
+
+  // Bar chart: side-by-side real vs proy per month
+  var barsEl = document.getElementById('comp-bars');
+  var lblsEl = document.getElementById('comp-lbls');
+  if(barsEl && keys.length) {
+    var maxV = Math.max.apply(null, keys.map(function(k){ return Math.max(meses[k].real,meses[k].proy); }))||1;
+    barsEl.innerHTML=''; lblsEl.innerHTML='';
+    var H=160;
+    keys.forEach(function(k){
+      var mo=meses[k];
+      var hR=Math.max(3,(mo.real/maxV)*H*0.88);
+      var hP=Math.max(3,(mo.proy/maxV)*H*0.88);
+      var w=document.createElement('div');
+      w.style.cssText='flex:1;display:flex;align-items:flex-end;gap:2px;height:100%;justify-content:center;min-width:0';
+      w.innerHTML=
+        (mo.real>0?'<div class="bar neg" style="height:'+hR+'px;flex:1;background:#c0202e" title="Real '+k+': '+fGs(mo.real)+'"></div>':'')+
+        (mo.proy>0?'<div class="bar" style="height:'+hP+'px;flex:1;background:#d97706;opacity:.8" title="Proy '+k+': '+fGs(mo.proy)+'"></div>':'');
+      barsEl.appendChild(w);
+      var l=document.createElement('div'); l.className='blbl';
+      // Show only month/year short
+      var p=k.split('/'); l.textContent=p[0]+'/'+p[1].slice(-2);
+      lblsEl.appendChild(l);
+    });
+  }
+}
+
+function filtrarRubros(f, el) {
+  // Legacy — now handled by tabs
+  renderRubros();
+}
+
+
 
 // ─── SIMULADOR DE PAGOS ───────────────────────────────────────────────────────
 function renderSimulador() {
