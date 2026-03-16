@@ -3949,22 +3949,31 @@ function renderCalendario() {
       if(c.estado==='COBRADO') return;
       addItem(c.vto||c.fecha, c.beneficiario, c.monto, c.tipo, false);
     });
-    // Transferencias por fecha
+    // Transferencias por fecha - mark as paid if estado=PAGADO
     DB.transferencias.forEach(function(t){
-      if(t.estado==='COBRADO'||t.estado==='PAGADO') return;
-      addItem(t.fecha, t.beneficiario, t.monto, t.tipo, false);
+      var isPagado = t.estado==='COBRADO'||t.estado==='PAGADO';
+      // Show paid ones too (so they appear tachado on calendar)
+      if(isPagado) {
+        addItem(t.fecha, t.beneficiario, t.monto, t.tipo, true);
+      } else {
+        addItem(t.fecha, t.beneficiario, t.monto, t.tipo, false);
+      }
     });
     // Préstamos
     DB.prestamos.forEach(function(p){
-      // Add future cuotas based on dia del mes
-      [3,4,5,6,7,8].forEach(function(mes){
-        var y=2026;
-        var k=y+'-'+mes+'-'+p.dia;
-        if(!pm[k]) pm[k]={total:0,items:[],dia:p.dia,mes:mes,anio:y};
+      var ini=new Date(p.inicio);
+      for(var q=1;q<=p.nCuotas;q++){
+        var mo_offset=ini.getMonth()+(q-1);
+        var yr=ini.getFullYear()+Math.floor(mo_offset/12);
+        var mo=(mo_offset%12)+1;
+        if(yr!==2026) continue; // solo mostrar 2026
+        var isPaid=q<=(p.pagadas||0);
+        var k=yr+'-'+mo+'-'+p.dia;
+        if(!pm[k]) pm[k]={total:0,items:[],dia:p.dia,mes:mo,anio:yr,paidTotal:0};
         var c=parseFloat(p.cuota)||0;
-        pm[k].total+=c;
-        pm[k].items.push({ben:p.nombre,monto:c,tipo:'PRESTAMO'});
-      });
+        if(!isPaid) pm[k].total+=c; else pm[k].paidTotal+=c;
+        pm[k].items.push({ben:p.nombre,monto:c,tipo:'PRESTAMO',paid:isPaid});
+      }
     });
     return pm;
   }
@@ -4695,7 +4704,20 @@ function openModal(id, tipo) {
   if (id === 'm-real') document.getElementById('mr-fecha').value = hoy;
 }
 
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // Reset m-pago button if it was changed by editarTransferencia
+  if(id === 'm-pago') {
+    window._editTraIdx = null;
+    var titleEl = document.getElementById('m-pago-title');
+    if(titleEl) titleEl.textContent = 'Nuevo Pago';
+    var btnEl = document.querySelector('#m-pago .btn-p');
+    if(btnEl) {
+      btnEl.textContent = 'Guardar';
+      btnEl.setAttribute('onclick', 'guardarPago()');
+    }
+  }
+}
 
 function guardarPago() {
   var fecha = document.getElementById('mp-fecha').value;
@@ -4714,6 +4736,7 @@ function guardarPago() {
     row.fechaVto = dateToXl(fecha);
     DB.efectivo.unshift(row); agregarRegistro('efectivo', row);
   }
+  guardarEstado();
   closeModal('m-pago'); renderTabla(_modTipo); updateBadges();
 }
 
@@ -4824,25 +4847,29 @@ function editarTransferencia(idx) {
   var r = DB.transferencias[idx];
   if(!r) return;
   window._editTraIdx = idx;
-  // Re-use modal m-pago pre-filled
   openModal('m-pago','transferencias');
-  // Pre-fill fields after modal opens
   setTimeout(function(){
+    // Pre-fill all fields with correct IDs
     var d = xlToDate(r.fecha);
     if(d && d!=='—') {
       var p=d.split('/');
       if(p.length===3) document.getElementById('mp-fecha').value=p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);
     }
-    var montoEl=document.getElementById('mp-monto'); if(montoEl) montoEl.value=r.monto||'';
-    var benEl=document.getElementById('mp-ben'); if(benEl) benEl.value=r.beneficiario||'';
-    var concEl=document.getElementById('mp-concepto'); if(concEl) concEl.value=r.concepto||'';
-    var tipoEl=document.getElementById('mp-tipo'); if(tipoEl) tipoEl.value=r.tipo||'';
-    var nroEl=document.getElementById('mp-nro'); if(nroEl) nroEl.value=r.nroTrans||'';
-    // Change title and button
-    var titleEl=document.getElementById('m-pago-title'); if(titleEl) titleEl.textContent='Editar Transferencia';
-    var btnEl=document.querySelector('#m-pago .modal-footer button.btn-p');
-    if(btnEl){ btnEl.textContent='Guardar Cambios'; btnEl.onclick=function(){ guardarEdicionTransferencia(); }; }
-  },80);
+    document.getElementById('mp-monto').value = r.monto||'';
+    document.getElementById('mp-benef').value = r.beneficiario||'';  // correct ID
+    document.getElementById('mp-concepto').value = r.concepto||'';
+    document.getElementById('mp-tipo').value = r.tipo||'';
+    document.getElementById('mp-nrotrans').value = r.nroTrans||'';  // correct ID
+    // Update title
+    var titleEl=document.getElementById('m-pago-title');
+    if(titleEl) titleEl.textContent='Editar Transferencia';
+    // Replace the Guardar button's onclick to call edit instead of new
+    var btnEl = document.querySelector('#m-pago .btn-p');
+    if(btnEl){
+      btnEl.textContent='Guardar Cambios';
+      btnEl.setAttribute('onclick','guardarEdicionTransferencia()');
+    }
+  }, 80);
 }
 
 function guardarEdicionTransferencia() {
@@ -4854,10 +4881,10 @@ function guardarEdicionTransferencia() {
   if(fechaVal) r.fecha = dateStrToXl(fechaVal);
   var v;
   v=document.getElementById('mp-monto'); if(v&&v.value) r.monto=v.value;
-  v=document.getElementById('mp-ben'); if(v&&v.value) r.beneficiario=v.value;
+  v=document.getElementById('mp-benef'); if(v&&v.value) r.beneficiario=v.value;  // correct ID
   v=document.getElementById('mp-concepto'); if(v&&v.value) r.concepto=v.value;
   v=document.getElementById('mp-tipo'); if(v&&v.value) r.tipo=v.value;
-  v=document.getElementById('mp-nro'); if(v) r.nroTrans=v.value;
+  v=document.getElementById('mp-nrotrans'); if(v) r.nroTrans=v.value;  // correct ID
   window._editTraIdx = null;
   guardarEstado();
   closeModal('m-pago');
