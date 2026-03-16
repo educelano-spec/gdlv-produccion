@@ -286,20 +286,22 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="topbar-date" id="fecha-hoy"></div>
   </div>
 </div>
-<div class="liqbar">
+<div class="liqbar" id="liqbar-root">
   <span class="liq-lbl">Liquidez</span>
-  <div class="liq-track"><div class="liq-fill" id="liq-fill" style="width:50%"></div></div>
+  <div class="liq-track"><div class="liq-fill" id="liq-fill" style="width:0%"></div></div>
   <span id="liq-pct" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">—</span>
   <div class="liq-sep"></div>
   <div class="liq-stat"><span class="liq-stat-l">Disponible</span><span class="liq-stat-v pos" id="liq-disp">—</span></div>
   <div class="liq-sep"></div>
-  <div class="liq-stat"><span class="liq-stat-l">Próx. 7 días</span><span class="liq-stat-v neg" id="liq-7d">—</span></div>
+  <div class="liq-stat"><span class="liq-stat-l">Egresos Mes</span><span class="liq-stat-v neg" id="liq-egr-mes">—</span></div>
   <div class="liq-sep"></div>
-  <div class="liq-stat"><span class="liq-stat-l">Días positivos</span><span class="liq-stat-v amb" id="liq-dias">—</span></div>
+  <div class="liq-stat"><span class="liq-stat-l">Ya Pagado Mes</span><span class="liq-stat-v amb" id="liq-pagado-mes">—</span></div>
   <div class="liq-sep"></div>
-  <div class="liq-stat"><span class="liq-stat-l">Proyectado Final</span><span class="liq-stat-v neg" id="liq-proy">—</span></div>
+  <div class="liq-stat"><span class="liq-stat-l">Cobros Mes</span><span class="liq-stat-v pos" id="liq-cobros-mes">—</span></div>
   <div class="liq-sep"></div>
-  <div class="liq-stat"><span class="liq-stat-l">Total Préstamos</span><span class="liq-stat-v neg" id="liq-prest">—</span></div>
+  <div class="liq-stat"><span class="liq-stat-l">Saldo Fin Mes</span><span class="liq-stat-v" id="liq-saldo-fin">—</span></div>
+  <div class="liq-sep"></div>
+  <div class="liq-stat"><span class="liq-stat-l">Cuotas Préstamos</span><span class="liq-stat-v neg" id="liq-prest">—</span></div>
 </div>
 
   <!-- Firebase loading overlay -->
@@ -5657,6 +5659,99 @@ function updateBadges() {
   (document.getElementById('nb-al')||{}).textContent = nAl;
   document.getElementById('al-dot').style.display = nAl>0?'block':'none';
   (document.getElementById('fecha-hoy')||{}).textContent = new Date().toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'});
+  updateLiqBar();
+}
+
+function updateLiqBar() {
+  try {
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    var hoyXl = todayXl();
+    var mesMes = hoy.getMonth()+1;
+    var mesAnio = hoy.getFullYear();
+
+    // Disponible actual
+    var disp = 0;
+    if(DB.disponible && DB.disponible.length) {
+      var sd = DB.disponible.slice().sort(function(a,b){return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0);});
+      disp = parseFloat(sd[0].total || sd[0].conti || 0);
+    }
+
+    // Helper: is this month
+    function isMes(xl) {
+      var d=xlToDate(xl); if(!d||d==='—') return false;
+      var p=d.split('/'); if(p.length!==3) return false;
+      return parseInt(p[1])===mesMes && parseInt(p[2])===mesAnio;
+    }
+
+    // Egresos pendientes este mes
+    var egrMes = 0;
+    (DB.cheques||[]).forEach(function(r){
+      if(r.estado==='COBRADO') return;
+      if(isMes(r.vto||r.fecha)) egrMes+=parseFloat(r.monto||0);
+    });
+    (DB.transferencias||[]).forEach(function(r){
+      if(r.estado==='COBRADO'||r.estado==='PAGADO') return;
+      if(isMes(r.fecha)) egrMes+=parseFloat(r.monto||0);
+    });
+    (DB.prestamos||[]).forEach(function(p){
+      var ini=new Date(p.inicio);
+      for(var q=1;q<=p.nCuotas;q++){
+        if(q<=(p.pagadas||0)) continue;
+        var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia);
+        if(dt.getMonth()+1===mesMes && dt.getFullYear()===mesAnio)
+          egrMes+=parseFloat(p.cuota||0);
+      }
+    });
+
+    // Ya pagado este mes (realizados)
+    var pagadoMes = 0;
+    (DB.transferenciasRealizadas||[]).forEach(function(r){ if(isMes(r.fecha)) pagadoMes+=parseFloat(r.monto||0); });
+    (DB.chequesCobrados||[]).forEach(function(r){ if(isMes(r.fechaCobro||r.fecha)) pagadoMes+=parseFloat(r.monto||0); });
+
+    // Cobros pendientes este mes
+    var cobrosMes = 0;
+    (DB.cobros||[]).forEach(function(r){ if(isMes(r.fechaCobro||r.fecha)) cobrosMes+=parseFloat(r.monto||0); });
+
+    // Total cuotas préstamos pendientes
+    var totalPrest = (DB.prestamos||[]).reduce(function(s,p){
+      return s + parseFloat(p.cuota||0) * Math.max(0, p.nCuotas-(p.pagadas||0));
+    },0);
+
+    // Saldo proyectado fin de mes
+    var saldoFin = disp + cobrosMes - egrMes;
+
+    // Liquidez % = disponible vs egresos mes
+    var liqPct = egrMes > 0 ? Math.min(100, Math.round(disp / egrMes * 100)) : 100;
+    var liqColor = liqPct >= 80 ? '#4caf50' : liqPct >= 50 ? '#ff9800' : '#f44336';
+
+    // Update DOM
+    var fill = document.getElementById('liq-fill');
+    if(fill) { fill.style.width = liqPct+'%'; fill.style.background = liqColor; }
+    var pctEl = document.getElementById('liq-pct');
+    if(pctEl) { pctEl.textContent = liqPct+'%'; pctEl.style.color = liqColor; }
+
+    var dispEl = document.getElementById('liq-disp');
+    if(dispEl) dispEl.textContent = fGs(disp);
+
+    var egrEl = document.getElementById('liq-egr-mes');
+    if(egrEl) egrEl.textContent = fGs(egrMes);
+
+    var pagEl = document.getElementById('liq-pagado-mes');
+    if(pagEl) pagEl.textContent = fGs(pagadoMes);
+
+    var cobEl = document.getElementById('liq-cobros-mes');
+    if(cobEl) cobEl.textContent = fGs(cobrosMes);
+
+    var saldoEl = document.getElementById('liq-saldo-fin');
+    if(saldoEl) {
+      saldoEl.textContent = fGsSigned(saldoFin);
+      saldoEl.style.color = saldoFin >= 0 ? 'var(--grn)' : 'var(--red)';
+    }
+
+    var prestEl = document.getElementById('liq-prest');
+    if(prestEl) prestEl.textContent = fGs(totalPrest);
+
+  } catch(e) { console.warn('liqbar update error:', e); }
 }
 
 // Cerrar modales con Escape o click fuera
