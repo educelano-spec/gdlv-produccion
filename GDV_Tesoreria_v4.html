@@ -2692,11 +2692,19 @@ function applyExtra(extra) {
   if(extra.transferencias_estados) {
     extra.transferencias_estados.forEach(function(s){
       var key = s._key || (s.beneficiario+'|'+s.fecha+'|'+s.monto);
-      var r = DB.transferencias.find(function(r){
-        return (r.beneficiario+'|'+r.fecha+'|'+r.monto)===key ||
-               (r.beneficiario===s.beneficiario&&r.fecha===s.fecha&&r.monto===s.monto);
-      });
-      if(r) Object.assign(r, s);
+      if(s._removed || s.estado==='PAGADO' || s.estado==='COBRADO') {
+        // Remove from pending list
+        DB.transferencias = DB.transferencias.filter(function(r){
+          return !((r.beneficiario+'|'+r.fecha+'|'+r.monto)===key ||
+                   (r.beneficiario===s.beneficiario&&r.fecha===s.fecha&&r.monto===s.monto));
+        });
+      } else {
+        var r = DB.transferencias.find(function(r){
+          return (r.beneficiario+'|'+r.fecha+'|'+r.monto)===key ||
+                 (r.beneficiario===s.beneficiario&&r.fecha===s.fecha&&r.monto===s.monto);
+        });
+        if(r) Object.assign(r, s);
+      }
     });
   }
 
@@ -2784,9 +2792,14 @@ function buildExtra() {
   var traEstados = [];
   def.transferencias.forEach(function(dt){
     var live = DB.transferencias.find(function(r){return r.beneficiario===dt.beneficiario&&r.fecha===dt.fecha&&r.monto===dt.monto;});
-    if(live && live.estado !== dt.estado) traEstados.push({beneficiario:dt.beneficiario,fecha:dt.fecha,monto:dt.monto,estado:live.estado});
-    // Also capture edits
-    if(live && JSON.stringify(live) !== JSON.stringify(dt)) traEstados.push(Object.assign({},live,{_key:dt.beneficiario+'|'+dt.fecha+'|'+dt.monto}));
+    if(!live) {
+      // Record was removed (marked PAGADO/COBRADO and spliced out)
+      traEstados.push({beneficiario:dt.beneficiario,fecha:dt.fecha,monto:dt.monto,estado:'PAGADO',_removed:true});
+    } else {
+      if(live.estado !== dt.estado) traEstados.push({beneficiario:dt.beneficiario,fecha:dt.fecha,monto:dt.monto,estado:live.estado});
+      // Also capture edits
+      if(JSON.stringify(live) !== JSON.stringify(dt)) traEstados.push(Object.assign({},live,{_key:dt.beneficiario+'|'+dt.fecha+'|'+dt.monto}));
+    }
   });
   if(traEstados.length) extra.transferencias_estados = traEstados;
 
