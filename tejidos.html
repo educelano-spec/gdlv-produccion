@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SISTEMA DE TEJIDOS · GDLV</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f5f0;
+  --bg2: #eeede8;
+  --surface: #ffffff;
+  --surface2: #f8f7f4;
+  --border: #e0ddd6;
+  --border2: #d0cdc6;
+  --accent: #1a1a2e;
+  --accent2: #e63946;
+  --accent3: #2a9d8f;
+  --accent4: #e9c46a;
+  --text: #1a1a2e;
+  --text2: #4a4a6a;
+  --muted: #9090a8;
+  --success: #2a9d8f;
+  --warning: #e9c46a;
+  --danger: #e63946;
+  --shadow: 0 2px 12px rgba(26,26,46,.08);
+  --shadow-lg: 0 8px 32px rgba(26,26,46,.12);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--accent);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 58px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: var(--shadow-lg);
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 3px;
+  color: var(--accent4);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.logo span { color: #ffffff88; }
+
+.nav-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+}
+.nav-tab {
+  padding: 7px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #ffffffaa;
+  transition: all .18s;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.nav-tab:hover { color: #fff; background: rgba(255,255,255,.1); }
+.nav-tab.active { background: var(--accent4); color: var(--accent); font-weight: 700; }
+
+.compare-btn {
+  background: var(--accent2);
+  color: white;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all .18s;
+}
+.compare-btn:hover { background: #c1121f; }
+
+/* ── LAYOUT ── */
+.main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── PAGE TITLE ── */
+.page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+/* ── STATS ── */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent);
+}
+.stat-card:nth-child(2) { border-left-color: var(--accent3); }
+.stat-card:nth-child(3) { border-left-color: var(--accent2); }
+.stat-card:nth-child(4) { border-left-color: var(--accent4); }
+.stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+.stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--text); line-height: 1.1; margin-top: 2px; }
+.stat-sub { font-size: 12px; color: var(--muted); }
+
+/* ── FILTERS ── */
+.filters-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.search-wrap { position: relative; flex: 1; min-width: 200px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+.search-wrap input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 14px 9px 38px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,26,46,.08); }
+
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+select:focus { border-color: var(--accent); }
+
+/* ── CARDS GRID ── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+.tejido-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  transition: all .2s;
+  cursor: pointer;
+  position: relative;
+  box-shadow: var(--shadow);
+}
+.tejido-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.tejido-card.selected { border-color: var(--accent); border-width: 2px; background: #f0f0f8; }
+
+.card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.tejido-card:hover .card-actions { opacity: 1; }
+.card-action-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all .15s;
+  color: var(--text2);
+}
+.card-action-btn:hover { background: var(--bg2); }
+.card-action-btn.delete:hover { background: #ffeaea; border-color: var(--danger); color: var(--danger); }
+.card-action-btn.select-btn { background: var(--bg2); }
+.tejido-card.selected .card-action-btn.select-btn { background: var(--accent); color: white; border-color: var(--accent); }
+
+.card-proveedor { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent3); margin-bottom: 4px; padding-right: 80px; }
+.card-tipo { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; padding-right: 80px; line-height: 1.3; }
+.card-codigo { font-size: 11px; color: var(--muted); margin-bottom: 12px; font-family: monospace; }
+.card-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.metric { background: var(--surface2); border-radius: 8px; padding: 9px 11px; border: 1px solid var(--border); }
+.metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; }
+.metric-val { font-size: 14px; font-weight: 700; color: var(--text); }
+.metric-val.price { color: var(--accent2); }
+.metric-val.good { color: var(--success); }
+.price-bar { margin-top: 12px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.price-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent3), var(--accent2)); transition: width .5s ease; }
+
+/* ── PROVEEDORES ── */
+.prov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.prov-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: var(--shadow);
+}
+.prov-card:hover { border-color: var(--accent3); transform: translateY(-1px); }
+.prov-card.active-prov { border-color: var(--accent); background: #f0f0f8; }
+.prov-name { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+.prov-count { font-size: 12px; color: var(--muted); }
+.prov-avg { font-size: 12px; color: var(--accent2); margin-top: 5px; font-weight: 600; }
+
+/* ── COMPARE ── */
+.compare-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.compare-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; }
+.compare-badge-count { background: var(--accent); color: white; border-radius: 20px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
+.btn-outline {
+  background: transparent; border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 7px 14px; color: var(--text2); font-family: inherit; font-size: 13px;
+  cursor: pointer; transition: all .18s; margin-left: auto;
+}
+.btn-outline:hover { border-color: var(--danger); color: var(--danger); }
+.compare-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.compare-empty .ico { font-size: 56px; opacity: .2; margin-bottom: 12px; }
+.compare-empty h3 { font-size: 18px; color: var(--text); margin-bottom: 6px; }
+
+.compare-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.compare-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+.compare-table th { background: var(--accent); color: white; padding: 14px 18px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; border-bottom: 2px solid var(--border2); }
+.compare-table th:first-child { width: 160px; background: #252542; }
+.compare-table td { padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table tr:hover td { background: var(--surface2); }
+.row-label { font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.val-best { color: var(--success); font-weight: 700; }
+.val-worst { color: var(--danger); }
+.badge-best { display: inline-block; background: var(--success); color: white; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; margin-left: 5px; }
+.badge-worst { display: inline-block; background: #ffeaea; color: var(--danger); border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; margin-left: 5px; }
+.col-prov { font-size: 10px; color: var(--accent4); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.col-name { font-size: 14px; font-weight: 700; }
+
+.score-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 24px; }
+.score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); }
+.score-prov { font-size: 10px; color: var(--accent3); text-transform: uppercase; letter-spacing: .8px; font-weight: 700; margin-bottom: 3px; }
+.score-name { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+.score-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.score-row-label { font-size: 11px; color: var(--muted); width: 100px; flex-shrink: 0; }
+.score-bar-wrap { flex: 1; height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.score-bar-inner { height: 100%; border-radius: 4px; transition: width .6s ease; }
+.score-row-val { font-size: 11px; font-weight: 600; width: 65px; text-align: right; }
+.score-total { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.score-num { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 1px; }
+
+/* ── FORMS ── */
+.form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow); }
+.form-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--accent); letter-spacing: 2px; margin-bottom: 20px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1/-1; }
+.form-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text2); }
+.form-input {
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 13px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,26,46,.07); background: white; }
+.form-hint { font-size: 11px; color: var(--muted); }
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 17px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all .18s;
+}
+.btn-primary:hover { background: #2d2d50; transform: translateY(-1px); }
+.btn-danger { background: var(--danger); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all .18s; }
+.btn-danger:hover { background: #c1121f; }
+.btn-success { background: var(--success); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .18s; }
+.btn-success:hover { background: #1f7f73; }
+
+/* ── CALCULADORA ── */
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.calc-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; box-shadow: var(--shadow); }
+.calc-panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 16px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+.calc-result-box { background: var(--accent); color: white; border-radius: 10px; padding: 18px 20px; margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cr-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; opacity: .7; margin-bottom: 2px; }
+.cr-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--accent4); }
+
+/* ── CONSUMO ── */
+.consumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.consumo-list { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+.consumo-list-header { padding: 14px 18px; background: var(--accent); color: white; font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1.5px; display: flex; align-items: center; justify-content: space-between; }
+.consumo-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); transition: background .15s; }
+.consumo-item:hover { background: var(--surface2); }
+.consumo-item:last-child { border-bottom: none; }
+.consumo-item-name { font-weight: 600; font-size: 14px; }
+.consumo-item-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.consumo-item-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--accent2); letter-spacing: .5px; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(26,26,46,.5);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 20px; color: var(--accent); }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+/* ── SIMULADOR ── */
+.sim-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+.sim-canvas-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); overflow: hidden; }
+canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-radius: 8px; background: #fafaf8; }
+.sim-results { background: var(--accent); color: white; border-radius: 10px; padding: 18px; margin-top: 16px; }
+.sim-result-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.1); font-size: 13px; }
+.sim-result-row:last-child { border-bottom: none; }
+.sim-result-key { opacity: .75; font-size: 12px; }
+.sim-result-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; color: var(--accent4); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 28px; right: 28px;
+  background: var(--success); color: white;
+  padding: 12px 22px; border-radius: 10px;
+  font-weight: 600; font-size: 13px;
+  transform: translateY(80px); opacity: 0;
+  transition: all .3s; z-index: 999;
+  box-shadow: var(--shadow-lg);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { background: var(--danger); }
+
+/* ── TAG ── */
+.tag { display: inline-block; background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: var(--text2); margin-right: 4px; }
+
+/* ── DIVIDER ── */
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ── EMPTY ── */
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-state h3 { font-size: 16px; color: var(--text2); margin-bottom: 6px; }
+
+/* ── TABS INSIDE ── */
+.inner-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 0; }
+.inner-tab { padding: 8px 18px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s; }
+.inner-tab:hover { color: var(--text); }
+.inner-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── LEGEND ── */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+.legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+@media (max-width: 900px) {
+  .header { padding: 0 14px; gap: 10px; }
+  .main { padding: 14px; }
+  .stats-bar { grid-template-columns: 1fr 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .calc-grid { grid-template-columns: 1fr; }
+  .sim-layout { grid-template-columns: 1fr; }
+  .consumo-grid { grid-template-columns: 1fr; }
+  .nav-tab { padding: 6px 10px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">GDLV <span>·</span> TEJIDOS</div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="showSection('catalogo')">📦 Catálogo</button>
+    <button class="nav-tab" onclick="showSection('proveedores')">🏭 Proveedores</button>
+    <button class="nav-tab" onclick="showSection('nuevo')">➕ Nuevo</button>
+    <button class="nav-tab" onclick="showSection('calculadora')">🧮 Calculadora</button>
+    <button class="nav-tab" onclick="showSection('consumo')">📐 Consumos</button>
+    <button class="nav-tab" onclick="showSection('simulador')">✂ Simulador</button>
+  </nav>
+  <button class="compare-btn" onclick="showSection('comparar')">⚖ Comparar (<span id="compare-count">0</span>)</button>
+</header>
+
+<div class="main">
+
+<!-- ═══════════════════════════════════════ CATÁLOGO ═══ -->
+<section class="section active" id="sec-catalogo">
+  <div class="page-title">Catálogo de Tejidos</div>
+  <div class="page-sub">Hacé clic en ✓ para seleccionar tejidos a comparar · ✏ para editar · 🗑 para eliminar</div>
+  <div class="stats-bar" id="stats-bar"></div>
+  <div class="filters-row">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Buscar por nombre, código o proveedor..." oninput="applyFilters()">
+    </div>
+    <select id="filter-prov" onchange="applyFilters()">
+      <option value="">Todos los proveedores</option>
+    </select>
+    <select id="sort-by" onchange="applyFilters()">
+      <option value="tipo">A–Z por nombre</option>
+      <option value="precio_metro">Precio/m menor primero</option>
+      <option value="precio_metro_desc">Precio/m mayor primero</option>
+      <option value="rendim">Mayor rendimiento</option>
+      <option value="precio_rem">Precio remera menor</option>
+    </select>
+  </div>
+  <div class="cards-grid" id="cards-grid"></div>
+  <div class="empty-state" id="no-results" style="display:none">
+    <h3>Sin resultados</h3><p>Probá con otro término o filtro.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ PROVEEDORES ═══ -->
+<section class="section" id="sec-proveedores">
+  <div class="page-title">Proveedores</div>
+  <div class="page-sub">Seleccioná un proveedor para ver sus tejidos</div>
+  <div class="prov-grid" id="prov-grid"></div>
+  <div class="cards-grid" id="prov-cards"></div>
+</section>
+
+<!-- ═══════════════════════════════════════ NUEVO / EDITAR ═══ -->
+<section class="section" id="sec-nuevo">
+  <div class="page-title" id="form-page-title">Agregar Tejido</div>
+  <div class="page-sub">Completá los datos. El precio/metro y precio/remera se calculan automáticamente.</div>
+  <div class="form-card" style="max-width:680px">
+    <input type="hidden" id="f-edit-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">Proveedor *</label>
+        <input class="form-input" id="f-proveedor" list="prov-list" placeholder="Ej: Itaipú Textiles">
+        <datalist id="prov-list"></datalist>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Tipo de Tejido *</label>
+        <input class="form-input" id="f-tipo" placeholder="Ej: Dry Fit premium">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Código</label>
+        <input class="form-input" id="f-codigo" placeholder="Ej: IT 0372">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ancho (metros)</label>
+        <input class="form-input" id="f-ancho" type="number" step="0.01" min="0.5" max="3" placeholder="1.80" oninput="calcFormAuto()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio x kg (Gs.)</label>
+        <input class="form-input" id="f-precio-kg" type="number" min="0" placeholder="50000" oninput="calcFormAuto()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rendimiento (m/kg)</label>
+        <input class="form-input" id="f-rendim" type="number" step="0.01" min="0" placeholder="3.9" oninput="calcFormAuto()">
+        <span class="form-hint">Metros de tela por cada kilo de tejido</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio x metro (Gs.)</label>
+        <input class="form-input" id="f-precio-metro" type="number" min="0" placeholder="Calculado automáticamente" oninput="calcRemFromMetro()">
+        <span class="form-hint">= Precio/kg ÷ Rendimiento</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio aprox x remera (Gs.)</label>
+        <input class="form-input" id="f-precio-rem" type="number" min="0" placeholder="Calculado automáticamente">
+        <span class="form-hint">= P/metro × Ancho × 0.71 (factor remera estándar)</span>
+      </div>
+    </div>
+    <div style="margin-top:6px; padding:12px 14px; background:var(--surface2); border-radius:8px; border:1px solid var(--border); font-size:12px; color:var(--text2);">
+      <strong>¿Cómo se calcula el precio por remera?</strong><br>
+      El factor 0.71 representa el consumo promedio de tela para una remera talle M/L en ancho 1.80m (≈0.71m²). 
+      <br>Fórmula: <code>Precio/metro × Ancho × 0.71</code>. Podés ajustarlo en la calculadora de consumo.
+    </div>
+    <div style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
+      <button class="btn-primary" id="btn-guardar" onclick="guardarTejido()">GUARDAR TEJIDO</button>
+      <button class="btn-outline" id="btn-cancelar-edit" style="display:none" onclick="cancelarEdicion()">Cancelar</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ COMPARAR ═══ -->
+<section class="section" id="sec-comparar">
+  <div class="compare-header">
+    <div class="compare-title">Comparación de Tejidos</div>
+    <div class="compare-badge-count" id="cmp-count-badge">0 tejidos</div>
+    <button class="btn-outline" onclick="clearSelection()">Limpiar selección</button>
+  </div>
+  <div id="compare-content"></div>
+</section>
+
+<!-- ═══════════════════════════════════════ CALCULADORA ═══ -->
+<section class="section" id="sec-calculadora">
+  <div class="page-title">Calculadora</div>
+  <div class="page-sub">Calculá costos y rendimientos ingresando los parámetros</div>
+  <div class="calc-grid">
+
+    <div class="calc-panel">
+      <div class="calc-panel-title">📦 Por Precio x KG</div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Precio x kg (Gs.)</label>
+        <input class="form-input" id="c-pxkg" type="number" placeholder="50000" oninput="calcCalc()">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Rendimiento (m/kg)</label>
+        <input class="form-input" id="c-rend" type="number" step="0.01" placeholder="3.9" oninput="calcCalc()">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Ancho de tela (m)</label>
+        <input class="form-input" id="c-ancho" type="number" step="0.01" placeholder="1.80" oninput="calcCalc()">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Metros a comprar (opcional)</label>
+        <input class="form-input" id="c-metros" type="number" step="0.5" placeholder="ej: 50" oninput="calcCalc()">
+      </div>
+      <button class="btn-primary" onclick="calcCalc()" style="width:100%; margin-bottom:4px">CALCULAR</button>
+      <div id="calc-result" style="display:none" class="calc-result-box">
+        <div><div class="cr-label">Precio x metro</div><div class="cr-val" id="cr-pm">—</div></div>
+        <div><div class="cr-label">Precio x remera</div><div class="cr-val" id="cr-pr">—</div></div>
+        <div><div class="cr-label">Costo total metros</div><div class="cr-val" id="cr-total">—</div></div>
+        <div><div class="cr-label">KG necesarios</div><div class="cr-val" id="cr-kg">—</div></div>
+      </div>
+    </div>
+
+    <div class="calc-panel">
+      <div class="calc-panel-title">📏 Por Ancho de Tela (cortes)</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Calculá cuántos cortes entran en un metro lineal según el ancho de la tela y el ancho de la pieza.
+      </p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Ancho de tela (cm)</label>
+        <input class="form-input" id="ca-ancho-tela" type="number" placeholder="180" oninput="calcAncho()">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Ancho de la pieza (cm)</label>
+        <input class="form-input" id="ca-ancho-pieza" type="number" placeholder="58" oninput="calcAncho()">
+        <span class="form-hint">Ej: ancho del delantero de una remera</span>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Largo de la pieza (cm)</label>
+        <input class="form-input" id="ca-largo-pieza" type="number" placeholder="70" oninput="calcAncho()">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Cantidad de piezas x prenda</label>
+        <input class="form-input" id="ca-piezas" type="number" value="2" oninput="calcAncho()">
+        <span class="form-hint">Ej: 2 = delantero + espalda (sin mangas)</span>
+      </div>
+      <button class="btn-primary" onclick="calcAncho()" style="width:100%; margin-bottom:4px">CALCULAR</button>
+      <div id="ancho-result" style="display:none" class="calc-result-box">
+        <div><div class="cr-label">Cortes por metro</div><div class="cr-val" id="ar-cortes">—</div></div>
+        <div><div class="cr-label">Consumo por prenda</div><div class="cr-val" id="ar-consumo">—</div></div>
+        <div><div class="cr-label">Aprovecham.</div><div class="cr-val" id="ar-aprov">—</div></div>
+        <div><div class="cr-label">Desperdicio</div><div class="cr-val" id="ar-desp">—</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ CONSUMOS ═══ -->
+<section class="section" id="sec-consumo">
+  <div class="page-title">Consumo por Prenda</div>
+  <div class="page-sub">Registrá el consumo de tejido estándar para cada tipo de prenda</div>
+  <div class="consumo-grid">
+    <div>
+      <div class="form-card" style="margin-bottom:16px">
+        <div class="form-title" style="font-size:18px">Agregar tipo de prenda</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Nombre de la prenda</label>
+          <input class="form-input" id="cp-nombre" placeholder="Ej: Remera manga corta">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Consumo en metros</label>
+            <input class="form-input" id="cp-metros" type="number" step="0.01" placeholder="0.85">
+            <span class="form-hint">Metros lineales de tela</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Para ancho de tela (m)</label>
+            <input class="form-input" id="cp-ancho" type="number" step="0.01" placeholder="1.80">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Talle de referencia</label>
+            <select class="form-input" id="cp-talle">
+              <option>M</option><option>S</option><option>L</option><option>XL</option><option>XXL</option><option>Promedio</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notas</label>
+            <input class="form-input" id="cp-notas" placeholder="Ej: sin mangas">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="agregarConsumo()" style="margin-top:16px">AGREGAR PRENDA</button>
+      </div>
+
+      <!-- Calculadora lote -->
+      <div class="calc-panel">
+        <div class="calc-panel-title">🔢 Calcular Lote de Prendas</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Tipo de prenda</label>
+          <select class="form-input" id="lote-prenda" onchange="calcLote()">
+            <option value="">-- Seleccioná prenda --</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Cantidad de prendas</label>
+          <input class="form-input" id="lote-cantidad" type="number" placeholder="100" oninput="calcLote()">
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Precio x metro del tejido (Gs.)</label>
+          <input class="form-input" id="lote-precio" type="number" placeholder="12000" oninput="calcLote()">
+        </div>
+        <div id="lote-result" style="display:none" class="calc-result-box">
+          <div><div class="cr-label">Metros necesarios</div><div class="cr-val" id="lr-metros">—</div></div>
+          <div><div class="cr-label">Costo total tela</div><div class="cr-val" id="lr-costo">—</div></div>
+          <div><div class="cr-label">Costo tela/prenda</div><div class="cr-val" id="lr-unit">—</div></div>
+          <div><div class="cr-label">+ 10% desperdicio</div><div class="cr-val" id="lr-total">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="consumo-list">
+      <div class="consumo-list-header">
+        <span>Prendas registradas</span>
+        <span id="consumo-count" style="font-size:13px;font-weight:400;opacity:.8">0 tipos</span>
+      </div>
+      <div id="consumo-items"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ SIMULADOR ═══ -->
+<section class="section" id="sec-simulador">
+  <div class="page-title">✂ Simulador de Corte</div>
+  <div class="page-sub">Ingresá las medidas de las piezas y el ancho del tejido para simular el tendido y calcular el consumo</div>
+  <div class="sim-layout">
+    <div>
+      <div class="form-card">
+        <div class="form-title" style="font-size:18px">Configuración</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Ancho de tela (cm)</label>
+          <input class="form-input" id="s-ancho-tela" type="number" value="180" oninput="runSimulator()">
+        </div>
+        <hr class="section-divider">
+        <div style="font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:10px;">Piezas de la prenda</div>
+
+        <div id="piezas-list"></div>
+        <button class="btn-outline" onclick="agregarPieza()" style="width:100%; margin-bottom:12px; border-style:dashed">+ Agregar pieza</button>
+
+        <hr class="section-divider">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Cantidad de prendas</label>
+          <input class="form-input" id="s-cantidad" type="number" value="1" min="1" oninput="runSimulator()">
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Precio x metro del tejido (Gs.) <span style="font-weight:400;opacity:.6">(opcional)</span></label>
+          <input class="form-input" id="s-precio-metro" type="number" placeholder="12000" oninput="runSimulator()">
+        </div>
+        <button class="btn-primary" onclick="runSimulator()" style="width:100%">SIMULAR CORTE</button>
+      </div>
+    </div>
+    <div>
+      <div class="sim-canvas-wrap">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:14px;">Vista de tendido</div>
+          <div class="legend" id="sim-legend"></div>
+        </div>
+        <canvas id="sim-canvas" width="600" height="400"></canvas>
+        <div id="sim-results" style="display:none" class="sim-results">
+          <div class="sim-result-row"><span class="sim-result-key">Largo de tendido necesario</span><span class="sim-result-val" id="sr-largo">—</span></div>
+          <div class="sim-result-row"><span class="sim-result-key">Metros totales de tela</span><span class="sim-result-val" id="sr-metros">—</span></div>
+          <div class="sim-result-row"><span class="sim-result-key">Consumo por prenda</span><span class="sim-result-val" id="sr-consumo">—</span></div>
+          <div class="sim-result-row"><span class="sim-result-key">Aprovechamiento</span><span class="sim-result-val" id="sr-aprov">—</span></div>
+          <div class="sim-result-row"><span class="sim-result-key">Área total piezas</span><span class="sim-result-val" id="sr-area">—</span></div>
+          <div class="sim-result-row" id="sr-costo-row" style="display:none"><span class="sim-result-key">Costo total tela</span><span class="sim-result-val" id="sr-costo">—</span></div>
+          <div class="sim-result-row" id="sr-unit-row" style="display:none"><span class="sim-result-key">Costo tela por prenda</span><span class="sim-result-val" id="sr-unit">—</span></div>
+        </div>
+        <div id="sim-hint" style="text-align:center; padding:40px; color:var(--muted); font-size:13px;">
+          Completá la configuración y presioná SIMULAR CORTE
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /main -->
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-title">✏ Editar Tejido</div>
+    <input type="hidden" id="m-idx">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">Proveedor</label>
+        <input class="form-input" id="m-proveedor" list="prov-list">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Tipo de tejido</label>
+        <input class="form-input" id="m-tipo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Código</label>
+        <input class="form-input" id="m-codigo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ancho (m)</label>
+        <input class="form-input" id="m-ancho" type="number" step="0.01" oninput="calcModalAuto()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio x kg</label>
+        <input class="form-input" id="m-precio-kg" type="number" oninput="calcModalAuto()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rendimiento (m/kg)</label>
+        <input class="form-input" id="m-rendim" type="number" step="0.01" oninput="calcModalAuto()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio x metro</label>
+        <input class="form-input" id="m-precio-metro" type="number">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio x remera</label>
+        <input class="form-input" id="m-precio-rem" type="number">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveEdit()">GUARDAR CAMBIOS</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✓ Guardado</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════
+const DATA_INICIAL = [{"proveedor":"Achon Bau SA","tipo":"Helanca","codigo":"AT 5004","ancho":1.6,"precio_kg":27500,"rendim":4.9,"precio_metro":5612.24,"precio_rem":4770.41},{"proveedor":"Achon Bau SA","tipo":"Dry Fit normal (dry 2)","codigo":"AT 5003","ancho":1.8,"precio_kg":32900,"rendim":3.9,"precio_metro":8435.9,"precio_rem":5989.49},{"proveedor":"Achon Bau SA","tipo":"Dry Fit premium (dry 1)","codigo":"AT 5001","ancho":1.8,"precio_kg":37900,"rendim":3.9,"precio_metro":9717.95,"precio_rem":6899.74},{"proveedor":"Achon Bau SA","tipo":"Dry aerosoft microperforado Chino","codigo":"AT 5007","ancho":1.8,"precio_kg":44000,"rendim":3.9,"precio_metro":11282.05,"precio_rem":8010.26},{"proveedor":"Achon Bau SA","tipo":"Dry aerosoft microperforado Brasilero","codigo":"AT 5008","ancho":1.8,"precio_kg":56000,"rendim":3.9,"precio_metro":14358.97,"precio_rem":10194.87},{"proveedor":"Achon Bau SA","tipo":"Dry premium labrado Real Sociedad","codigo":"AT 5005","ancho":1.8,"precio_kg":55000,"rendim":3.9,"precio_metro":14102.56,"precio_rem":10012.82},{"proveedor":"Achon Bau SA","tipo":"Dry UV elastizado","codigo":"AT 5009","ancho":1.5,"precio_kg":85000,"rendim":3.9,"precio_metro":21794.87,"precio_rem":19615.38},{"proveedor":"GM Textil","tipo":"Aero dry","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":17500,"precio_rem":12425},{"proveedor":"GM Textil","tipo":"Thermo dry","codigo":null,"ancho":1.6,"precio_kg":null,"rendim":null,"precio_metro":19000,"precio_rem":13490},{"proveedor":"GM Textil","tipo":"Dry Manchester","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":16000,"precio_rem":11360},{"proveedor":"GM Textil","tipo":"Dry Rugby Premium","codigo":null,"ancho":1.6,"precio_kg":null,"rendim":null,"precio_metro":18950,"precio_rem":16107.5},{"proveedor":"GM Textil","tipo":"Dry Slide Premium","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18000,"precio_rem":12780},{"proveedor":"GM Textil","tipo":"Dry Square Premium","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":17000,"precio_rem":12070},{"proveedor":"Itaipú Textiles","tipo":"Dry 370 microperforado (Roth)","codigo":null,"ancho":1.8,"precio_kg":56000,"rendim":4.2,"precio_metro":13333.33,"precio_rem":9466.67},{"proveedor":"Itaipú Textiles","tipo":"Dry 142","codigo":null,"ancho":1.8,"precio_kg":48000,"rendim":3.9,"precio_metro":12307.69,"precio_rem":8738.46},{"proveedor":"Itaipú Textiles","tipo":"Dry 3D Flash","codigo":null,"ancho":1.8,"precio_kg":62000,"rendim":3.9,"precio_metro":15897.44,"precio_rem":11287.18},{"proveedor":"Itaipú Textiles","tipo":"Dry 3D Pro confort Manchester","codigo":null,"ancho":1.8,"precio_kg":62000,"rendim":3.9,"precio_metro":15897.44,"precio_rem":11287.18},{"proveedor":"Itaipú Textiles","tipo":"Dry 571 elastizado","codigo":"IT 1102","ancho":1.8,"precio_kg":60000,"rendim":3.4,"precio_metro":17647.06,"precio_rem":12529.41},{"proveedor":"Itaipú Textiles","tipo":"Dry 137","codigo":null,"ancho":1.8,"precio_kg":50000,"rendim":4.2,"precio_metro":11904.76,"precio_rem":8452.38},{"proveedor":"Itaipú Textiles","tipo":"Airsport con elastano 372","codigo":"IT 0372","ancho":1.8,"precio_kg":58500,"rendim":4.2,"precio_metro":13928.57,"precio_rem":9889.29},{"proveedor":"Itaipú Textiles","tipo":"Dry Microperforado vertical","codigo":null,"ancho":1.8,"precio_kg":58500,"rendim":4.2,"precio_metro":13928.57,"precio_rem":9889.29},{"proveedor":"Itaipú Textiles","tipo":"Dry 365N Elastizado","codigo":null,"ancho":1.8,"precio_kg":53000,"rendim":3.4,"precio_metro":15588.24,"precio_rem":11067.65},{"proveedor":"Itaipú Textiles","tipo":"Dry Manchester","codigo":null,"ancho":1.8,"precio_kg":48000,"rendim":3.9,"precio_metro":12307.69,"precio_rem":8738.46},{"proveedor":"Itaipú Textiles","tipo":"Dry 365V elastizado","codigo":null,"ancho":1.8,"precio_kg":53000,"rendim":3.4,"precio_metro":15588.24,"precio_rem":11067.65},{"proveedor":"Marijoa","tipo":"Dry Airflow","codigo":null,"ancho":1.65,"precio_kg":43000,"rendim":4.1,"precio_metro":10487.8,"precio_rem":8600},{"proveedor":"Marijoa","tipo":"Dry Jacquard","codigo":"CT 2002","ancho":1.7,"precio_kg":55600,"rendim":4.1,"precio_metro":13560.98,"precio_rem":11120},{"proveedor":"Marijoa","tipo":"Dry Fit normal","codigo":"CT 2004","ancho":1.88,"precio_kg":33000,"rendim":3.8,"precio_metro":8684.21,"precio_rem":5992.1},{"proveedor":"Marijoa","tipo":"Dry Fit premium","codigo":"CT 2003","ancho":1.8,"precio_kg":43000,"rendim":3.6,"precio_metro":11944.44,"precio_rem":8480.56},{"proveedor":"Marijoa","tipo":"Dry Hexágono (Manchester)","codigo":null,"ancho":1.8,"precio_kg":51500,"rendim":4.1,"precio_metro":12560.98,"precio_rem":10300},{"proveedor":"Marijoa","tipo":"Dry Jacquard H022","codigo":null,"ancho":1.7,"precio_kg":64500,"rendim":4.55,"precio_metro":14175.82,"precio_rem":11340.66},{"proveedor":"Marijoa","tipo":"Dry Jacquard H025","codigo":null,"ancho":1.7,"precio_kg":64500,"rendim":4.08,"precio_metro":15808.82,"precio_rem":12647.06},{"proveedor":"Marijoa","tipo":"Dry Sofía Eyelet","codigo":null,"ancho":1.6,"precio_kg":56800,"rendim":4.08,"precio_metro":13921.57,"precio_rem":11137.25},{"proveedor":"Marijoa","tipo":"Dry hexa","codigo":"CT 2001","ancho":1.7,"precio_kg":48000,"rendim":3.9,"precio_metro":12307.69,"precio_rem":9846.15},{"proveedor":"Marijoa","tipo":"Dry Square","codigo":null,"ancho":1.8,"precio_kg":48000,"rendim":3.9,"precio_metro":12307.69,"precio_rem":9846.15},{"proveedor":"Marijoa","tipo":"Dry Jacquard H001","codigo":null,"ancho":1.7,"precio_kg":58000,"rendim":3.9,"precio_metro":14871.79,"precio_rem":11897.44},{"proveedor":"Marijoa","tipo":"Dry Millenium","codigo":null,"ancho":1.6,"precio_kg":57000,"rendim":3.65,"precio_metro":15616.44,"precio_rem":12493.15},{"proveedor":"Marijoa","tipo":"Micro Dry","codigo":"CT 0024","ancho":1.7,"precio_kg":69500,"rendim":3.78,"precio_metro":18386.24,"precio_rem":14708.99},{"proveedor":"Marijoa","tipo":"Acetato Spandex","codigo":null,"ancho":null,"precio_kg":47000,"rendim":3.01,"precio_metro":15614.62,"precio_rem":12491.69},{"proveedor":"Marijoa","tipo":"Dry fit Premiun Emboss","codigo":null,"ancho":null,"precio_kg":47500,"rendim":4.0,"precio_metro":11875,"precio_rem":9500},{"proveedor":"Marijoa","tipo":"Dry Diamante","codigo":null,"ancho":null,"precio_kg":39500,"rendim":3.39,"precio_metro":11651.92,"precio_rem":9321.53},{"proveedor":"Marijoa","tipo":"Dry Eurosports","codigo":null,"ancho":null,"precio_kg":44500,"rendim":3.85,"precio_metro":11558.44,"precio_rem":9246.75},{"proveedor":"Marijoa","tipo":"Dry Liverpool","codigo":null,"ancho":null,"precio_kg":44500,"rendim":3.94,"precio_metro":11294.42,"precio_rem":9035.53},{"proveedor":"Marijoa","tipo":"Dry MiniPique","codigo":null,"ancho":null,"precio_kg":43500,"rendim":3.24,"precio_metro":13425.93,"precio_rem":10740.74},{"proveedor":"Marijoa","tipo":"Dry Tech Premiun","codigo":null,"ancho":null,"precio_kg":46000,"rendim":3.75,"precio_metro":12266.67,"precio_rem":9813.33},{"proveedor":"Marijoa","tipo":"Rib Pretina","codigo":null,"ancho":null,"precio_kg":46000,"rendim":3.51,"precio_metro":13105.41,"precio_rem":10484.33},{"proveedor":"Multitextil","tipo":"Dry oferta","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":12000,"precio_rem":8520},{"proveedor":"Multitextil","tipo":"Dry fit","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":14500,"precio_rem":10295},{"proveedor":"Multitextil","tipo":"Dry peruano blanco azulado","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":15500,"precio_rem":11005},{"proveedor":"Multitextil","tipo":"Dry peruano blanco óptico","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":15500,"precio_rem":11005},{"proveedor":"Multitextil","tipo":"Dry Cell Blanco azulado","codigo":"MT 1022","ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":17500,"precio_rem":14000},{"proveedor":"Multitextil","tipo":"Dry Soft","codigo":"MT 1005","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":16500,"precio_rem":11715},{"proveedor":"Multitextil","tipo":"Dry Fit Running","codigo":"MT 1002","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Manchester","codigo":"MT 1011","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Polibola","codigo":"MT 1006","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Arsenal","codigo":"MT 1030","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Square","codigo":"MT 1014","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Pro Confort geometric","codigo":"MT 1035","ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":14800},{"proveedor":"Multitextil","tipo":"Slide Dry","codigo":"MT 1037","ancho":1.6,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":15725},{"proveedor":"Multitextil","tipo":"Pro Confort 9670 electric","codigo":"MT 1038","ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":14800},{"proveedor":"Multitextil","tipo":"Dry Fluence Light","codigo":"MT 1009","ancho":1.45,"precio_kg":null,"rendim":null,"precio_metro":20000,"precio_rem":18000},{"proveedor":"Multitextil","tipo":"Dry Tech","codigo":"MT 1020","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":20000,"precio_rem":14200},{"proveedor":"Multitextil","tipo":"Thermo dry","codigo":null,"ancho":1.6,"precio_kg":null,"rendim":null,"precio_metro":22500,"precio_rem":19125},{"proveedor":"Multitextil","tipo":"Dry NBA soft blanco","codigo":null,"ancho":1.35,"precio_kg":null,"rendim":null,"precio_metro":21000,"precio_rem":19950},{"proveedor":"Multitextil","tipo":"Dry NBA Rayas","codigo":"MT 1016","ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":21000,"precio_rem":16800},{"proveedor":"Multitextil","tipo":"Dry Sports Stretch elastizado","codigo":"MT 1010","ancho":1.6,"precio_kg":null,"rendim":null,"precio_metro":22500,"precio_rem":19125},{"proveedor":"Multitextil","tipo":"Dry Sports sin elastano","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":19000,"precio_rem":13490},{"proveedor":"Multitextil","tipo":"Dry Jacquard TRS 92","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":28500,"precio_rem":19380},{"proveedor":"Multitextil","tipo":"Malha active (anti peeling)","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":24000,"precio_rem":17040},{"proveedor":"Multitextil","tipo":"Dry Barcelona","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":28500,"precio_rem":20235},{"proveedor":"Multitextil","tipo":"Action Stretch UV","codigo":"MT 1032","ancho":1.6,"precio_kg":null,"rendim":null,"precio_metro":26000,"precio_rem":22100},{"proveedor":"Multitextil","tipo":"Dry TRS 80","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":26000,"precio_rem":18460},{"proveedor":"Multitextil","tipo":"Dry Pro Confort Azteca","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Jacquard TRS 85","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":27000,"precio_rem":19170},{"proveedor":"Multitextil","tipo":"Dry Jacquard TRS 88","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":27000,"precio_rem":19170},{"proveedor":"Multitextil","tipo":"Dry Pro Confort Floral","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Pro Confort Losango","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Jacquard TRS 139","codigo":null,"ancho":1.85,"precio_kg":null,"rendim":null,"precio_metro":33500,"precio_rem":23785},{"proveedor":"Multitextil","tipo":"Dry TRS 91","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":28500,"precio_rem":20235},{"proveedor":"Multitextil","tipo":"Dry animale","codigo":"MT 1012","ancho":1.9,"precio_kg":null,"rendim":null,"precio_metro":28000,"precio_rem":18200},{"proveedor":"Multitextil","tipo":"Active stretch con elastano","codigo":null,"ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":33500,"precio_rem":26800},{"proveedor":"Multitextil","tipo":"Dry Pro confort Manchester","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry New Wave","codigo":"MT 1029","ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Liverpool","codigo":null,"ancho":1.8,"precio_kg":null,"rendim":null,"precio_metro":19000,"precio_rem":13490},{"proveedor":"Multitextil","tipo":"Dry Pro Confort Roma","codigo":null,"ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Multitextil","tipo":"Dry Pro Confort Onda","codigo":null,"ancho":1.7,"precio_kg":null,"rendim":null,"precio_metro":18500,"precio_rem":13135},{"proveedor":"Paraguay Textil SA","tipo":"Helanca","codigo":"PT 3001","ancho":1.6,"precio_kg":26939,"rendim":4.4,"precio_metro":6122.5,"precio_rem":5204.12},{"proveedor":"Paraguay Textil SA","tipo":"Dry Fit Premium","codigo":"PT 3002","ancho":1.8,"precio_kg":38566,"rendim":3.98,"precio_metro":9689.95,"precio_rem":6879.86},{"proveedor":"Paraguay Textil SA","tipo":"Dry fit microperforado","codigo":"PT 3005","ancho":1.75,"precio_kg":45287,"rendim":4.42,"precio_metro":10245.93,"precio_rem":7581.99},{"proveedor":"Paraguay Textil SA","tipo":"Dry fit minuto (tech)","codigo":"PT 3004","ancho":1.7,"precio_kg":41100,"rendim":3.9,"precio_metro":10538.46,"precio_rem":8430.77},{"proveedor":"Paraguay Textil SA","tipo":"Dry fit fut (Manchester)","codigo":"PT 3003","ancho":1.7,"precio_kg":41100,"rendim":3.9,"precio_metro":10538.46,"precio_rem":8430.77},{"proveedor":"Politex SA","tipo":"Dry Fit Normal (dry plus)","codigo":"PO 4004","ancho":1.8,"precio_kg":50250,"rendim":4.3,"precio_metro":11686.05,"precio_rem":8297.09},{"proveedor":"Politex SA","tipo":"Dry Fit premium (dry 1)","codigo":"PO 4001","ancho":1.8,"precio_kg":47475,"rendim":4.1,"precio_metro":11579.27,"precio_rem":8221.28},{"proveedor":"Politex SA","tipo":"Dry Roth","codigo":"PO 4002","ancho":1.8,"precio_kg":53925,"rendim":4.1,"precio_metro":13152.44,"precio_rem":9338.23},{"proveedor":"Politex SA","tipo":"Dry UV 50","codigo":null,"ancho":1.8,"precio_kg":87750,"rendim":4.1,"precio_metro":21402.44,"precio_rem":15195.73},{"proveedor":"Politex SA","tipo":"Dry piqué","codigo":"PO 4005","ancho":1.8,"precio_kg":44625,"rendim":5.4,"precio_metro":8263.89,"precio_rem":5867.36},{"proveedor":"Politex SA","tipo":"Dry UV 30","codigo":null,"ancho":1.8,"precio_kg":85125,"rendim":4.1,"precio_metro":20762.2,"precio_rem":14741.16},{"proveedor":"Politex SA","tipo":"Dry Speed soft","codigo":"PO 4003","ancho":1.8,"precio_kg":53850,"rendim":4.1,"precio_metro":13134.15,"precio_rem":9325.24},{"proveedor":"Politex SA","tipo":"Dry evolution (dry fit economico)","codigo":null,"ancho":1.8,"precio_kg":32400,"rendim":4.53,"precio_metro":7152.32,"precio_rem":5078.15},{"proveedor":"Politex SA","tipo":"Dry soft microperforado","codigo":null,"ancho":1.8,"precio_kg":49125,"rendim":3.1,"precio_metro":15846.77,"precio_rem":11251.21},{"proveedor":"Texturas SA","tipo":"Dry spa running tekking","codigo":null,"ancho":1.8,"precio_kg":175000,"rendim":5.2,"precio_metro":33653.85,"precio_rem":23894.23},{"proveedor":"Texturas SA","tipo":"Dry Fit Menegotti","codigo":"TT 8001","ancho":1.8,"precio_kg":69000,"rendim":4.5,"precio_metro":15333.33,"precio_rem":10886.67},{"proveedor":"Texturas SA","tipo":"Dry Ciclismo","codigo":null,"ancho":1.6,"precio_kg":135000,"rendim":4.47,"precio_metro":30201.34,"precio_rem":25671.14},{"proveedor":"Varzan Hnos SA","tipo":"Dry Fit peruano","codigo":"VT 7001","ancho":1.8,"precio_kg":72000,"rendim":3.9,"precio_metro":18461.54,"precio_rem":13107.69},{"proveedor":"Varzan Hnos SA","tipo":"Dry Kappa","codigo":"VT 7002","ancho":1.8,"precio_kg":50000,"rendim":4.9,"precio_metro":10204.08,"precio_rem":7244.9},{"proveedor":"Varzan Hnos SA","tipo":"Dry Polibola","codigo":"VT 7003","ancho":1.8,"precio_kg":72000,"rendim":3.9,"precio_metro":18461.54,"precio_rem":13107.69},{"proveedor":"Varzan Hnos SA","tipo":"Wind deportivo","codigo":null,"ancho":1.8,"precio_kg":72000,"rendim":4.0,"precio_metro":18000,"precio_rem":12780}];
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let tejidos = JSON.parse(localStorage.getItem('tejidos_gdlv_v2') || 'null') || JSON.parse(JSON.stringify(DATA_INICIAL));
+let selected = new Set();
+let activeProv = null;
+let consumos = JSON.parse(localStorage.getItem('consumos_gdlv') || 'null') || [
+  {nombre:'Remera manga corta', metros:0.85, ancho:1.80, talle:'M', notas:'sin mangas'},
+  {nombre:'Remera manga larga', metros:1.10, ancho:1.80, talle:'M', notas:''},
+  {nombre:'Short deportivo', metros:0.55, ancho:1.80, talle:'M', notas:''},
+  {nombre:'Camiseta fútbol', metros:0.80, ancho:1.80, talle:'M', notas:'sin mangas largas'},
+  {nombre:'Buzo sin capucha', metros:1.40, ancho:1.80, talle:'M', notas:''},
+];
+
+// Simulador state
+let simPiezas = [
+  {nombre:'Delantero', ancho:56, largo:72, color:'#e63946'},
+  {nombre:'Espalda', ancho:56, largo:70, color:'#2a9d8f'},
+  {nombre:'Manga izq', ancho:38, largo:58, color:'#e9c46a'},
+  {nombre:'Manga der', ancho:38, largo:58, color:'#6a4c93'},
+];
+
+// ═══════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════
+const save = () => { try { localStorage.setItem('tejidos_gdlv_v2', JSON.stringify(tejidos)); localStorage.setItem('consumos_gdlv', JSON.stringify(consumos)); } catch(e) {} };
+const gs = v => (v != null && v > 0) ? 'Gs. ' + Math.round(v).toLocaleString('es-PY') : '—';
+const makeId = t => t.proveedor + '||' + t.tipo;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.className = 'toast', 2800);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+function init() {
+  renderStats();
+  populateProvSelect();
+  renderCards(tejidos);
+  renderProveedores();
+  populateProvDatalist();
+  renderConsumos();
+  initSimulator();
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════════════
+function renderStats() {
+  const prices = tejidos.filter(t=>t.precio_metro>0).map(t=>t.precio_metro);
+  const provs = [...new Set(tejidos.map(t=>t.proveedor))];
+  const avg = prices.length ? prices.reduce((a,b)=>a+b,0)/prices.length : 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total tejidos</div><div class="stat-val">${tejidos.length}</div><div class="stat-sub">en catálogo</div></div>
+    <div class="stat-card"><div class="stat-label">Proveedores</div><div class="stat-val">${provs.length}</div><div class="stat-sub">activos</div></div>
+    <div class="stat-card"><div class="stat-label">Precio promedio/m</div><div class="stat-val" style="font-size:18px">${gs(avg)}</div><div class="stat-sub">de tejidos con precio</div></div>
+    <div class="stat-card"><div class="stat-label">Menor precio/m</div><div class="stat-val" style="font-size:18px">${gs(prices.length?Math.min(...prices):0)}</div><div class="stat-sub">${prices.length?tejidos.find(t=>t.precio_metro===Math.min(...prices))?.tipo||'':''}</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  FILTERS & CARDS
+// ═══════════════════════════════════════════════════════
+function populateProvSelect() {
+  const sel = document.getElementById('filter-prov');
+  const provs = [...new Set(tejidos.map(t=>t.proveedor))].sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
+}
+function populateProvDatalist() {
+  const dl = document.getElementById('prov-list');
+  const provs = [...new Set(tejidos.map(t=>t.proveedor))].sort();
+  dl.innerHTML = provs.map(p=>`<option value="${p}">`).join('');
+}
+
+function applyFilters() {
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  const prov = document.getElementById('filter-prov').value;
+  const sort = document.getElementById('sort-by').value;
+  let data = [...tejidos];
+  if(q) data = data.filter(t => t.tipo.toLowerCase().includes(q) || (t.codigo||'').toLowerCase().includes(q) || t.proveedor.toLowerCase().includes(q));
+  if(prov) data = data.filter(t => t.proveedor===prov);
+  const dir = sort.endsWith('_desc') ? -1 : 1;
+  const field = sort.replace('_desc','');
+  data.sort((a,b) => field==='tipo' ? a.tipo.localeCompare(b.tipo) : ((a[field]||0)-(b[field]||0))*dir);
+  renderCards(data);
+}
+
+function renderCards(data) {
+  const grid = document.getElementById('cards-grid');
+  document.getElementById('no-results').style.display = data.length ? 'none' : 'block';
+  if(!data.length) { grid.innerHTML=''; return; }
+  const maxPm = Math.max(...tejidos.filter(t=>t.precio_metro>0).map(t=>t.precio_metro));
+  grid.innerHTML = data.map((t,_)=> cardHTML(t, maxPm)).join('');
+}
+
+function cardHTML(t, maxPm) {
+  const id = makeId(t);
+  const isSel = selected.has(id);
+  const idx = tejidos.indexOf(t);
+  const barW = t.precio_metro>0 ? Math.round((t.precio_metro/maxPm)*100) : 0;
+  return `<div class="tejido-card${isSel?' selected':''}" id="card-${idx}">
+    <div class="card-actions">
+      <button class="card-action-btn select-btn" onclick="event.stopPropagation();toggleSelect('${id}')" title="${isSel?'Quitar de comparación':'Agregar a comparación'}">${isSel?'✓':'+'}</button>
+      <button class="card-action-btn" onclick="event.stopPropagation();openEdit(${idx})" title="Editar">✏</button>
+      <button class="card-action-btn delete" onclick="event.stopPropagation();deleteTejido(${idx})" title="Eliminar">🗑</button>
+    </div>
+    <div class="card-proveedor">${t.proveedor}</div>
+    <div class="card-tipo">${t.tipo}</div>
+    <div class="card-codigo">${t.codigo||'Sin código'}</div>
+    <div class="card-metrics">
+      <div class="metric"><div class="metric-label">Precio x metro</div><div class="metric-val price">${gs(t.precio_metro)}</div></div>
+      <div class="metric"><div class="metric-label">Precio x remera</div><div class="metric-val">${gs(t.precio_rem&&t.precio_rem>0?t.precio_rem:null)}</div></div>
+      <div class="metric"><div class="metric-label">Ancho</div><div class="metric-val">${t.ancho?t.ancho+' m':'—'}</div></div>
+      <div class="metric"><div class="metric-label">Rendimiento</div><div class="metric-val good">${t.rendim?t.rendim+' m/kg':'—'}</div></div>
+    </div>
+    <div class="price-bar"><div class="price-bar-fill" style="width:${barW}%"></div></div>
+  </div>`;
+}
+
+function toggleSelect(id) {
+  if(selected.has(id)) selected.delete(id); else selected.add(id);
+  document.getElementById('compare-count').textContent = selected.size;
+  applyFilters();
+  if(activeProv) renderProvCards(activeProv);
+}
+
+// ═══════════════════════════════════════════════════════
+//  DELETE & EDIT
+// ═══════════════════════════════════════════════════════
+function deleteTejido(idx) {
+  if(!confirm(`¿Eliminar "${tejidos[idx].tipo}" de ${tejidos[idx].proveedor}?`)) return;
+  const id = makeId(tejidos[idx]);
+  selected.delete(id);
+  tejidos.splice(idx,1);
+  save();
+  renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
+  document.getElementById('compare-count').textContent = selected.size;
+  showToast('🗑 Tejido eliminado');
+}
+
+function openEdit(idx) {
+  const t = tejidos[idx];
+  document.getElementById('m-idx').value = idx;
+  document.getElementById('m-proveedor').value = t.proveedor||'';
+  document.getElementById('m-tipo').value = t.tipo||'';
+  document.getElementById('m-codigo').value = t.codigo||'';
+  document.getElementById('m-ancho').value = t.ancho||'';
+  document.getElementById('m-precio-kg').value = t.precio_kg||'';
+  document.getElementById('m-rendim').value = t.rendim||'';
+  document.getElementById('m-precio-metro').value = t.precio_metro||'';
+  document.getElementById('m-precio-rem').value = t.precio_rem||'';
+  document.getElementById('modal-edit').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-edit').classList.remove('open'); }
+function calcModalAuto() {
+  const kg = parseFloat(document.getElementById('m-precio-kg').value);
+  const rend = parseFloat(document.getElementById('m-rendim').value);
+  const ancho = parseFloat(document.getElementById('m-ancho').value);
+  if(kg&&rend) {
+    const pm = kg/rend;
+    document.getElementById('m-precio-metro').value = Math.round(pm);
+    if(ancho) document.getElementById('m-precio-rem').value = Math.round(pm*ancho*0.71);
+  }
+}
+function saveEdit() {
+  const idx = parseInt(document.getElementById('m-idx').value);
+  const prov = document.getElementById('m-proveedor').value.trim();
+  const tipo = document.getElementById('m-tipo').value.trim();
+  if(!prov||!tipo) { showToast('Proveedor y tipo son obligatorios','error'); return; }
+  const oldId = makeId(tejidos[idx]);
+  tejidos[idx] = {
+    proveedor: prov, tipo,
+    codigo: document.getElementById('m-codigo').value.trim()||null,
+    ancho: parseFloat(document.getElementById('m-ancho').value)||null,
+    precio_kg: parseFloat(document.getElementById('m-precio-kg').value)||null,
+    rendim: parseFloat(document.getElementById('m-rendim').value)||null,
+    precio_metro: parseFloat(document.getElementById('m-precio-metro').value)||null,
+    precio_rem: parseFloat(document.getElementById('m-precio-rem').value)||null,
+  };
+  if(selected.has(oldId)) { selected.delete(oldId); selected.add(makeId(tejidos[idx])); }
+  save(); closeModal();
+  renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
+  showToast('✓ Tejido actualizado');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROVEEDORES
+// ═══════════════════════════════════════════════════════
+function renderProveedores() {
+  const provs = [...new Set(tejidos.map(t=>t.proveedor))].sort();
+  document.getElementById('prov-grid').innerHTML = provs.map(p => {
+    const items = tejidos.filter(t=>t.proveedor===p);
+    const prices = items.filter(t=>t.precio_metro>0).map(t=>t.precio_metro);
+    const avg = prices.length ? Math.round(prices.reduce((a,b)=>a+b,0)/prices.length) : null;
+    return `<div class="prov-card${activeProv===p?' active-prov':''}" onclick="selectProv('${p}')">
+      <div class="prov-name">${p}</div>
+      <div class="prov-count">${items.length} tejidos</div>
+      ${avg?`<div class="prov-avg">Prom: ${gs(avg)}/m</div>`:''}
+    </div>`;
+  }).join('');
+  renderProvCards(activeProv);
+}
+function selectProv(p) { activeProv = activeProv===p?null:p; renderProveedores(); }
+function renderProvCards(prov) {
+  const data = prov ? tejidos.filter(t=>t.proveedor===prov) : [];
+  const cont = document.getElementById('prov-cards');
+  if(!data.length) { cont.innerHTML=''; return; }
+  const maxPm = Math.max(...tejidos.filter(t=>t.precio_metro>0).map(t=>t.precio_metro));
+  cont.innerHTML = data.map(t => cardHTML(t, maxPm)).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORM ADD
+// ═══════════════════════════════════════════════════════
+function calcFormAuto() {
+  const kg = parseFloat(document.getElementById('f-precio-kg').value);
+  const rend = parseFloat(document.getElementById('f-rendim').value);
+  const ancho = parseFloat(document.getElementById('f-ancho').value);
+  if(kg&&rend) {
+    const pm = kg/rend;
+    document.getElementById('f-precio-metro').value = Math.round(pm);
+    if(ancho) document.getElementById('f-precio-rem').value = Math.round(pm*ancho*0.71);
+  }
+}
+function calcRemFromMetro() {
+  const pm = parseFloat(document.getElementById('f-precio-metro').value);
+  const ancho = parseFloat(document.getElementById('f-ancho').value);
+  if(pm&&ancho) document.getElementById('f-precio-rem').value = Math.round(pm*ancho*0.71);
+}
+function guardarTejido() {
+  const prov = document.getElementById('f-proveedor').value.trim();
+  const tipo = document.getElementById('f-tipo').value.trim();
+  if(!prov||!tipo) { showToast('Proveedor y tipo son obligatorios','error'); return; }
+  tejidos.push({
+    proveedor:prov, tipo,
+    codigo: document.getElementById('f-codigo').value.trim()||null,
+    ancho: parseFloat(document.getElementById('f-ancho').value)||null,
+    precio_kg: parseFloat(document.getElementById('f-precio-kg').value)||null,
+    rendim: parseFloat(document.getElementById('f-rendim').value)||null,
+    precio_metro: parseFloat(document.getElementById('f-precio-metro').value)||null,
+    precio_rem: parseFloat(document.getElementById('f-precio-rem').value)||null,
+  });
+  save(); renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
+  ['f-proveedor','f-tipo','f-codigo','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem'].forEach(id=>document.getElementById(id).value='');
+  showToast('✓ Tejido guardado correctamente');
+}
+
+// ═══════════════════════════════════════════════════════
+//  COMPARE
+// ═══════════════════════════════════════════════════════
+function renderCompare() {
+  const items = tejidos.filter(t=>selected.has(makeId(t)));
+  document.getElementById('cmp-count-badge').textContent = items.length + ' tejido' + (items.length!==1?'s':'');
+  const cont = document.getElementById('compare-content');
+  if(!items.length) {
+    cont.innerHTML=`<div class="compare-empty"><div class="ico">⚖</div><h3>Ningún tejido seleccionado</h3><p>En el catálogo, hacé clic en el botón + de cada tarjeta para comparar.</p></div>`;
+    return;
+  }
+  const rows = [
+    {key:'proveedor',label:'Proveedor',fmt:v=>v||'—',cmp:false},
+    {key:'codigo',label:'Código',fmt:v=>v||'—',cmp:false},
+    {key:'ancho',label:'Ancho',fmt:v=>v?v+' m':'—',cmp:true,best:'max'},
+    {key:'precio_kg',label:'Precio x kg',fmt:gs,cmp:true,best:'min'},
+    {key:'rendim',label:'Rendimiento',fmt:v=>v?v+' m/kg':'—',cmp:true,best:'max'},
+    {key:'precio_metro',label:'Precio x metro',fmt:gs,cmp:true,best:'min'},
+    {key:'precio_rem',label:'Precio x remera',fmt:v=>gs(v&&v>0?v:null),cmp:true,best:'min'},
+  ];
+  const colH = items.map(t=>`<th><div class="col-prov">${t.proveedor}</div><div class="col-name">${t.tipo}</div></th>`).join('');
+  const tbody = rows.map(row=>{
+    const vals = items.map(t=>t[row.key]);
+    let bestI=-1,worstI=-1;
+    if(row.cmp){
+      const nv = vals.map(v=>parseFloat(v)||null);
+      const valid = nv.filter(v=>v!=null&&v>0);
+      if(valid.length>1){
+        const best = row.best==='min'?Math.min(...valid):Math.max(...valid);
+        const worst = row.best==='min'?Math.max(...valid):Math.min(...valid);
+        bestI = nv.findIndex(v=>v===best);
+        worstI = nv.findIndex(v=>v===worst&&v!==best);
+      }
+    }
+    const cells = items.map((t,i)=>{
+      const d = row.fmt(t[row.key]);
+      let cls=''; let b='';
+      if(i===bestI){cls='val-best';b='<span class="badge-best">MEJOR</span>';}
+      else if(i===worstI){cls='val-worst';b='<span class="badge-worst">↑ COSTO</span>';}
+      return `<td class="${cls}">${d}${b}</td>`;
+    }).join('');
+    return `<tr><td class="row-label">${row.label}</td>${cells}</tr>`;
+  }).join('');
+
+  const maxPM = Math.max(...items.filter(t=>t.precio_metro>0).map(t=>t.precio_metro));
+  const maxPR = Math.max(...items.filter(t=>t.precio_rem>0).map(t=>t.precio_rem));
+  const maxRend = Math.max(...items.filter(t=>t.rendim>0).map(t=>t.rendim));
+  const scoreCards = items.map(t=>{
+    const pmB = t.precio_metro>0?Math.round((1-t.precio_metro/maxPM)*100):0;
+    const prB = t.precio_rem>0?Math.round((1-t.precio_rem/maxPR)*100):0;
+    const rendB = t.rendim>0?Math.round((t.rendim/maxRend)*100):0;
+    const anchoB = t.ancho?Math.round((t.ancho/2)*100):0;
+    const score = Math.round((pmB+prB+rendB+anchoB)/4);
+    const col = score>65?'#2a9d8f':score>40?'#e9c46a':'#e63946';
+    return `<div class="score-card">
+      <div class="score-prov">${t.proveedor}</div><div class="score-name">${t.tipo}</div>
+      <div class="score-row"><div class="score-row-label">Precio/metro</div><div class="score-bar-wrap"><div class="score-bar-inner" style="width:${pmB}%;background:#e63946"></div></div><div class="score-row-val">${gs(t.precio_metro)}</div></div>
+      <div class="score-row"><div class="score-row-label">Precio/remera</div><div class="score-bar-wrap"><div class="score-bar-inner" style="width:${prB}%;background:#e9c46a"></div></div><div class="score-row-val">${gs(t.precio_rem&&t.precio_rem>0?t.precio_rem:null)}</div></div>
+      <div class="score-row"><div class="score-row-label">Rendimiento</div><div class="score-bar-wrap"><div class="score-bar-inner" style="width:${rendB}%;background:#2a9d8f"></div></div><div class="score-row-val">${t.rendim?t.rendim+' m/kg':'—'}</div></div>
+      <div class="score-row"><div class="score-row-label">Ancho</div><div class="score-bar-wrap"><div class="score-bar-inner" style="width:${anchoB}%;background:#6a4c93"></div></div><div class="score-row-val">${t.ancho?t.ancho+' m':'—'}</div></div>
+      <div class="score-total"><div style="font-size:12px;color:var(--muted)">Score relativo</div><div class="score-num" style="color:${col}">${score}/100</div></div>
+    </div>`;
+  }).join('');
+
+  cont.innerHTML = `
+    <div class="compare-wrap">
+      <table class="compare-table"><thead><tr><th>Característica</th>${colH}</tr></thead><tbody>${tbody}</tbody></table>
+    </div>
+    <div class="score-section">${scoreCards}</div>`;
+}
+
+function clearSelection() {
+  selected.clear();
+  document.getElementById('compare-count').textContent = 0;
+  renderCompare(); applyFilters(); if(activeProv) renderProvCards(activeProv);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CALCULADORA
+// ═══════════════════════════════════════════════════════
+function calcCalc() {
+  const kg = parseFloat(document.getElementById('c-pxkg').value);
+  const rend = parseFloat(document.getElementById('c-rend').value);
+  const ancho = parseFloat(document.getElementById('c-ancho').value);
+  const metros = parseFloat(document.getElementById('c-metros').value);
+  const res = document.getElementById('calc-result');
+  if(!kg||!rend) { res.style.display='none'; return; }
+  res.style.display='grid';
+  const pm = kg/rend;
+  const pr = ancho ? pm*ancho*0.71 : null;
+  document.getElementById('cr-pm').textContent = gs(pm);
+  document.getElementById('cr-pr').textContent = pr?gs(pr):'Ingresá ancho';
+  document.getElementById('cr-total').textContent = metros?gs(pm*metros):'—';
+  document.getElementById('cr-kg').textContent = metros?(metros/rend).toFixed(2)+' kg':'—';
+}
+
+function calcAncho() {
+  const anchoTela = parseFloat(document.getElementById('ca-ancho-tela').value);
+  const anchoPieza = parseFloat(document.getElementById('ca-ancho-pieza').value);
+  const largoPieza = parseFloat(document.getElementById('ca-largo-pieza').value);
+  const nPiezas = parseInt(document.getElementById('ca-piezas').value)||1;
+  const res = document.getElementById('ancho-result');
+  if(!anchoTela||!anchoPieza||!largoPieza) { res.style.display='none'; return; }
+  res.style.display='grid';
+  const cortesXm = Math.floor(anchoTela/anchoPieza);
+  const prendasXm = Math.floor(cortesXm/nPiezas);
+  const consumoPorPrenda = prendasXm>0 ? (largoPieza/100)/(prendasXm) + (largoPieza/100) : 'N/A';
+  // Metros lineales necesarios por prenda = largo pieza × (número de filas)
+  // Fila = metros de largo, cortes = cuántas piezas entran en ancho
+  const filasNec = Math.ceil(nPiezas/cortesXm);
+  const metroPorPrenda = filasNec * (largoPieza/100);
+  const areaTela = anchoTela * (largoPieza/100);
+  const areaPiezas = anchoPieza * (largoPieza/100) * nPiezas;
+  const aprov = Math.round((areaPiezas/areaTela)*100);
+  const desp = 100-aprov;
+  document.getElementById('ar-cortes').textContent = cortesXm + ' cortes';
+  document.getElementById('ar-consumo').textContent = metroPorPrenda.toFixed(2)+' m';
+  document.getElementById('ar-aprov').textContent = aprov+'%';
+  document.getElementById('ar-desp').textContent = desp+'%';
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONSUMOS
+// ═══════════════════════════════════════════════════════
+function renderConsumos() {
+  const cont = document.getElementById('consumo-items');
+  const sel = document.getElementById('lote-prenda');
+  document.getElementById('consumo-count').textContent = consumos.length + ' tipos';
+  sel.innerHTML = '<option value="">-- Seleccioná prenda --</option>' + consumos.map((c,i)=>`<option value="${i}">${c.nombre} (${c.metros}m / ${c.ancho}m ancho)</option>`).join('');
+  if(!consumos.length) { cont.innerHTML='<div class="empty-state"><h3>Sin prendas cargadas</h3></div>'; return; }
+  cont.innerHTML = consumos.map((c,i)=>`
+    <div class="consumo-item">
+      <div>
+        <div class="consumo-item-name">${c.nombre}</div>
+        <div class="consumo-item-sub">Talle ${c.talle} · Ancho tela ${c.ancho}m${c.notas?' · '+c.notas:''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="consumo-item-val">${c.metros}m</div>
+        <button class="card-action-btn delete" onclick="deleteConsumo(${i})" title="Eliminar">🗑</button>
+      </div>
+    </div>`).join('');
+}
+function agregarConsumo() {
+  const nombre = document.getElementById('cp-nombre').value.trim();
+  const metros = parseFloat(document.getElementById('cp-metros').value);
+  const ancho = parseFloat(document.getElementById('cp-ancho').value);
+  if(!nombre||!metros) { showToast('Nombre y metros son obligatorios','error'); return; }
+  consumos.push({ nombre, metros, ancho:ancho||1.8, talle:document.getElementById('cp-talle').value, notas:document.getElementById('cp-notas').value.trim() });
+  save(); renderConsumos();
+  ['cp-nombre','cp-metros','cp-ancho','cp-notas'].forEach(id=>document.getElementById(id).value='');
+  showToast('✓ Prenda agregada');
+}
+function deleteConsumo(i) {
+  if(!confirm('¿Eliminar '+consumos[i].nombre+'?')) return;
+  consumos.splice(i,1); save(); renderConsumos(); showToast('🗑 Prenda eliminada');
+}
+function calcLote() {
+  const idx = parseInt(document.getElementById('lote-prenda').value);
+  const cant = parseFloat(document.getElementById('lote-cantidad').value);
+  const precio = parseFloat(document.getElementById('lote-precio').value);
+  const res = document.getElementById('lote-result');
+  if(isNaN(idx)||!cant) { res.style.display='none'; return; }
+  res.style.display='grid';
+  const c = consumos[idx];
+  const totalM = c.metros * cant;
+  const costoTotal = precio ? totalM * precio : null;
+  const costoUnit = precio ? c.metros * precio : null;
+  const totalMas10 = precio ? totalM * 1.10 * precio : null;
+  document.getElementById('lr-metros').textContent = totalM.toFixed(2)+' m';
+  document.getElementById('lr-costo').textContent = costoTotal?gs(costoTotal):'Ingresá precio';
+  document.getElementById('lr-unit').textContent = costoUnit?gs(costoUnit):'—';
+  document.getElementById('lr-total').textContent = totalMas10?gs(totalMas10):'—';
+}
+
+// ═══════════════════════════════════════════════════════
+//  SIMULADOR
+// ═══════════════════════════════════════════════════════
+const PIEZA_COLORS = ['#e63946','#2a9d8f','#e9c46a','#6a4c93','#f4a261','#457b9d','#2d6a4f','#9b2335'];
+
+function initSimulator() {
+  renderPiezasList();
+  runSimulator();
+}
+
+function renderPiezasList() {
+  const cont = document.getElementById('piezas-list');
+  cont.innerHTML = simPiezas.map((p,i)=>`
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:14px;height:14px;border-radius:3px;background:${p.color};flex-shrink:0"></div>
+        <input class="form-input" style="flex:1;padding:6px 10px;font-size:13px" value="${p.nombre}" oninput="simPiezas[${i}].nombre=this.value;runSimulator()" placeholder="Nombre pieza">
+        <button class="card-action-btn delete" onclick="removePieza(${i})" title="Eliminar">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <div class="form-label" style="margin-bottom:3px">Ancho (cm)</div>
+          <input class="form-input" style="padding:6px 10px;font-size:13px" type="number" value="${p.ancho}" min="5" max="500" oninput="simPiezas[${i}].ancho=parseFloat(this.value)||p.ancho;runSimulator()">
+        </div>
+        <div>
+          <div class="form-label" style="margin-bottom:3px">Largo (cm)</div>
+          <input class="form-input" style="padding:6px 10px;font-size:13px" type="number" value="${p.largo}" min="5" max="500" oninput="simPiezas[${i}].largo=parseFloat(this.value)||p.largo;runSimulator()">
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function agregarPieza() {
+  simPiezas.push({nombre:'Pieza '+(simPiezas.length+1), ancho:40, largo:60, color:PIEZA_COLORS[simPiezas.length%PIEZA_COLORS.length]});
+  renderPiezasList(); runSimulator();
+}
+function removePieza(i) {
+  simPiezas.splice(i,1); renderPiezasList(); runSimulator();
+}
+
+function runSimulator() {
+  if(!simPiezas.length) return;
+  const anchoTela = parseFloat(document.getElementById('s-ancho-tela').value)||180;
+  const cantidad = parseInt(document.getElementById('s-cantidad').value)||1;
+  const precioM = parseFloat(document.getElementById('s-precio-metro').value)||0;
+
+  // ── ALGORITMO DE EMPAQUE (strip packing) ──
+  // Para cada prenda necesitamos 1 set de piezas
+  // Colocamos piezas en filas de izquierda a derecha, siguiendo la ancho de tela
+  const SCALE = 2.2; // px por cm en canvas virtual
+  const PAD = 4; // cm padding entre piezas
+  const canvas = document.getElementById('sim-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Construir lista de todas las piezas a colocar (cantidad × set)
+  let allPiezas = [];
+  for(let u=0; u<cantidad; u++) {
+    for(let p of simPiezas) {
+      allPiezas.push({...p, unit:u});
+    }
+  }
+
+  // Layout: llenar filas de izquierda a derecha
+  let layout = []; // {x, y, w, h, pieza}
+  let curX = PAD, curY = PAD, rowH = 0;
+
+  for(let p of allPiezas) {
+    if(curX + p.ancho + PAD > anchoTela) {
+      curX = PAD; curY += rowH + PAD; rowH = 0;
+    }
+    layout.push({x:curX, y:curY, w:p.ancho, h:p.largo, pieza:p});
+    rowH = Math.max(rowH, p.largo);
+    curX += p.ancho + PAD;
+  }
+  const largoTotal = curY + rowH + PAD;
+
+  // ── DIBUJO ──
+  const CW = Math.min(600, anchoTela * SCALE + 40);
+  const CH = Math.min(500, Math.min(largoTotal, 300) * SCALE + 40);
+  canvas.width = CW;
+  canvas.height = CH;
+
+  const sx = (CW - 20) / anchoTela; // scale x: cm → px
+  const sy = Math.min(sx, (CH-20) / Math.max(largoTotal, 10)); // scale y
+
+  ctx.clearRect(0,0,CW,CH);
+
+  // Fondo tela
+  ctx.fillStyle = '#fafaf8';
+  ctx.fillRect(10, 10, anchoTela*sx, Math.min(largoTotal,300)*sy);
+
+  // Grid cada 10cm
+  ctx.strokeStyle = '#e8e8e8';
+  ctx.lineWidth = 0.5;
+  for(let gx=0; gx<=anchoTela; gx+=10) {
+    ctx.beginPath(); ctx.moveTo(10+gx*sx,10); ctx.lineTo(10+gx*sx, 10+Math.min(largoTotal,300)*sy); ctx.stroke();
+  }
+  for(let gy=0; gy<=Math.min(largoTotal,300); gy+=10) {
+    ctx.beginPath(); ctx.moveTo(10,10+gy*sy); ctx.lineTo(10+anchoTela*sx,10+gy*sy); ctx.stroke();
+  }
+
+  // Borde tela
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, anchoTela*sx, Math.min(largoTotal,300)*sy);
+
+  // Piezas
+  const visibleLayout = layout.filter(l => l.y < 300);
+  for(let l of visibleLayout) {
+    const px = 10 + l.x*sx;
+    const py = 10 + l.y*sy;
+    const pw = l.w*sx;
+    const ph = l.h*sy;
+    ctx.fillStyle = l.pieza.color + '55';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = l.pieza.color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px, py, pw, ph);
+    // Label
+    if(pw > 30 && ph > 16) {
+      ctx.fillStyle = l.pieza.color;
+      ctx.font = `bold ${Math.min(11, pw/4)}px DM Sans, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const label = l.pieza.nombre.length > 8 ? l.pieza.nombre.substring(0,8)+'…' : l.pieza.nombre;
+      ctx.fillText(label, px+pw/2, py+ph/2);
+    }
+  }
+
+  // Indicador de ancho
+  ctx.fillStyle = '#1a1a2e';
+  ctx.font = 'bold 10px DM Sans,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`← ${anchoTela} cm →`, 10+anchoTela*sx/2, 8);
+
+  // Leyenda
+  const legend = document.getElementById('sim-legend');
+  legend.innerHTML = simPiezas.map(p=>`<div class="legend-item"><div class="legend-dot" style="background:${p.color}"></div>${p.nombre}</div>`).join('');
+
+  // ── CÁLCULOS ──
+  const areaTotalCm2 = anchoTela * largoTotal;
+  const areaPiezasCm2 = simPiezas.reduce((sum,p)=>sum+p.ancho*p.largo,0)*cantidad;
+  const aprov = Math.round((areaPiezasCm2/areaTotalCm2)*100);
+
+  document.getElementById('sim-hint').style.display='none';
+  document.getElementById('sim-results').style.display='block';
+  document.getElementById('sr-largo').textContent = largoTotal.toFixed(1)+' cm';
+  document.getElementById('sr-metros').textContent = (largoTotal/100*cantidad).toFixed(2)+' m';
+  document.getElementById('sr-consumo').textContent = (largoTotal/100).toFixed(2)+' m/prenda';
+  document.getElementById('sr-aprov').textContent = aprov+'%';
+  document.getElementById('sr-area').textContent = (areaPiezasCm2/10000).toFixed(3)+' m²';
+
+  if(precioM>0) {
+    const costoTotal = (largoTotal/100)*cantidad*precioM;
+    const costoUnit = (largoTotal/100)*precioM;
+    document.getElementById('sr-costo-row').style.display='flex';
+    document.getElementById('sr-unit-row').style.display='flex';
+    document.getElementById('sr-costo').textContent = gs(costoTotal);
+    document.getElementById('sr-unit').textContent = gs(costoUnit);
+  } else {
+    document.getElementById('sr-costo-row').style.display='none';
+    document.getElementById('sr-unit-row').style.display='none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════════════
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  const map = {catalogo:0,proveedores:1,nuevo:2,calculadora:3,consumo:4,simulador:5};
+  if(map[id]!==undefined) document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
+  if(id==='comparar') renderCompare();
+  if(id==='proveedores') renderProveedores();
+  if(id==='simulador') runSimulator();
+}
+
+// Click outside modal
+document.getElementById('modal-edit').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+init();
+</script>
+</body>
+</html>
