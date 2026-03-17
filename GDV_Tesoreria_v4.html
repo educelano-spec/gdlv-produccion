@@ -1177,8 +1177,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="modal-body">
       <div id="cobrar-info" style="background:var(--grnl);border:1px solid #a8dcc0;border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:13px"></div>
       <div class="fg">
-        <div class="fgrp"><label>Fecha Real de Cobro</label><input type="date" id="ci-fecha" class="fc"></div>
-        <div class="fgrp"><label>Acreditar en Cuenta</label><select id="ci-cuenta" class="fc"><option>Continental</option><option>Caja</option><option>Ueno</option><option>Otros</option></select></div>
+        <div class="fgrp"><label>Fecha de Cobro</label><input type="date" id="ci-fecha" class="fc"></div>
         <div class="fgrp full"><label>Observaciones</label><input type="text" id="ci-obs" class="fc" placeholder="Opcional"></div>
       </div>
     </div>
@@ -2900,14 +2899,15 @@ function dateToXl(d) {
 }
 
 function todayXl() {
-  // Paraguay = UTC-4, forzar fecha local correcta
+  // Paraguay = UTC-4, independiente del timezone del browser
   var now = new Date();
-  // Construir fecha en UTC-4 independientemente del timezone del browser
-  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000; // convertir a UTC
-  var pyMs = utcMs - (4 * 3600000); // restar 4 horas para Paraguay
+  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000; // → UTC ms
+  var pyMs = utcMs - (4 * 3600000); // → Paraguay ms (UTC-4)
   var py = new Date(pyMs);
-  var local = new Date(py.getUTCFullYear(), py.getUTCMonth(), py.getUTCDate());
-  return Math.round((local - new Date(1899,11,30)) / 86400000);
+  // Usar getUTC* para extraer la fecha Paraguay sin contaminación de timezone local
+  var y = py.getUTCFullYear(), m = py.getUTCMonth(), d = py.getUTCDate();
+  // Calcular xl serial directamente en UTC para evitar offset del browser
+  return Math.round((Date.UTC(y, m, d) - Date.UTC(1899, 11, 30)) / 86400000);
 }
 
 function fGs(v) {
@@ -3768,8 +3768,8 @@ function renderBalance() {
       var moOff = ini.getMonth()+(q-1);
       var yr = ini.getFullYear()+Math.floor(moOff/12);
       var mo = (moOff%12);
-      var dt = new Date(yr, mo, p.dia);
-      var xl = Math.round((dt - new Date(1899,11,30)) / 86400000);
+      // Use Date.UTC to avoid browser timezone contamination
+      var xl = Math.round((Date.UTC(yr, mo, p.dia) - Date.UTC(1899, 11, 30)) / 86400000);
       addFlow(xl, p.cuota, 'egr');
     }
   });
@@ -5843,13 +5843,19 @@ function marcarChequePagado(idx) {
 
 function marcarCobro(idx) {
   var r = DB.cobros[idx]; if(!r) return;
-  (document.getElementById('cobrar-info')||{}).innerHTML =
-    '<strong>'+r.cliente+'</strong> — '+r.concepto+'<br>'+
-    '<span style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--grn)">'+fGs(r.monto)+'</span>';
-  var today=new Date();
-  document.getElementById('ci-fecha').value=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
-  _cobrarIdx=idx;
-  openModal('m-cobrar','');
+  if(!confirm('Marcar como cobrado:\n' + r.cliente + ' — ' + fGs(r.monto) + '?')) return;
+  // Move to cobrosRecibidos with today's date (Paraguay time)
+  if(!DB.cobrosRecibidos) DB.cobrosRecibidos = [];
+  var rec = Object.assign({}, r, {
+    estado: 'RECIBIDO',
+    fechaCobro: String(todayXl()),
+    tipo: r.tipoCobro || r.tipo || 'Cheque'
+  });
+  DB.cobrosRecibidos.unshift(rec);
+  DB.cobros.splice(idx, 1);
+  guardarEstado();
+  renderTabla('cobros');
+  updateBadges();
 }
 
 function confirmarCobro() {
@@ -5857,12 +5863,13 @@ function confirmarCobro() {
   var cuenta = document.getElementById('ci-cuenta').value;
   if(!fecha) { alert('Ingresá una fecha'); return; }
 
+  // Only used now for cheques (cobros pendientes use marcarCobro directly)
   if(window._cobrarMode === 'cheque') {
     var idx = window._pendingChqIdx;
     var c = DB.cheques[idx];
     if(!c) { closeModal('m-cobrar'); return; }
     var xl = dateStrToXl(fecha);
-    var cobrado = Object.assign({}, c, {estado:'COBRADO', fechaCobro:xl, cuenta:cuenta});
+    var cobrado = Object.assign({}, c, {estado:'COBRADO', fechaCobro:xl});
     if(!DB.chequesCobrados) DB.chequesCobrados = [];
     DB.chequesCobrados.unshift(cobrado);
     DB.cheques.splice(idx, 1);
@@ -5874,24 +5881,7 @@ function confirmarCobro() {
     updateBadges();
     return;
   }
-
-  // Normal cobro mode
-  var idx = window._pendingCobroIdx;
-  var co = DB.cobros && DB.cobros[idx];
-  if(!co) { closeModal('m-cobrar'); return; }
-  var xl = dateStrToXl(fecha);
-  var rec = Object.assign({}, co, {
-    estado:'RECIBIDO', fechaCobro:xl, cuenta:cuenta,
-    tipo: co.tipoCobro || co.tipo
-  });
-  if(!DB.cobrosRecibidos) DB.cobrosRecibidos = [];
-  DB.cobrosRecibidos.unshift(rec);
-  DB.cobros.splice(idx, 1);
-  window._pendingCobroIdx = null;
-  guardarEstado();
   closeModal('m-cobrar');
-  renderView('cobros');
-  updateBadges();
 }
 
 // ─── REPORTES — enrich with mes summaries ────────────────────────────────────
