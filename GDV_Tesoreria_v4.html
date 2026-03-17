@@ -3536,74 +3536,12 @@ function renderDashboard() {
 // ══════════════════════════════════════
 // GRAFICO BARRAS
 // ══════════════════════════════════════
-function renderBars(barsId, lblsId, data, H) {
-  var el = document.getElementById(barsId);
-  var ll = document.getElementById(lblsId);
-  if (!el) return;
-  el.innerHTML = ''; if (ll) ll.innerHTML = '';
-  if (!data || !data.length) return;
-  H = H || 110;
-  el.style.height = H+'px';
-  var maxA = Math.max.apply(null, data.map(function(r){return Math.abs(r.neto);}));
-  if (maxA === 0) maxA = 1;
-  data.forEach(function(r, i) {
-    var pct = Math.abs(r.neto) / maxA;
-    var bH = Math.max(3, pct * (H * 0.88));
-    var wrap = document.createElement('div'); wrap.className = 'bwrap';
-    var bar = document.createElement('div');
-    bar.className = 'bar '+(r.neto>=0?'pos':'neg');
-    bar.style.height = bH+'px';
-    bar.title = r.fecha+' — '+fGsSigned(r.neto);
-    wrap.appendChild(bar);
-    el.appendChild(wrap);
-    if (ll && i % 3 === 0) {
-      var l = document.createElement('div'); l.className='blbl'; l.style.flex='3'; l.textContent=r.fecha.slice(0,5); ll.appendChild(l);
-    } else if (ll) {
-      var s = document.createElement('div'); s.style.flex='1'; ll.appendChild(s);
-    }
-  });
-}
+
 
 // ══════════════════════════════════════
 // DONUT
 // ══════════════════════════════════════
-function renderDonut() {
-  var canvas = document.getElementById('donut-c');
-  if (!canvas) return;
-  var ctx = canvas.getContext('2d');
-  var all = [].concat(DB.cheques, DB.transferencias, DB.realizados);
-  var byType = {};
-  all.forEach(function(r) {
-    var t = r.tipo || 'Otros';
-    byType[t] = (byType[t]||0) + parseFloat(r.monto||0);
-  });
-  var sorted = Object.entries(byType).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
-  var total = sorted.reduce(function(s,x){return s+x[1];}, 0);
-  if (total === 0) total = 1;
-  var colors = ['#1d44c4','#0a6e40','#c0202e','#a04e00','#076882','#7c3aed','#b8186e','#059669'];
-  var sz = 130, cx = sz/2, cy = sz/2, R = 52, ri = 34;
-  ctx.clearRect(0,0,sz,sz);
-  var angle = -Math.PI/2;
-  sorted.forEach(function(item, i) {
-    var slice = (item[1]/total)*Math.PI*2;
-    ctx.beginPath(); ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,R,angle,angle+slice);
-    ctx.closePath(); ctx.fillStyle=colors[i%colors.length]; ctx.fill();
-    angle += slice;
-  });
-  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
-  ctx.fillStyle='#1a1814'; ctx.font='bold 11px Plus Jakarta Sans'; ctx.textAlign='center';
-  ctx.fillText('Gastos',cx,cy); ctx.font='9px Plus Jakarta Sans'; ctx.fillStyle='#8c8680';
-  ctx.fillText('por tipo',cx,cy+12);
-  var leg = document.getElementById('donut-leg');
-  if (!leg) return;
-  leg.innerHTML = sorted.map(function(item, i) {
-    return '<div class="dleg-item"><div class="dleg-dot" style="background:'+colors[i%colors.length]+'"></div>' +
-      '<span class="dleg-lbl">'+item[0]+'</span>' +
-      '<span class="dleg-val">'+Math.round(item[1]/1e6)+'M</span>' +
-      '<span class="dleg-pct">'+((item[1]/total)*100).toFixed(0)+'%</span></div>';
-  }).join('');
-}
+
 
 // ══════════════════════════════════════
 // TABLAS GENERICAS
@@ -3733,19 +3671,9 @@ function renderTabla(mod) {
   tbody.innerHTML = html;
 }
 
-function filtrar(mod, val, el) {
-  var view = 'view-'+mod;
-  document.querySelectorAll('#'+view+' .fchip').forEach(function(c){c.classList.remove('on');});
-  el.classList.add('on');
-  AF[mod] = val;
-  renderTabla(mod);
-}
 
-function buscar(mod, val) {
-  AS[mod] = val;
-  if (mod === 'historial') { renderHistorial(val); return; }
-  renderTabla(mod);
-}
+
+
 
 // ══════════════════════════════════════
 // BALANCE
@@ -4466,10 +4394,15 @@ function pagarCuotaN(prestIdx, nCuota) {
   if(!DB.prestamosPagados) DB.prestamosPagados = [];
   var saldo = parseFloat(p.capital) - parseFloat(p.cuota)*nCuota;
   var hoy = new Date();
+  var xl = todayXl();
   DB.prestamosPagados.push({
-    fecha: ('0'+hoy.getDate()).slice(-2)+'/'+('0'+(hoy.getMonth()+1)).slice(-2)+'/'+hoy.getFullYear(),
-    nombre: p.nombre, nCuota: nCuota, monto: p.cuota, saldoRestante: Math.max(0,saldo)
+    fecha: String(xl),
+    beneficiario: p.nombre, nombre: p.nombre, nCuota: nCuota, 
+    concepto: 'Cuota '+nCuota+'/'+p.nCuotas,
+    monto: p.cuota, saldoRestante: Math.max(0,saldo),
+    tipo: 'PRESTAMO', estado: 'PAGADO'
   });
+  guardarEstado();
   closeModal('m-prest-det');
   renderPrestamos();
   updateBadges();
@@ -4768,13 +4701,15 @@ function guardarPago() {
   if (_modTipo === 'cheques') {
     row.fecha = dateToXl(fecha); row.cheque = document.getElementById('mp-cheque').value||'a emitir';
     row.vto = dateToXl(document.getElementById('mp-vto').value); row.mesCobro = '';
-    DB.cheques.unshift(row); agregarRegistro('cheques', row);
+    DB.cheques.unshift(row);
+    DB.cheques.sort(function(a,b){return (parseFloat(a.vto||a.fecha)||0)-(parseFloat(b.vto||b.fecha)||0);});
   } else if (_modTipo === 'transferencias') {
     row.fecha = dateToXl(fecha); row.nroTrans = document.getElementById('mp-nrotrans').value;
-    DB.transferencias.unshift(row); agregarRegistro('transferencias', row);
+    DB.transferencias.unshift(row);
+    DB.transferencias.sort(function(a,b){return (parseFloat(a.fecha)||0)-(parseFloat(b.fecha)||0);});
   } else {
     row.fechaVto = dateToXl(fecha);
-    DB.efectivo.unshift(row); agregarRegistro('efectivo', row);
+    DB.efectivo.unshift(row);
   }
   guardarEstado();
   closeModal('m-pago'); renderTabla(_modTipo); updateBadges();
@@ -4784,7 +4719,8 @@ function guardarPrestamo() {
   var nom = document.getElementById('pr-nom').value.trim();
   if (!nom) { alert('Ingresar el nombre del prestamista.'); return; }
   var p = {id:'p'+Date.now(),nombre:nom,tipo:document.getElementById('pr-tipo').value,capital:parseFloat(document.getElementById('pr-cap').value)||0,cuota:parseFloat(document.getElementById('pr-cuota').value)||0,inicio:document.getElementById('pr-ini').value,nCuotas:parseInt(document.getElementById('pr-ncuotas').value)||12,pagadas:0,dia:parseInt(document.getElementById('pr-dia').value)||1,obs:document.getElementById('pr-obs').value};
-  DB.prestamos.push(p); agregarRegistro('prestamos', p);
+  DB.prestamos.push(p);
+  guardarEstado();
   closeModal('m-prestamo'); renderPrestamos();
 }
 
@@ -4792,8 +4728,9 @@ function guardarCobro() {
   var cli = document.getElementById('mc-cliente').value.trim();
   var monto = document.getElementById('mc-monto').value;
   if (!cli||!monto) { alert('Completar campos requeridos.'); return; }
-  var row = {fechaCobro:document.getElementById('mc-fecha').value,cliente:cli,monto:monto,concepto:document.getElementById('mc-concepto').value,tipoCobro:document.getElementById('mc-tipo').value,estado:document.getElementById('mc-estado').value,factura:document.getElementById('mc-factura').value};
-  DB.cobros.unshift(row); agregarRegistro('cobros', row);
+  var row = {fechaCobro:dateToXl(document.getElementById('mc-fecha').value),cliente:cli,monto:monto,concepto:document.getElementById('mc-concepto').value,tipoCobro:document.getElementById('mc-tipo').value,estado:document.getElementById('mc-estado').value,factura:document.getElementById('mc-factura').value};
+  DB.cobros.unshift(row);
+  guardarEstado();
   closeModal('m-cobro'); renderTabla('cobros'); updateBadges();
 }
 
@@ -4828,7 +4765,8 @@ function guardarReal() {
   var monto = document.getElementById('mr-monto').value;
   if (!benef||!monto) { alert('Completar campos requeridos.'); return; }
   var row = {fecha:dateToXl(document.getElementById('mr-fecha').value),beneficiario:benef,monto:monto,concepto:document.getElementById('mr-concepto').value,tipo:document.getElementById('mr-tipo').value,origen:document.getElementById('mr-origen').value};
-  DB.realizados.unshift(row); agregarRegistro('realizados', row);
+  DB.transferenciasRealizadas.unshift(row); DB.realizados = DB.transferenciasRealizadas;
+  guardarEstado();
   closeModal('m-real'); renderTabla('realizados');
 }
 
@@ -5353,7 +5291,8 @@ function guardarCaja() {
   var row={fecha:fecha,monto:monto,descripcion:desc,rubro:rubro,quien:quien||'—',comprobante:comp||'—'};
   if(!DB.cajachica)DB.cajachica=[];
   DB.cajachica.unshift(row);
-  agregarRegistro('cajachica',row);
+
+  guardarEstado();
   closeModal('m-caja');
   renderCajachica();
 }
@@ -5823,7 +5762,8 @@ function agregarSimPagos() {
     var xlN=xld?String(Math.round((new Date(xld)-new Date(1899,11,30))/864e5)):'';
     if(d.tipo==='cheque'){
       var row={fecha:xlN,cheque:'a emitir',beneficiario:d.concepto,concepto:d.concepto+' ('+String(i+1)+'/'+d.nCuotas+')',monto:String(Math.round(d.cuota)),vto:xlN,tipo:d.rubro,estado:'',mesCobro:''};
-      DB.cheques.unshift(row); agregarRegistro('cheques',row);
+      DB.cheques.unshift(row);
+    DB.cheques.sort(function(a,b){return (parseFloat(a.vto||a.fecha)||0)-(parseFloat(b.vto||b.fecha)||0);}); agregarRegistro('cheques',row);
     } else {
       var row2={fecha:xlN,beneficiario:d.concepto,concepto:d.concepto+' ('+String(i+1)+'/'+d.nCuotas+')',monto:String(Math.round(d.cuota)),tipo:d.rubro,estado:'PENDIENTE',nroTrans:''};
       DB.transferencias.unshift(row2); agregarRegistro('transferencias',row2);
