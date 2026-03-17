@@ -3636,6 +3636,7 @@ function renderTabla(mod) {
 
   if (mod === 'cheques') {
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin registros</td></tr>'; return; }
+    data.sort(function(a,b){ return (parseFloat(a.vto||a.fecha)||0)-(parseFloat(b.vto||b.fecha)||0); });
     data.forEach(function(r) {
       var idx = origData.indexOf(r);
       var vtoN = parseFloat(r.vto);
@@ -3657,6 +3658,7 @@ function renderTabla(mod) {
     });
   } else if (mod === 'transferencias') {
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Sin registros</td></tr>'; return; }
+    data.sort(function(a,b){ return (parseFloat(a.fecha)||0)-(parseFloat(b.fecha)||0); });
     data.forEach(function(r) {
       var idx = origData.indexOf(r);
       html += '<tr>' +
