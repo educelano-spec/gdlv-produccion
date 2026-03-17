@@ -4774,13 +4774,29 @@ function guardarCobro() {
 }
 
 function guardarDisp() {
-  var caja=parseFloat(document.getElementById('md-caja').value)||0;
-  var conti=parseFloat(document.getElementById('md-conti').value)||0;
-  var ueno=parseFloat(document.getElementById('md-ueno').value)||0;
-  var otros=parseFloat(document.getElementById('md-otros').value)||0;
-  var row = {fecha:dateToXl(document.getElementById('md-fecha').value),caja:caja,conti:conti,ueno:ueno,otros:otros,total:caja+conti+ueno+otros};
-  DB.disponible.unshift(row); agregarRegistro('disponible', row);
-  closeModal('m-disp'); renderDisponible();
+  var fechaVal = document.getElementById('md-fecha').value;
+  var caja  = parseFloat(document.getElementById('md-caja').value)||0;
+  var conti = parseFloat(document.getElementById('md-conti').value)||0;
+  var ueno  = parseFloat(document.getElementById('md-ueno').value)||0;
+  var otros = parseFloat(document.getElementById('md-otros').value)||0;
+  if(!fechaVal) { alert('Ingresá la fecha'); return; }
+  if(caja+conti+ueno+otros === 0) { alert('Ingresá al menos un saldo'); return; }
+  var row = {
+    fecha: dateToXl(fechaVal),
+    caja: caja, conti: conti, ueno: ueno, otros: otros,
+    total: caja+conti+ueno+otros
+  };
+  // Insert sorted by date descending
+  DB.disponible.unshift(row);
+  DB.disponible.sort(function(a,b){ return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0); });
+  // Save to Firebase + localStorage
+  guardarEstado();
+  closeModal('m-disp');
+  // Update all views that show disponible
+  renderDisponible();
+  renderDashboard();
+  updateLiqBar();
+  updateBadges();
 }
 
 function guardarReal() {
