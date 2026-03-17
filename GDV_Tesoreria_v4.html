@@ -2722,7 +2722,11 @@ function applyExtra(extra) {
   }
 
   if(extra.cobrosRecibidos_extra) DB.cobrosRecibidos = extra.cobrosRecibidos_extra.concat(DB.cobrosRecibidos);
-  // realizados_extra: intentionally ignored — comes only from DEFAULT_DATA
+  // realizadas_extra: user-marked payments added via UI
+  if(extra.realizadas_extra && extra.realizadas_extra.length) {
+    DB.transferenciasRealizadas = extra.realizadas_extra.concat(DB.transferenciasRealizadas||[]);
+    DB.realizados = DB.transferenciasRealizadas;
+  }
   if(extra.disponible_extra) DB.disponible = extra.disponible_extra.concat(DB.disponible);
   if(extra.chequesCobrados_extra && extra.chequesCobrados_extra.length) {
     // Only add records not already in the default dataset
@@ -2821,7 +2825,15 @@ function buildExtra() {
 
   if(DB.cobrosRecibidos&&DB.cobrosRecibidos.length > def.cobrosRecibidos.length)
     extra.cobrosRecibidos_extra = DB.cobrosRecibidos.slice(0, DB.cobrosRecibidos.length - def.cobrosRecibidos.length);
-  // realizados: NOT saved to Firebase — bulk historical data, updated via Excel deploy only
+  // realizados: save user-marked payments (those not in DEFAULT)
+  var defRealizadasKeys = new Set((def.transferenciasRealizadas||[]).map(function(r){
+    return r.fecha+'|'+r.beneficiario+'|'+r.monto;
+  }));
+  var userRealizadas = (DB.transferenciasRealizadas||[]).filter(function(r){
+    return !defRealizadasKeys.has(r.fecha+'|'+r.beneficiario+'|'+r.monto) &&
+           !defRealizadasKeys.has((r.fechaProg||r.fecha)+'|'+r.beneficiario+'|'+r.monto);
+  });
+  if(userRealizadas.length) extra.realizadas_extra = userRealizadas;
   if(DB.disponible&&DB.disponible.length > def.disponible.length)
     extra.disponible_extra = DB.disponible.slice(0, DB.disponible.length - def.disponible.length);
   // chequesCobrados: only save user-added (not in DEFAULT_DATA)
@@ -2976,7 +2988,8 @@ function marcarPagado(mod, idx) {
     var hoyXl = String(todayXl());
     if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas = [];
     DB.transferenciasRealizadas.unshift({
-      fecha: r.fecha || hoyXl,
+      fecha: hoyXl,            // fecha en que se ejecutó el pago (hoy)
+      fechaProg: r.fecha,      // fecha original programada
       beneficiario: r.beneficiario,
       concepto: r.concepto,
       tipo: r.tipo,
@@ -3687,9 +3700,7 @@ function renderTabla(mod) {
         '</tr>';
     });
   } else if (mod === 'realizados') {
-    var hoyXlR = todayXl();
-    // Sort newest first, filter out clearly future entries
-    data = data.filter(function(r){ return (parseFloat(r.fecha)||0) <= hoyXlR+1; });
+    // Sort newest first — no future filter, fecha is now always payment date (today)
     data.sort(function(a,b){ return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0); });
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin registros</td></tr>'; return; }
     data.forEach(function(r) {
@@ -4624,8 +4635,6 @@ function renderHistorial(search) {
   var hoyXl = todayXl();
   // Only show REALIZED/historical records in historial — no pending future items
   DB.realizados.forEach(function(r){
-    var xl=parseFloat(r.fecha)||0;
-    if(xl>hoyXl+1) return; // skip clearly future dates
     all.push({mod:'Realizado',fecha:r.fecha,ben:r.beneficiario,concepto:r.concepto,tipo:r.tipo,monto:r.monto,estado:'COBRADO'});
   });
   (DB.chequesCobrados||[]).forEach(function(r){
