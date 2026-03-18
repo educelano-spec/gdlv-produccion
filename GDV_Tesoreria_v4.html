@@ -5671,31 +5671,27 @@ function renderSimulador() {
 }
 
 function calcSimulador() {
-  var monto = parseFloat(document.getElementById('sim-monto').value)||0;
-  var nCuotas = parseInt(document.getElementById('sim-cuotas').value)||1;
+  var monto    = parseFloat(document.getElementById('sim-monto').value)||0;
+  var nCuotas  = parseInt(document.getElementById('sim-cuotas').value)||1;
   var diasBase = parseInt(document.getElementById('sim-dias-base').value)||30;
-  var tipo = document.getElementById('sim-tipo').value;
+  var tipo     = document.getElementById('sim-tipo').value;
   var concepto = document.getElementById('sim-concepto').value||'Nuevo compromiso';
-  var rubro = document.getElementById('sim-rubro').value;
+  var rubro    = document.getElementById('sim-rubro').value;
   if(!monto){
     document.getElementById('sim-resultado').innerHTML='<div class="al-item info"><div class="al-ico">ℹ</div><div>Ingresá el monto total para calcular.</div></div>';
     return;
   }
   var cuota = monto/nCuotas;
 
-  // Build load map by day-of-month from REAL data (cheques + transferencias pendientes + cuotas préstamos)
-  var loadByDay = {}; // day-of-month → total committed
-  var loadByDate = {}; // YYYY-MM-DD → total committed (for exact date display)
+  // ── Build load map by EXACT DATE (not day-of-month) ──
+  var loadByDate = {}; // "YYYY-MM-DD" → total Gs
 
   function addLoad(xlDate, amount) {
-    var d = xlToDate(xlDate);
-    if(!d||d==='—') return;
-    var p = d.split('/');
-    if(p.length!==3) return;
-    var dom = parseInt(p[0]);
-    loadByDay[dom] = (loadByDay[dom]||0) + amount;
-    var dateKey = p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);
-    loadByDate[dateKey] = (loadByDate[dateKey]||0) + amount;
+    var xl = parseFloat(xlDate)||0;
+    if(xl < 40000) return;
+    var dt = new Date(Math.round((xl-25569)*86400000));
+    var key = dt.getUTCFullYear()+'-'+('0'+(dt.getUTCMonth()+1)).slice(-2)+'-'+('0'+dt.getUTCDate()).slice(-2);
+    loadByDate[key] = (loadByDate[key]||0) + amount;
   }
 
   (DB.cheques||[]).forEach(function(r){
@@ -5710,108 +5706,240 @@ function calcSimulador() {
     var ini=new Date(p.inicio);
     for(var q=1;q<=p.nCuotas;q++){
       if(q<=(p.pagadas||0)) continue;
-      var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia);
-      var dom=dt.getDate();
-      loadByDay[dom]=(loadByDay[dom]||0)+parseFloat(p.cuota||0);
+      var mo=ini.getMonth()+(q-1);
+      var yr=ini.getFullYear()+Math.floor(mo/12);
+      var dt=new Date(Date.UTC(yr,mo%12,p.dia));
+      var key=dt.getUTCFullYear()+'-'+('0'+(dt.getUTCMonth()+1)).slice(-2)+'-'+('0'+dt.getUTCDate()).slice(-2);
+      loadByDate[key]=(loadByDate[key]||0)+parseFloat(p.cuota||0);
     }
   });
 
-  var hoy = new Date();
-  var html = '<div class="panel"><div class="panel-hdr"><div class="panel-title">💡 Plan Sugerido — '+concepto+'</div></div>';
+  function dateKey(d) {
+    return d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2)+'-'+('0'+d.getUTCDate()).slice(-2);
+  }
+  function loadForDate(d) { return loadByDate[dateKey(d)]||0; }
 
-  // Summary header
+  function contextTable(bestDate, cuotaAmt) {
+    // Show -3..+3 days context around bestDate
+    var rows = '';
+    var bestKey = dateKey(bestDate);
+    for(var dd=-3; dd<=3; dd++) {
+      var cd = new Date(bestDate.getTime() + dd*86400000);
+      var ck = dateKey(cd);
+      var carga = loadByDate[ck]||0;
+      var isSelected = ck === bestKey;
+      var dow = cd.getUTCDay();
+      var dowLabel = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][dow];
+      var isWknd = dow===0||dow===6;
+      var label = ('0'+cd.getUTCDate()).slice(-2)+'/'
+        +('0'+(cd.getUTCMonth()+1)).slice(-2)+' '+dowLabel;
+      var bg = isSelected ? 'background:var(--acc);color:#fff'
+             : isWknd ? 'opacity:.4'
+             : carga===0 ? '' : '';
+      var carColor = isSelected ? 'color:rgba(255,255,255,.85)'
+                   : carga>15000000 ? 'color:var(--red)'
+                   : carga>5000000  ? 'color:var(--amb)'
+                   : 'color:var(--grn)';
+      var newTotal = carga + (isSelected?0:cuotaAmt);
+      rows += '<tr style="'+(isWknd?'opacity:.45':'')+'">'
+        +'<td style="padding:3px 8px;font-size:11px;font-weight:'+(isSelected?'700':'400')+';'+(isSelected?'background:var(--acc);color:#fff;border-radius:4px':'')+'">'
+          +label+(isSelected?' ◀':'')+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;'+carColor+'">'+fGs(carga)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;color:var(--ink3)">'
+          +(isSelected?'<strong>+'+fGs(cuotaAmt)+'</strong>':'+'+fGs(cuotaAmt))+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;font-weight:'+(isSelected?'700':'400')+'">'
+          +fGs(carga+(isSelected?cuotaAmt:newTotal-cuotaAmt))+'</td>'
+        +'</tr>';
+    }
+    return '<table style="width:100%;border-collapse:collapse;margin-top:8px">'
+      +'<thead><tr style="font-size:10px;color:var(--ink3);text-transform:uppercase">'
+      +'<th style="text-align:left;padding:2px 8px">Fecha</th>'
+      +'<th style="text-align:right">Actual</th>'
+      +'<th style="text-align:right">+Esta cuota</th>'
+      +'<th style="text-align:right">Total</th>'
+      +'</tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
+  // ── Paraguay today ──
+  var pyMs = new Date().getTime()-(4*3600000);
+  var pyHoy = new Date(pyMs);
+  var BLOCKED_DAYS = [4,5,6];
+
+  // ── Find best date for each cuota ──
+  var suggestions = [];
+  for(var qi=0; qi<nCuotas; qi++){
+    // Start from diasBase days after today (not 7!)
+    var targetDays = diasBase + (qi * diasBase);
+    var bestDate = null, bestScore = 9e9;
+
+    for(var delta=-14; delta<=14; delta++){
+      var cdMs = pyHoy.getTime() + (targetDays+delta)*86400000;
+      var cd = new Date(cdMs);
+      var dom = cd.getUTCDate();
+      var dow = cd.getUTCDay();
+      if(BLOCKED_DAYS.indexOf(dom)>=0) continue;
+      if(dow===0||dow===6) continue;
+      var carga = loadByDate[dateKey(cd)]||0;
+      // Prefer dates with load < 5M, penalize heavily above 5M
+      var loadPenalty = carga < 5000000 ? carga/5000000
+                      : 1 + (carga-5000000)/5000000;
+      var score = loadPenalty + Math.abs(delta)*0.3;
+      if(score < bestScore){ bestScore=score; bestDate=new Date(cd); }
+    }
+    if(!bestDate){
+      var fb = new Date(pyHoy.getTime()+targetDays*86400000);
+      bestDate = fb;
+    }
+    suggestions.push(bestDate);
+  }
+
+  // ── Render ──
+  var html = '<div class="panel"><div class="panel-hdr"><div class="panel-title">💡 Plan Sugerido — '+concepto+'</div></div>';
   html += '<div style="padding:12px 18px;background:var(--sur2);border-bottom:1px solid var(--bdr);display:flex;gap:20px;flex-wrap:wrap">';
   html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Total</div><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--red)">'+fGs(monto)+'</div></div>';
   html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">'+nCuotas+' cuota'+(nCuotas>1?'s':'')+' de</div><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--amb)">'+fGs(cuota)+'</div></div>';
   html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Tipo</div><div style="font-size:14px;font-weight:600">'+tipo+'</div></div>';
   html += '<div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Rubro</div><div>'+chip(rubro)+'</div></div>';
   html += '</div>';
-
-  // Find best dates
   html += '<div style="padding:14px 18px">';
-  html += '<div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">Fechas Recomendadas — podés editar cualquier fecha antes de confirmar</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">';
+  html += '<div style="font-size:11px;color:var(--ink3);margin-bottom:16px">🗓 Fechas desde hoy +'+diasBase+' días · Carga baja preferida (< Gs 5M) · Bloqueados: días 4, 5, 6 y fines de semana</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">';
 
-  var BLOCKED_DAYS = [4,5,6]; // salary days
-
-  for(var qi=0; qi<nCuotas; qi++){
-    var targetDays = 7 + (qi * diasBase);
-    var bestDate = null, bestScore = 9e9;
-
-    // Search ±14 days around target
-    for(var delta=-14; delta<=14; delta++){
-      var candidate = new Date(hoy);
-      candidate.setDate(candidate.getDate() + targetDays + delta);
-      var dom = candidate.getDate();
-      var dow = candidate.getDay(); // 0=Sun, 6=Sat
-
-      if(BLOCKED_DAYS.indexOf(dom) >= 0) continue; // skip salary days
-      if(dow === 0 || dow === 6) continue; // skip weekends
-
-      var carga = loadByDay[dom]||0;
-      // Score: lower is better. Penalize high load and distance from target
-      var score = (carga/1000000) + Math.abs(delta)*0.5;
-      if(score < bestScore){ bestScore=score; bestDate=new Date(candidate); }
-    }
-    if(!bestDate){ bestDate=new Date(hoy); bestDate.setDate(bestDate.getDate()+targetDays); }
-
-    var dom2 = bestDate.getDate();
-    var carga2 = loadByDay[dom2]||0;
-    var dateStr = bestDate.getFullYear()+'-'+('0'+(bestDate.getMonth()+1)).slice(-2)+'-'+('0'+dom2).slice(-2);
+  suggestions.forEach(function(bestDate, qi){
+    var ck = dateKey(bestDate);
+    var carga = loadByDate[ck]||0;
+    var dom2 = bestDate.getUTCDate();
+    var dateStr = ck;
     var dateDisplay = ('0'+dom2).slice(-2)+'/'
-      +('0'+(bestDate.getMonth()+1)).slice(-2)+'/'+bestDate.getFullYear();
-
-    var cardColor = carga2===0?'background:#e8f5e9;border-color:#a5d6a7':
-                   carga2<5000000?'background:#f1f8e9;border-color:#c5e1a5':
-                   carga2<15000000?'background:#fffde7;border-color:#ffe082':
-                   'background:#fff3e0;border-color:#ffcc80';
-    var trafficIcon = carga2===0?'🟢 Día libre':
-                     carga2<5000000?'✅ Carga baja':
-                     carga2<15000000?'🟡 Carga media':
-                     '🔴 Día ocupado';
+      +('0'+(bestDate.getUTCMonth()+1)).slice(-2)+'/'+bestDate.getUTCFullYear();
+    var cardColor = carga===0      ? 'background:#e8f5e9;border-color:#a5d6a7'
+                  : carga<5000000  ? 'background:#f1f8e9;border-color:#c5e1a5'
+                  : carga<15000000 ? 'background:#fffde7;border-color:#ffe082'
+                  :                  'background:#fff3e0;border-color:#ffcc80';
+    var trafficIcon = carga===0     ? '🟢 Día libre'
+                    : carga<5000000 ? '✅ Carga baja'
+                    : carga<15000000? '🟡 Carga media'
+                    :                 '🔴 Día ocupado';
 
     html += '<div style="border:1.5px solid;border-radius:10px;padding:12px;'+cardColor+'">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;margin-bottom:6px">Cuota '+(qi+1)+' de '+nCuotas+'</div>';
-    html += '<input type="date" value="'+dateStr+'" id="simdate_'+qi+'" ';
-    html += 'style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;border:none;background:none;outline:none;color:var(--ink);padding:0;width:160px">';
-    html += '<div style="font-size:11px;margin-top:6px;font-weight:600">'+trafficIcon+'</div>';
-    html += '<div style="font-size:11px;color:var(--ink3);margin-top:3px">Carga día '+dom2+': '+fGs(carga2)+'</div>';
-    html += '<div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:var(--amb);margin-top:8px">'+fGs(cuota)+'</div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase">Cuota '+(qi+1)+' de '+nCuotas+'</div>';
+    html += '<button class="btn btn-ok btn-sm" onclick="agregarSimCuota('+qi+')" title="Agregar solo esta cuota">✓ Agregar</button>';
     html += '</div>';
-  }
+    html += '<input type="date" value="'+dateStr+'" id="simdate_'+qi+'" onchange="simRecalcContext('+qi+','+cuota+')" ';
+    html += 'style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;border:1px solid var(--bdr);border-radius:6px;background:var(--sur);color:var(--ink);padding:4px 8px;width:100%;box-sizing:border-box;margin-bottom:6px">';
+    html += '<div style="font-size:11px;font-weight:600;margin-top:4px">'+trafficIcon+'</div>';
+    html += '<div style="font-size:11px;color:var(--ink3)">Carga actual: '+fGs(carga)+'</div>';
+    html += '<div style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:var(--amb);margin-top:6px">'+fGs(cuota)+'</div>';
+    html += '<div id="simctx_'+qi+'">'+contextTable(bestDate, cuota)+'</div>';
+    html += '</div>';
+  });
 
   html += '</div>';
   html += '<div style="margin-top:16px;padding:12px 0;border-top:1px solid var(--bdr);display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
-  html += '<button class="btn btn-a" onclick="agregarSimPagos()">✓ Agregar todos al sistema</button>';
+  html += '<button class="btn btn-a" onclick="agregarSimPagos()">✓ Agregar todas al sistema</button>';
   html += '<button class="btn btn-g" onclick="document.getElementById(\'sim-resultado\').innerHTML=\'\'">✕ Cancelar</button>';
-  html += '<span style="font-size:12px;color:var(--ink3)">Días 4, 5 y 6 bloqueados (salarios). Fines de semana excluidos.</span>';
+  html += '<span style="font-size:12px;color:var(--ink3)">Días 4, 5 y 6 bloqueados. Fines de semana excluidos.</span>';
   html += '</div></div></div>';
 
   document.getElementById('sim-resultado').innerHTML = html;
   window._simCtx = {concepto:concepto, monto:monto, cuota:cuota, nCuotas:nCuotas, tipo:tipo, rubro:rubro};
+  window._simLoadByDate = loadByDate;
+}
+
+function simRecalcContext(qi, cuota) {
+  var dateEl = document.getElementById('simdate_'+qi);
+  if(!dateEl) return;
+  var val = dateEl.value; // YYYY-MM-DD
+  if(!val) return;
+  var p = val.split('-');
+  var d = new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
+  var loadByDate = window._simLoadByDate || {};
+  function dateKey(dt) {
+    return dt.getUTCFullYear()+'-'+('0'+(dt.getUTCMonth()+1)).slice(-2)+'-'+('0'+dt.getUTCDate()).slice(-2);
+  }
+  // Rebuild context table
+  var rows = '';
+  var bestKey = dateKey(d);
+  for(var dd=-3; dd<=3; dd++) {
+    var cd = new Date(d.getTime()+dd*86400000);
+    var ck = dateKey(cd);
+    var carga = loadByDate[ck]||0;
+    var isSelected = ck===bestKey;
+    var dow = cd.getUTCDay();
+    var dowLabel = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][dow];
+    var isWknd = dow===0||dow===6;
+    var label = ('0'+cd.getUTCDate()).slice(-2)+'/'
+      +('0'+(cd.getUTCMonth()+1)).slice(-2)+' '+dowLabel;
+    rows += '<tr style="'+(isWknd?'opacity:.45':'')+'">'
+      +'<td style="padding:3px 8px;font-size:11px;font-weight:'+(isSelected?'700':'400')+';'+(isSelected?'background:var(--acc);color:#fff;border-radius:4px':'')+'">'
+        +label+(isSelected?' ◀':'')+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;color:'+(carga>15000000?'var(--red)':carga>5000000?'var(--amb)':'var(--grn)')+'">'+fGs(carga)+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;color:var(--ink3)">+'+fGs(cuota)+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;font-weight:'+(isSelected?'700':'400')+'">'+fGs(carga+cuota)+'</td>'
+      +'</tr>';
+  }
+  var table = '<table style="width:100%;border-collapse:collapse;margin-top:8px">'
+    +'<thead><tr style="font-size:10px;color:var(--ink3);text-transform:uppercase">'
+    +'<th style="text-align:left;padding:2px 8px">Fecha</th>'
+    +'<th style="text-align:right">Actual</th>'
+    +'<th style="text-align:right">+Esta cuota</th>'
+    +'<th style="text-align:right">Total</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+  var ctxEl = document.getElementById('simctx_'+qi);
+  if(ctxEl) ctxEl.innerHTML = table;
+  // Update traffic indicator
+  var cargaSel = loadByDate[bestKey]||0;
+  var ti = cargaSel===0?'🟢 Día libre':cargaSel<5000000?'✅ Carga baja':cargaSel<15000000?'🟡 Carga media':'🔴 Día ocupado';
+  var card = dateEl.closest ? dateEl.closest('div[style*="border-radius:10px"]') : null;
+  if(card) {
+    var divs = card.querySelectorAll('div');
+    for(var di=0; di<divs.length; di++){
+      if(divs[di].textContent && divs[di].textContent.match(/🟢|✅|🟡|🔴/)) {
+        divs[di].textContent = ti; break;
+      }
+    }
+  }
+}
+
+function agregarSimCuota(qi) {
+  var d = window._simCtx; if(!d) return;
+  var dateEl = document.getElementById('simdate_'+qi);
+  if(!dateEl||!dateEl.value) return;
+  var p = dateEl.value.split('-');
+  var xl = String(Math.round((Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/86400000));
+  if(d.tipo==='cheque') {
+    var row={fecha:xl,cheque:'a emitir',beneficiario:d.concepto,
+             concepto:d.concepto+' ('+(qi+1)+'/'+d.nCuotas+')',
+             monto:String(Math.round(d.cuota)),vto:xl,tipo:d.rubro,estado:'',mesCobro:''};
+    DB.cheques.unshift(row);
+    DB.cheques.sort(function(a,b){return (parseFloat(a.vto||a.fecha)||0)-(parseFloat(b.vto||b.fecha)||0);});
+  } else {
+    var row2={fecha:xl,beneficiario:d.concepto,
+              concepto:d.concepto+' ('+(qi+1)+'/'+d.nCuotas+')',
+              monto:String(Math.round(d.cuota)),tipo:d.rubro,estado:'PENDIENTE',nroTrans:''};
+    DB.transferencias.unshift(row2);
+    DB.transferencias.sort(function(a,b){return (parseFloat(a.fecha)||0)-(parseFloat(b.fecha)||0);});
+  }
+  guardarEstado();
+  updateBadges();
+  // Mark the card as added
+  var dateEl2 = document.getElementById('simdate_'+qi);
+  if(dateEl2) {
+    var card = dateEl2.parentElement;
+    if(card) card.style.opacity = '0.5';
+    var btn = card ? card.querySelector('.btn-ok') : null;
+    if(btn) { btn.textContent='✓ Agregado'; btn.disabled=true; }
+  }
 }
 
 function agregarSimPagos() {
   var d=window._simCtx; if(!d) return;
-  var dest=d.tipo==='cheque'?'Cheques':'Transferencias';
-  var modKey=d.tipo==='cheque'?'cheques':'transferencias';
-  if(!confirm('¿Agregar '+d.nCuotas+' cuota(s) a '+dest+'?')) return;
+  if(!confirm('Agregar todas las '+d.nCuotas+' cuota(s) al sistema?')) return;
   for(var i=0;i<d.nCuotas;i++){
-    var dateEl=document.getElementById('simdate_'+i);
-    if(!dateEl) continue;
-    var xld=dateEl.value;
-    var xlN=xld?String(Math.round((new Date(xld)-new Date(1899,11,30))/864e5)):'';
-    if(d.tipo==='cheque'){
-      var row={fecha:xlN,cheque:'a emitir',beneficiario:d.concepto,concepto:d.concepto+' ('+String(i+1)+'/'+d.nCuotas+')',monto:String(Math.round(d.cuota)),vto:xlN,tipo:d.rubro,estado:'',mesCobro:''};
-      DB.cheques.unshift(row);
-    DB.cheques.sort(function(a,b){return (parseFloat(a.vto||a.fecha)||0)-(parseFloat(b.vto||b.fecha)||0);}); agregarRegistro('cheques',row);
-    } else {
-      var row2={fecha:xlN,beneficiario:d.concepto,concepto:d.concepto+' ('+String(i+1)+'/'+d.nCuotas+')',monto:String(Math.round(d.cuota)),tipo:d.rubro,estado:'PENDIENTE',nroTrans:''};
-      DB.transferencias.unshift(row2); agregarRegistro('transferencias',row2);
-    }
+    agregarSimCuota(i);
   }
-  document.getElementById('sim-resultado').innerHTML='<div class="al-item ok"><div class="al-ico">✅</div><div><strong>'+d.nCuotas+' pago(s) agregados a '+dest+'</strong><br><span>Ya podés verlos en la sección correspondiente.</span></div></div>';
-  updateBadges();
+  document.getElementById('sim-resultado').innerHTML='<div class="al-item ok"><div class="al-ico">✅</div><div><strong>'+d.nCuotas+' cuota(s) agregadas al sistema</strong><br><span>Podés verlas en Cheques o Transferencias.</span></div></div>';
 }
 
 // ─── COBROS: marcar como cobrado con cuenta ──────────────────────────────────
