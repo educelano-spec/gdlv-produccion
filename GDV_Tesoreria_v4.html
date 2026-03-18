@@ -2924,15 +2924,12 @@ function dateToXl(d) {
 }
 
 function todayXl() {
-  // Paraguay = UTC-4, independiente del timezone del browser
-  var now = new Date();
-  var utcMs = now.getTime() + now.getTimezoneOffset() * 60000; // → UTC ms
-  var pyMs = utcMs - (4 * 3600000); // → Paraguay ms (UTC-4)
+  // Paraguay = UTC-4, sin DST. Nunca usar getTimezoneOffset (depende del browser).
+  // now.getTime() siempre devuelve ms UTC sin importar timezone del dispositivo.
+  var pyMs = new Date().getTime() - (4 * 3600000); // UTC ms - 4 horas
   var py = new Date(pyMs);
-  // Usar getUTC* para extraer la fecha Paraguay sin contaminación de timezone local
-  var y = py.getUTCFullYear(), m = py.getUTCMonth(), d = py.getUTCDate();
-  // Calcular xl serial directamente en UTC para evitar offset del browser
-  return Math.round((Date.UTC(y, m, d) - Date.UTC(1899, 11, 30)) / 86400000);
+  // getUTC* lee la fecha en UTC que ya es la hora Paraguay
+  return Math.round((Date.UTC(py.getUTCFullYear(), py.getUTCMonth(), py.getUTCDate()) - Date.UTC(1899, 11, 30)) / 86400000);
 }
 
 function fGs(v) {
@@ -5951,7 +5948,11 @@ function updateBadges() {
   var nAl = getAlertas().filter(function(a){return a.type!=='ok';}).length;
   (document.getElementById('nb-al')||{}).textContent = nAl;
   document.getElementById('al-dot').style.display = nAl>0?'block':'none';
-  (document.getElementById('fecha-hoy')||{}).textContent = new Date().toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'});
+  // Show Paraguay date regardless of browser timezone
+  var _pyMs = new Date().getTime() - (4*3600000);
+  var _py = new Date(_pyMs);
+  var _d = ('0'+_py.getUTCDate()).slice(-2)+'/'+('0'+(_py.getUTCMonth()+1)).slice(-2)+'/'+_py.getUTCFullYear();
+  (document.getElementById('fecha-hoy')||{}).textContent = _d;
   updateLiqBar();
 }
 
@@ -6059,6 +6060,24 @@ document.addEventListener('keydown', function(e) {
 // INIT
 // ══════════════════════════════════════
 initDB(); // Firebase async — renders dashboard after load
+
+// ── Auto-refresh cuando cambia la fecha en Paraguay ──
+(function() {
+  var lastDay = todayXl();
+  setInterval(function() {
+    var currentDay = todayXl();
+    if(currentDay !== lastDay) {
+      lastDay = currentDay;
+      // Fecha cambió — actualizar header y re-renderizar vista activa
+      updateBadges();
+      var activeView = document.querySelector('.view.active');
+      if(activeView) {
+        var vname = activeView.id.replace('view-','');
+        renderView(vname);
+      }
+    }
+  }, 60000); // chequear cada 60 segundos
+})();
 </script>
 </body>
 </html>
