@@ -574,7 +574,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="panel-hdr"><div class="panel-title">Configurar Nuevo Compromiso</div></div>
     <div style="padding:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
       <div class="fgrp"><label>Concepto / Descripción</label><input type="text" id="sim-concepto" class="fc" placeholder="Ej: Compra de tela a Paraguay Textil"></div>
-      <div class="fgrp"><label>Monto Total (Gs)</label><input type="number" id="sim-monto" class="fc" placeholder="20000000"></div>
+      <div class="fgrp"><label>Monto Total (Gs)</label><input type="text" inputmode="numeric" id="sim-monto" class="fc" placeholder="20.000.000" oninput="fmtMoney(this)"></div>
       <div class="fgrp"><label>Tipo de Pago</label><select id="sim-tipo" class="fc"><option value="cheque">Cheque Diferido</option><option value="transferencia">Transferencia</option><option value="prestamo">Cuotas de Préstamo</option></select></div>
       <div class="fgrp"><label>N° de Cuotas / Pagos</label><input type="number" id="sim-cuotas" class="fc" value="4" min="1" max="24"></div>
       <div class="fgrp"><label>Días Base entre Cuotas</label><input type="number" id="sim-dias-base" class="fc" value="30" min="7"></div>
@@ -1040,7 +1040,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="modal-body">
       <div class="fg">
         <div class="fgrp"><label>Fecha</label><input type="date" id="mp-fecha" class="fc"></div>
-        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="mp-monto" class="fc" placeholder="0"></div>
+        <div class="fgrp"><label>Monto (Gs)</label><input type="text" inputmode="numeric" id="mp-monto" class="fc" placeholder="0" oninput="fmtMoney(this)"></div>
         <div class="fgrp"><label>A Favor de</label><input type="text" id="mp-benef" class="fc" placeholder="Beneficiario"></div>
         <div class="fgrp"><label>Concepto</label><input type="text" id="mp-concepto" class="fc"></div>
         <div class="fgrp"><label>Tipo de Pago</label>
@@ -1065,8 +1065,8 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
       <div class="fg">
         <div class="fgrp"><label>Prestamista</label><input type="text" id="pr-nom" class="fc"></div>
         <div class="fgrp"><label>Tipo</label><select id="pr-tipo" class="fc"><option>Mutual</option><option>Banco</option><option>Financiera</option><option>Personal</option></select></div>
-        <div class="fgrp"><label>Capital Total (Gs)</label><input type="number" id="pr-cap" class="fc" placeholder="0"></div>
-        <div class="fgrp"><label>Cuota Mensual (Gs)</label><input type="number" id="pr-cuota" class="fc" placeholder="0"></div>
+        <div class="fgrp"><label>Capital Total (Gs)</label><input type="text" inputmode="numeric" id="pr-cap" class="fc" placeholder="0" oninput="fmtMoney(this)"></div>
+        <div class="fgrp"><label>Cuota Mensual (Gs)</label><input type="text" inputmode="numeric" id="pr-cuota" class="fc" placeholder="0" oninput="fmtMoney(this)"></div>
         <div class="fgrp"><label>Fecha Inicio</label><input type="date" id="pr-ini" class="fc"></div>
         <div class="fgrp"><label>N° de Cuotas</label><input type="number" id="pr-ncuotas" class="fc" placeholder="12" min="1"></div>
         <div class="fgrp"><label>Día de Pago</label><input type="number" id="pr-dia" class="fc" placeholder="1" min="1" max="31"></div>
@@ -1085,7 +1085,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="modal-body">
       <div class="fg">
         <div class="fgrp"><label>Fecha</label><input type="date" id="mc-fecha" class="fc"></div>
-        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="mc-monto" class="fc"></div>
+        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="mc-monto" class="fc" type="text" inputmode="numeric" oninput="fmtMoney(this)"></div>
         <div class="fgrp"><label>Cliente</label><input type="text" id="mc-cliente" class="fc"></div>
         <div class="fgrp"><label>Concepto</label><input type="text" id="mc-concepto" class="fc"></div>
         <div class="fgrp"><label>Tipo de Cobro</label><select id="mc-tipo" class="fc"><option>Cheque</option><option>Transferencia</option><option>Efectivo</option></select></div>
@@ -1105,10 +1105,10 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="modal-body">
       <div class="fg">
         <div class="fgrp full"><label>Fecha</label><input type="date" id="md-fecha" class="fc"></div>
-        <div class="fgrp"><label>Caja (Gs)</label><input type="number" id="md-caja" class="fc" value="0"></div>
-        <div class="fgrp"><label>Continental (Gs)</label><input type="number" id="md-conti" class="fc" value="0"></div>
-        <div class="fgrp"><label>Ueno (Gs)</label><input type="number" id="md-ueno" class="fc" value="0"></div>
-        <div class="fgrp"><label>Otros (Gs)</label><input type="number" id="md-otros" class="fc" value="0"></div>
+        <div class="fgrp"><label>Caja (Gs)</label><input type="text" inputmode="numeric" id="md-caja" class="fc" value="" placeholder="0" oninput="fmtMoney(this)"></div>
+        <div class="fgrp"><label>Continental (Gs)</label><input type="text" inputmode="numeric" id="md-conti" class="fc" value="" placeholder="0" oninput="fmtMoney(this)"></div>
+        <div class="fgrp"><label>Ueno (Gs)</label><input type="text" inputmode="numeric" id="md-ueno" class="fc" value="" placeholder="0" oninput="fmtMoney(this)"></div>
+        <div class="fgrp"><label>Otros (Gs)</label><input type="text" inputmode="numeric" id="md-otros" class="fc" value="" placeholder="0" oninput="fmtMoney(this)"></div>
       </div>
     </div>
     <div class="modal-ftr"><button class="btn btn-g" onclick="closeModal('m-disp')">Cancelar</button><button class="btn btn-p" onclick="guardarDisp()">Guardar</button></div>
@@ -1122,7 +1122,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="modal-body">
       <div class="fg">
         <div class="fgrp"><label>Fecha</label><input type="date" id="mr-fecha" class="fc"></div>
-        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="mr-monto" class="fc"></div>
+        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="mr-monto" class="fc" type="text" inputmode="numeric" oninput="fmtMoney(this)"></div>
         <div class="fgrp"><label>Beneficiario</label><input type="text" id="mr-benef" class="fc"></div>
         <div class="fgrp"><label>Concepto</label><input type="text" id="mr-concepto" class="fc"></div>
         <div class="fgrp"><label>Tipo</label><select id="mr-tipo" class="fc"><option>INSUMO</option><option>SALARIOS</option><option>ALQUILER</option><option>IMPUESTO</option><option>PRESTAMO</option><option>ACTIVO FIJO</option><option>SERVICIOS</option><option>ANDE</option><option>IPS</option></select></div>
@@ -1141,7 +1141,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="modal-body">
       <div class="fg">
         <div class="fgrp"><label>Fecha</label><input type="date" id="cc-fecha" class="fc"></div>
-        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="cc-monto" class="fc"></div>
+        <div class="fgrp"><label>Monto (Gs)</label><input type="number" id="cc-monto" class="fc" type="text" inputmode="numeric" oninput="fmtMoney(this)"></div>
         <div class="fgrp full"><label>Descripción del Gasto</label><input type="text" id="cc-desc" class="fc" placeholder="Ej: Combustible para reparto"></div>
         <div class="fgrp"><label>Rubro</label><select id="cc-rubro" class="fc"><option>COMBUSTIBLE</option><option>VIANDAS</option><option>MATERIALES</option><option>LIMPIEZA</option><option>TRANSPORTE</option><option>IMPRENTA</option><option>VARIOS</option><option>INSUMO</option><option>SERVICIOS</option></select></div>
         <div class="fgrp"><label>Responsable</label><input type="text" id="cc-quien" class="fc" placeholder="Nombre"></div>
@@ -2936,6 +2936,21 @@ function todayXl() {
   var py = new Date(pyMs);
   // getUTC* lee la fecha en UTC que ya es la hora Paraguay
   return Math.round((Date.UTC(py.getUTCFullYear(), py.getUTCMonth(), py.getUTCDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+}
+
+function fmtMoney(el) {
+  // Format input with dot thousand separators while typing
+  var raw = el.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+  if(raw === '') { el.value = ''; return; }
+  var num = parseInt(raw, 10);
+  el.value = num.toLocaleString('es-PY', {maximumFractionDigits:0}).replace(/,/g,'.');
+}
+
+function getMoneyVal(id) {
+  // Read money input stripping dot separators
+  var el = document.getElementById(id);
+  if(!el) return 0;
+  return parseFloat(el.value.replace(/\./g,'').replace(/[^0-9]/g,''))||0;
 }
 
 function fGs(v) {
@@ -4735,7 +4750,7 @@ function closeModal(id) {
 
 function guardarPago() {
   var fecha = document.getElementById('mp-fecha').value;
-  var monto = document.getElementById('mp-monto').value;
+  var monto = String(getMoneyVal('mp-monto'));
   var benef = document.getElementById('mp-benef').value.trim();
   if (!fecha||!monto||!benef) { alert('Completar: fecha, monto y beneficiario.'); return; }
   var row = {beneficiario:benef,monto:monto,concepto:document.getElementById('mp-concepto').value,tipo:document.getElementById('mp-tipo').value,estado:document.getElementById('mp-estado').value};
@@ -4759,7 +4774,7 @@ function guardarPago() {
 function guardarPrestamo() {
   var nom = document.getElementById('pr-nom').value.trim();
   if (!nom) { alert('Ingresar el nombre del prestamista.'); return; }
-  var p = {id:'p'+Date.now(),nombre:nom,tipo:document.getElementById('pr-tipo').value,capital:parseFloat(document.getElementById('pr-cap').value)||0,cuota:parseFloat(document.getElementById('pr-cuota').value)||0,inicio:document.getElementById('pr-ini').value,nCuotas:parseInt(document.getElementById('pr-ncuotas').value)||12,pagadas:0,dia:parseInt(document.getElementById('pr-dia').value)||1,obs:document.getElementById('pr-obs').value};
+  var p = {id:'p'+Date.now(),nombre:nom,tipo:document.getElementById('pr-tipo').value,capital:getMoneyVal('pr-cap'),cuota:getMoneyVal('pr-cuota'),inicio:document.getElementById('pr-ini').value,nCuotas:parseInt(document.getElementById('pr-ncuotas').value)||12,pagadas:0,dia:parseInt(document.getElementById('pr-dia').value)||1,obs:document.getElementById('pr-obs').value};
   DB.prestamos.push(p);
   guardarEstado();
   closeModal('m-prestamo'); renderPrestamos();
@@ -4767,7 +4782,7 @@ function guardarPrestamo() {
 
 function guardarCobro() {
   var cli = document.getElementById('mc-cliente').value.trim();
-  var monto = document.getElementById('mc-monto').value;
+  var monto = String(getMoneyVal('mc-monto'));
   if (!cli||!monto) { alert('Completar campos requeridos.'); return; }
   var row = {fechaCobro:dateToXl(document.getElementById('mc-fecha').value),cliente:cli,monto:monto,concepto:document.getElementById('mc-concepto').value,tipoCobro:document.getElementById('mc-tipo').value,estado:document.getElementById('mc-estado').value,factura:document.getElementById('mc-factura').value};
   DB.cobros.unshift(row);
@@ -4777,10 +4792,10 @@ function guardarCobro() {
 
 function guardarDisp() {
   var fechaVal = document.getElementById('md-fecha').value;
-  var caja  = parseFloat(document.getElementById('md-caja').value)||0;
-  var conti = parseFloat(document.getElementById('md-conti').value)||0;
-  var ueno  = parseFloat(document.getElementById('md-ueno').value)||0;
-  var otros = parseFloat(document.getElementById('md-otros').value)||0;
+  var caja  = getMoneyVal('md-caja');
+  var conti = getMoneyVal('md-conti');
+  var ueno  = getMoneyVal('md-ueno');
+  var otros = getMoneyVal('md-otros');
   if(!fechaVal) { alert('Ingresá la fecha'); return; }
   if(caja+conti+ueno+otros === 0) { alert('Ingresá al menos un saldo'); return; }
   var row = {
@@ -4803,7 +4818,7 @@ function guardarDisp() {
 
 function guardarReal() {
   var benef = document.getElementById('mr-benef').value.trim();
-  var monto = document.getElementById('mr-monto').value;
+  var monto = String(getMoneyVal('mr-monto'));
   if (!benef||!monto) { alert('Completar campos requeridos.'); return; }
   var row = {fecha:dateToXl(document.getElementById('mr-fecha').value),beneficiario:benef,monto:monto,concepto:document.getElementById('mr-concepto').value,tipo:document.getElementById('mr-tipo').value,origen:document.getElementById('mr-origen').value};
   DB.transferenciasRealizadas.unshift(row); DB.realizados = DB.transferenciasRealizadas;
@@ -5323,7 +5338,7 @@ function renderCajachica() {
 
 function guardarCaja() {
   var fecha=document.getElementById('cc-fecha').value;
-  var monto=document.getElementById('cc-monto').value;
+  var monto=String(getMoneyVal('cc-monto'));
   var desc=document.getElementById('cc-desc').value;
   var rubro=document.getElementById('cc-rubro').value;
   var quien=document.getElementById('cc-quien').value;
@@ -5671,7 +5686,7 @@ function renderSimulador() {
 }
 
 function calcSimulador() {
-  var monto    = parseFloat(document.getElementById('sim-monto').value)||0;
+  var monto    = getMoneyVal('sim-monto');
   var nCuotas  = parseInt(document.getElementById('sim-cuotas').value)||1;
   var diasBase = parseInt(document.getElementById('sim-dias-base').value)||30;
   var tipo     = document.getElementById('sim-tipo').value;
@@ -5720,7 +5735,6 @@ function calcSimulador() {
   function loadForDate(d) { return loadByDate[dateKey(d)]||0; }
 
   function contextTable(bestDate, cuotaAmt) {
-    // Show -3..+3 days context around bestDate
     var rows = '';
     var bestKey = dateKey(bestDate);
     for(var dd=-3; dd<=3; dd++) {
@@ -5733,31 +5747,31 @@ function calcSimulador() {
       var isWknd = dow===0||dow===6;
       var label = ('0'+cd.getUTCDate()).slice(-2)+'/'
         +('0'+(cd.getUTCMonth()+1)).slice(-2)+' '+dowLabel;
-      var bg = isSelected ? 'background:var(--acc);color:#fff'
-             : isWknd ? 'opacity:.4'
-             : carga===0 ? '' : '';
-      var carColor = isSelected ? 'color:rgba(255,255,255,.85)'
-                   : carga>15000000 ? 'color:var(--red)'
-                   : carga>5000000  ? 'color:var(--amb)'
-                   : 'color:var(--grn)';
-      var newTotal = carga + (isSelected?0:cuotaAmt);
-      rows += '<tr style="'+(isWknd?'opacity:.45':'')+'">'
-        +'<td style="padding:3px 8px;font-size:11px;font-weight:'+(isSelected?'700':'400')+';'+(isSelected?'background:var(--acc);color:#fff;border-radius:4px':'')+'">'
+      var total = carga + cuotaAmt;
+      var totalColor = total>15000000?'var(--red)':total>5000000?'var(--amb)':'var(--grn)';
+      var cargaColor = carga>15000000?'var(--red)':carga>5000000?'var(--amb)':carga>0?'var(--ink2)':'var(--ink3)';
+      var selStyle = isSelected
+        ? 'background:var(--acc);color:#fff;border-radius:4px;font-weight:700;padding:2px 5px'
+        : 'padding:2px 5px;font-weight:400';
+      rows += '<tr style="'+(isWknd?'opacity:.38':'')+'">'
+        +'<td style="font-size:11px;white-space:nowrap;'+selStyle+'">'
           +label+(isSelected?' ◀':'')+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;'+carColor+'">'+fGs(carga)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;color:var(--ink3)">'
-          +(isSelected?'<strong>+'+fGs(cuotaAmt)+'</strong>':'+'+fGs(cuotaAmt))+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;font-weight:'+(isSelected?'700':'400')+'">'
-          +fGs(carga+(isSelected?cuotaAmt:newTotal-cuotaAmt))+'</td>'
+        +'<td style="text-align:right;font-size:10px;font-family:JetBrains Mono,monospace;'
+          +(isSelected?'color:rgba(255,255,255,.8)':'color:'+cargaColor)+';white-space:nowrap;padding:2px 3px">'
+          +fGs(carga)+'</td>'
+        +'<td style="text-align:right;font-size:10px;font-family:JetBrains Mono,monospace;'
+          +(isSelected?'color:#fff;font-weight:700':'color:'+totalColor)+';white-space:nowrap;padding:2px 3px">'
+          +(isSelected?'<b>':'')+'Gs '+(Math.round(total/1000000*10)/10)+'M'+(isSelected?'</b>':'')+'</td>'
         +'</tr>';
     }
-    return '<table style="width:100%;border-collapse:collapse;margin-top:8px">'
-      +'<thead><tr style="font-size:10px;color:var(--ink3);text-transform:uppercase">'
-      +'<th style="text-align:left;padding:2px 8px">Fecha</th>'
-      +'<th style="text-align:right">Actual</th>'
-      +'<th style="text-align:right">+Esta cuota</th>'
-      +'<th style="text-align:right">Total</th>'
-      +'</tr></thead><tbody>'+rows+'</tbody></table>';
+    return '<div style="overflow:hidden;width:100%;margin-top:8px">'
+      +'<table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+      +'<colgroup><col style="width:38%"><col style="width:32%"><col style="width:30%"></colgroup>'
+      +'<thead><tr style="font-size:9px;color:var(--ink3);text-transform:uppercase;background:rgba(0,0,0,.05)">'
+      +'<th style="text-align:left;padding:3px 5px">Fecha</th>'
+      +'<th style="text-align:right;padding:3px 3px">Actual</th>'
+      +'<th style="text-align:right;padding:3px 3px">c/cuota</th>'
+      +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
 
   // ── Paraguay today ──
@@ -5803,7 +5817,7 @@ function calcSimulador() {
   html += '</div>';
   html += '<div style="padding:14px 18px">';
   html += '<div style="font-size:11px;color:var(--ink3);margin-bottom:16px">🗓 Fechas desde hoy +'+diasBase+' días · Carga baja preferida (< Gs 5M) · Bloqueados: días 4, 5, 6 y fines de semana</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;overflow:hidden">';
 
   suggestions.forEach(function(bestDate, qi){
     var ck = dateKey(bestDate);
@@ -5821,7 +5835,7 @@ function calcSimulador() {
                     : carga<15000000? '🟡 Carga media'
                     :                 '🔴 Día ocupado';
 
-    html += '<div style="border:1.5px solid;border-radius:10px;padding:12px;'+cardColor+'">';
+    html += '<div style="border:1.5px solid;border-radius:10px;padding:12px;overflow:hidden;min-width:0;'+cardColor+'">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
     html += '<div style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase">Cuota '+(qi+1)+' de '+nCuotas+'</div>';
     html += '<button class="btn btn-ok btn-sm" onclick="agregarSimCuota('+qi+')" title="Agregar solo esta cuota">✓ Agregar</button>';
@@ -5850,7 +5864,7 @@ function calcSimulador() {
 function simRecalcContext(qi, cuota) {
   var dateEl = document.getElementById('simdate_'+qi);
   if(!dateEl) return;
-  var val = dateEl.value; // YYYY-MM-DD
+  var val = dateEl.value;
   if(!val) return;
   var p = val.split('-');
   var d = new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));
@@ -5858,7 +5872,6 @@ function simRecalcContext(qi, cuota) {
   function dateKey(dt) {
     return dt.getUTCFullYear()+'-'+('0'+(dt.getUTCMonth()+1)).slice(-2)+'-'+('0'+dt.getUTCDate()).slice(-2);
   }
-  // Rebuild context table
   var rows = '';
   var bestKey = dateKey(d);
   for(var dd=-3; dd<=3; dd++) {
@@ -5871,31 +5884,41 @@ function simRecalcContext(qi, cuota) {
     var isWknd = dow===0||dow===6;
     var label = ('0'+cd.getUTCDate()).slice(-2)+'/'
       +('0'+(cd.getUTCMonth()+1)).slice(-2)+' '+dowLabel;
-    rows += '<tr style="'+(isWknd?'opacity:.45':'')+'">'
-      +'<td style="padding:3px 8px;font-size:11px;font-weight:'+(isSelected?'700':'400')+';'+(isSelected?'background:var(--acc);color:#fff;border-radius:4px':'')+'">'
+    var total = carga + cuota;
+    var totalColor = total>15000000?'var(--red)':total>5000000?'var(--amb)':'var(--grn)';
+    var cargaColor = carga>15000000?'var(--red)':carga>5000000?'var(--amb)':carga>0?'var(--ink2)':'var(--ink3)';
+    var selStyle = isSelected
+      ? 'background:var(--acc);color:#fff;border-radius:4px;font-weight:700;padding:2px 5px'
+      : 'padding:2px 5px;font-weight:400';
+    rows += '<tr style="'+(isWknd?'opacity:.38':'')+'">'
+      +'<td style="font-size:11px;white-space:nowrap;'+selStyle+'">'
         +label+(isSelected?' ◀':'')+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;color:'+(carga>15000000?'var(--red)':carga>5000000?'var(--amb)':'var(--grn)')+'">'+fGs(carga)+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;color:var(--ink3)">+'+fGs(cuota)+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:JetBrains Mono,monospace;font-weight:'+(isSelected?'700':'400')+'">'+fGs(carga+cuota)+'</td>'
+      +'<td style="text-align:right;font-size:10px;font-family:JetBrains Mono,monospace;'
+        +(isSelected?'color:rgba(255,255,255,.8)':'color:'+cargaColor)+';white-space:nowrap;padding:2px 3px">'
+        +fGs(carga)+'</td>'
+      +'<td style="text-align:right;font-size:10px;font-family:JetBrains Mono,monospace;'
+        +(isSelected?'color:#fff;font-weight:700':'color:'+totalColor)+';white-space:nowrap;padding:2px 3px">'
+        +(isSelected?'<b>':'')+'Gs '+(Math.round(total/1000000*10)/10)+'M'+(isSelected?'</b>':'')+'</td>'
       +'</tr>';
   }
-  var table = '<table style="width:100%;border-collapse:collapse;margin-top:8px">'
-    +'<thead><tr style="font-size:10px;color:var(--ink3);text-transform:uppercase">'
-    +'<th style="text-align:left;padding:2px 8px">Fecha</th>'
-    +'<th style="text-align:right">Actual</th>'
-    +'<th style="text-align:right">+Esta cuota</th>'
-    +'<th style="text-align:right">Total</th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+  var table = '<div style="overflow:hidden;width:100%;margin-top:8px">'
+    +'<table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+    +'<colgroup><col style="width:38%"><col style="width:32%"><col style="width:30%"></colgroup>'
+    +'<thead><tr style="font-size:9px;color:var(--ink3);text-transform:uppercase;background:rgba(0,0,0,.05)">'
+    +'<th style="text-align:left;padding:3px 5px">Fecha</th>'
+    +'<th style="text-align:right;padding:3px 3px">Actual</th>'
+    +'<th style="text-align:right;padding:3px 3px">c/cuota</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
   var ctxEl = document.getElementById('simctx_'+qi);
   if(ctxEl) ctxEl.innerHTML = table;
   // Update traffic indicator
   var cargaSel = loadByDate[bestKey]||0;
   var ti = cargaSel===0?'🟢 Día libre':cargaSel<5000000?'✅ Carga baja':cargaSel<15000000?'🟡 Carga media':'🔴 Día ocupado';
-  var card = dateEl.closest ? dateEl.closest('div[style*="border-radius:10px"]') : null;
+  var card = dateEl.parentElement;
   if(card) {
     var divs = card.querySelectorAll('div');
     for(var di=0; di<divs.length; di++){
-      if(divs[di].textContent && divs[di].textContent.match(/🟢|✅|🟡|🔴/)) {
+      if(divs[di].textContent && divs[di].textContent.match(/🟢|✅|🟡|🔴/)){
         divs[di].textContent = ti; break;
       }
     }
