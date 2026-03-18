@@ -2897,12 +2897,11 @@ function agregarRegistro(mod, obj) {
 // UTILIDADES
 // ══════════════════════════════════════
 function dateStrToXl(s) {
-  // Convert 'YYYY-MM-DD' to Excel serial
+  // Convert 'YYYY-MM-DD' to Excel serial using UTC to avoid timezone issues
   if(!s) return '';
   var p = s.split('-');
-  if(p.length!==3) return '';
-  var d = new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
-  return String(Math.round((d.getTime()/86400000)+25569));
+  if(p.length !== 3) return '';
+  return String(Math.round((Date.UTC(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])) - Date.UTC(1899, 11, 30)) / 86400000));
 }
 
 function xlToDate(d) {
@@ -2913,14 +2912,21 @@ function xlToDate(d) {
     var day = dt.getUTCDate(), mon = dt.getUTCMonth()+1, yr = dt.getUTCFullYear();
     return (day<10?'0':'')+day+'/'+(mon<10?'0':'')+mon+'/'+yr;
   }
-  return String(d);
+  // Handle YYYY-MM-DD string format (old data saved without xl conversion)
+  var s = String(d);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    var p = s.split('-');
+    return p[2]+'/'+p[1]+'/'+p[0]; // convert to DD/MM/YYYY
+  }
+  return s;
 }
 
 function dateToXl(d) {
   if (!d) return '';
   var parts = d.split('-');
-  var dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-  return String(Math.round((dt - new Date(1899,11,30)) / 86400000));
+  if(parts.length !== 3) return '';
+  // Use Date.UTC to avoid browser timezone contamination
+  return String(Math.round((Date.UTC(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2])) - Date.UTC(1899, 11, 30)) / 86400000));
 }
 
 function todayXl() {
@@ -4658,7 +4664,9 @@ var _modTipo = '';
 
 function openModal(id, tipo) {
   _modTipo = tipo;
-  var hoy = new Date().toISOString().split('T')[0];
+  // Fecha Paraguay (UTC-4) para todos los modales
+  var _pyNow = new Date(new Date().getTime() - (4*3600000));
+  var hoy = _pyNow.getUTCFullYear()+'-'+('0'+(_pyNow.getUTCMonth()+1)).slice(-2)+'-'+('0'+_pyNow.getUTCDate()).slice(-2);
   document.getElementById(id).classList.add('open');
   if (id === 'm-pago') {
     var titles = {cheques:'Nuevo Cheque',transferencias:'Nueva Transferencia',efectivo:'Nuevo Pago Efectivo'};
@@ -5809,10 +5817,16 @@ function marcarChequePagado(idx) {
   if(!c) return;
   var infoEl = document.getElementById('cobrar-info');
   if(infoEl) infoEl.innerHTML = '<strong>' + c.beneficiario + '</strong> — Cheque #' + (c.cheque||'') + ' — <strong>' + fGs(c.monto) + '</strong>';
+  // Set today's date in Paraguay time
   var fechaEl = document.getElementById('ci-fecha');
-  if(fechaEl) fechaEl.value = new Date().toISOString().slice(0,10);
-  var cuentaEl = document.getElementById('ci-cuenta');
-  if(cuentaEl) cuentaEl.value = 'Continental';
+  if(fechaEl) {
+    var pyMs = new Date().getTime() - (4 * 3600000);
+    var py = new Date(pyMs);
+    var yy = py.getUTCFullYear();
+    var mm = ('0'+(py.getUTCMonth()+1)).slice(-2);
+    var dd = ('0'+py.getUTCDate()).slice(-2);
+    fechaEl.value = yy+'-'+mm+'-'+dd;
+  }
   window._pendingChqIdx = idx;
   window._cobrarMode = 'cheque';
   openModal('m-cobrar', '');
@@ -5837,7 +5851,6 @@ function marcarCobro(idx) {
 
 function confirmarCobro() {
   var fecha = document.getElementById('ci-fecha').value;
-  var cuenta = document.getElementById('ci-cuenta').value;
   if(!fecha) { alert('Ingresá una fecha'); return; }
 
   // Only used now for cheques (cobros pendientes use marcarCobro directly)
