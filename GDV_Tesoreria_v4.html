@@ -3656,7 +3656,18 @@ function renderTabla(mod) {
     });
   } else if (mod === 'cobros') {
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Sin registros</td></tr>'; return; }
-    data.sort(function(a,b){return (parseFloat(a.fechaCobro)||0)-(parseFloat(b.fechaCobro)||0);});
+    // Sort ascending by date - handle both xl serials and YYYY-MM-DD strings
+    function cobroXl(r) {
+      var v = parseFloat(r.fechaCobro||r.fecha)||0;
+      if(v >= 40000) return v;
+      var s = String(r.fechaCobro||r.fecha||'');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        var p=s.split('-');
+        return Math.round((Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/86400000);
+      }
+      return 0;
+    }
+    data.sort(function(a,b){return cobroXl(a)-cobroXl(b);});
     data.forEach(function(r) {
       var idx = origData.indexOf(r);
       html += '<tr>' +
@@ -3698,8 +3709,19 @@ function renderBalance() {
   var flowMap = {};
 
   function addFlow(xl, monto, tipo) {
-    var x = Math.round(parseFloat(xl)||0);
-    if(!x) return;
+    var x = parseFloat(xl)||0;
+    // Must be a valid xl serial (>40000 = after year 2009)
+    // Reject raw date strings like "2026-03-13" where parseFloat gives 2026
+    if(x < 40000) {
+      // Try to convert YYYY-MM-DD string to xl
+      var s = String(xl||'');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        var p = s.split('-');
+        x = Math.round((Date.UTC(+p[0],+p[1]-1,+p[2]) - Date.UTC(1899,11,30)) / 86400000);
+      }
+      if(x < 40000) return; // still invalid, skip
+    }
+    x = Math.round(x);
     var targetXl = (x < hoyXl) ? hoyXl : x;  // vencidos → hoy
     if(!flowMap[targetXl]) flowMap[targetXl] = {pagar:0, cobrar:0};
     monto = parseFloat(monto)||0;
@@ -3733,7 +3755,13 @@ function renderBalance() {
   // Cobros pendientes
   (DB.cobros||[]).forEach(function(c){
     if(c.estado==='RECIBIDO') return;
-    addFlow(c.fechaCobro||c.fecha, c.monto, 'ing');
+    var fc = c.fechaCobro||c.fecha;
+    // Convert YYYY-MM-DD to xl if needed
+    if(fc && String(fc).match(/^\d{4}-\d{2}-\d{2}$/)) {
+      var p=String(fc).split('-');
+      fc = String(Math.round((Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/86400000));
+    }
+    addFlow(fc, c.monto, 'ing');
   });
 
   // ── Iterar desde hoy hasta último pago ──
@@ -4434,10 +4462,18 @@ function renderPagosDia() {
   var byDate = {};
 
   function addItem(xl, item) {
-    // If date is in the past (overdue), pile it into today
-    var key = parseFloat(xl) < hoy ? String(hoy) : String(Math.round(parseFloat(xl)));
+    // Resolve xl - handle both serial and YYYY-MM-DD string
+    var x = parseFloat(xl)||0;
+    if(x < 40000) {
+      var s = String(xl||'');
+      var pm = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(pm) x = Math.round((Date.UTC(+pm[1],+pm[2]-1,+pm[3])-Date.UTC(1899,11,30))/86400000);
+      if(x < 40000) return; // invalid, skip
+    }
+    x = Math.round(x);
+    var key = x < hoy ? String(hoy) : String(x);
     if(!byDate[key]) byDate[key] = {items:[], overdue:false};
-    if(parseFloat(xl) < hoy) byDate[key].overdue = true;
+    if(x < hoy) byDate[key].overdue = true;
     byDate[key].items.push(item);
   }
 
