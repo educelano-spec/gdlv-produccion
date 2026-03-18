@@ -611,6 +611,15 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
     </div>
 
+    <!-- Top 30 más baratos -->
+    <div class="dash-card dash-full">
+      <div class="dash-card-title">📋 Top 30 más baratos por metro</div>
+      <table class="cheap-table">
+        <thead><tr><th>#</th><th>Tejido</th><th>Proveedor</th><th>Código</th><th>Ancho</th><th>Precio/m</th><th>Precio/remera</th></tr></thead>
+        <tbody id="dash-cheapest-30"></tbody>
+      </table>
+    </div>
+
   </div>
 </section>
 
@@ -1075,7 +1084,7 @@ function uploadFoto(input, prefix) {
 
   img.onload = function() {
     // Comprimir a max 400x400px, calidad 0.65
-    const MAX = 300; // px máx — mantiene el archivo pequeño para RTDB
+    const MAX = 600; // px máx — buena resolución para ver textura de telas
     let w = img.width, h = img.height;
     if(w > h) { if(w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
     else       { if(h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
@@ -1084,7 +1093,7 @@ function uploadFoto(input, prefix) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, w, h);
-    const base64 = canvas.toDataURL('image/jpeg', 0.50); // 50% calidad = ~15-40KB
+    const base64 = canvas.toDataURL('image/jpeg', 0.80); // 80% calidad = buena textura visible
 
     // Mostrar preview
     prev.src = base64;
@@ -1912,6 +1921,21 @@ function renderDashboard() {
   const dataMin = provAvg.map(x => Math.min(...withPrice.filter(t=>t.proveedor===x.p).map(t=>t.precio_metro)));
   const dataAvg = provAvg.map(x => Math.round(withPrice.filter(t=>t.proveedor===x.p).reduce((s,t)=>s+t.precio_metro,0)/withPrice.filter(t=>t.proveedor===x.p).length));
   const dataMax = provAvg.map(x => Math.max(...withPrice.filter(t=>t.proveedor===x.p).map(t=>t.precio_metro)));
+
+  // ── Top 30 más baratos (tabla completa) ──
+  const sorted30 = [...withPrice].sort((a,b) => a.precio_metro - b.precio_metro).slice(0, 30);
+  document.getElementById('dash-cheapest-30').innerHTML = sorted30.map((t, i) => {
+    const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    return `<tr onclick="openDetail(${tejidos.indexOf(t)})" style="cursor:pointer">
+      <td><span class="cheap-rank ${rankClass}">${i+1}</span></td>
+      <td style="font-weight:600;font-size:12px">${t.tipo}</td>
+      <td style="font-size:11px;color:var(--muted)">${t.proveedor}</td>
+      <td style="font-size:11px;font-family:monospace;color:var(--muted)">${t.codigo||'—'}</td>
+      <td style="font-size:12px">${t.ancho ? t.ancho+'m' : '—'}</td>
+      <td style="font-weight:700;color:var(--accent2)">${gs(t.precio_metro)}</td>
+      <td style="font-size:12px;color:var(--text2)">${gs(t.precio_rem>0?t.precio_rem:null)}</td>
+    </tr>`;
+  }).join('');
 
   if(typeof Chart === 'undefined') {
     // Cargar Chart.js dinámicamente
