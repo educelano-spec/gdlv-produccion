@@ -1771,44 +1771,58 @@ function openProdModal(idx){
 }
 function closeProdModal(){document.getElementById('modal-prod').classList.remove('open');}
 function previewPhoto(e){
-  const file = e.target.files[0]; if(!file) return;
-  // Show loading state
-  document.getElementById('pd-icon').style.display='none';
-  document.getElementById('pd-text').style.display='none';
-  document.getElementById('pd-preview').style.display='none';
-  document.getElementById('foto-upload-status').textContent='⏳ Subiendo foto...';
-  document.getElementById('foto-upload-status').style.color='var(--gold)';
-  // Convert to base64 then upload to Imgur
-  const reader = new FileReader();
+  var file = e.target.files[0]; if(!file) return;
+  // Resize image before upload for speed
+  var MAX_PX = 800;
+  var reader = new FileReader();
   reader.onload = function(ev) {
-    const base64 = ev.target.result.split(',')[1];
-    fetch('https://api.imgur.com/3/image', {
-      method: 'POST',
-      headers: { 'Authorization': 'Client-ID f0ea04148a54268 ', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64, type: 'base64' })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      if(data.success && data.data && data.data.link){
-        currentPhoto = data.data.link;
-        document.getElementById('pd-preview').src = currentPhoto;
-        document.getElementById('pd-preview').style.display = 'block';
-        document.getElementById('foto-upload-status').textContent = '✅ Foto subida correctamente';
-        document.getElementById('foto-upload-status').style.color = 'var(--success)';
-        document.getElementById('photo-url').value = currentPhoto;
-      } else {
-        document.getElementById('foto-upload-status').textContent = '❌ Error al subir. Probá pegar el link manualmente.';
-        document.getElementById('foto-upload-status').style.color = 'var(--danger)';
-        document.getElementById('pd-icon').style.display = 'block';
-        document.getElementById('pd-text').style.display = 'block';
+    var img = new Image();
+    img.onload = function() {
+      // Resize canvas
+      var w = img.width, h = img.height;
+      if(w > MAX_PX || h > MAX_PX) {
+        if(w > h) { h = Math.round(h * MAX_PX / w); w = MAX_PX; }
+        else       { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
       }
-    })
-    .catch(function(){
-      document.getElementById('foto-upload-status').textContent = '❌ Sin conexión. Pegá el link manualmente.';
-      document.getElementById('foto-upload-status').style.color = 'var(--danger)';
-      document.getElementById('pd-icon').style.display = 'block';
-      document.getElementById('pd-text').style.display = 'block';
-    });
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob) {
+        // Show preview immediately from local
+        var localUrl = URL.createObjectURL(blob);
+        document.getElementById('pd-preview').src = localUrl;
+        document.getElementById('pd-preview').style.display = 'block';
+        document.getElementById('pd-icon').style.display = 'none';
+        document.getElementById('pd-text').style.display = 'none';
+        document.getElementById('foto-upload-status').textContent = '⏳ Subiendo...';
+        document.getElementById('foto-upload-status').style.color = 'var(--gold)';
+        // Upload to Cloudinary
+        var fd = new FormData();
+        fd.append('file', blob, 'foto.jpg');
+        fd.append('upload_preset', 'css6nrfy');
+        fetch('https://api.cloudinary.com/v1_1/do4omvfty/image/upload', {
+          method: 'POST', body: fd
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d.secure_url){
+            currentPhoto = d.secure_url;
+            document.getElementById('pd-preview').src = currentPhoto;
+            document.getElementById('photo-url').value = currentPhoto;
+            document.getElementById('foto-upload-status').textContent = '✅ Foto subida';
+            document.getElementById('foto-upload-status').style.color = 'var(--success)';
+          } else {
+            document.getElementById('foto-upload-status').textContent = '❌ Error: ' + (d.error&&d.error.message||'desconocido');
+            document.getElementById('foto-upload-status').style.color = 'var(--danger)';
+          }
+        })
+        .catch(function(){
+          document.getElementById('foto-upload-status').textContent = '❌ Sin conexión';
+          document.getElementById('foto-upload-status').style.color = 'var(--danger)';
+        });
+      }, 'image/jpeg', 0.82);
+    };
+    img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
