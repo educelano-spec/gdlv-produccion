@@ -782,20 +782,20 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       </div>
       <div class="form-group">
         <label class="form-label">Precio x metro (Gs.)</label>
-        <input class="form-input" id="f-precio-metro" type="number" min="0" placeholder="Calculado automáticamente" oninput="calcRemFromMetro()">
-        <span class="form-hint">= Precio/kg ÷ Rendimiento</span>
+        <input class="form-input" id="f-precio-metro" type="number" min="0" placeholder="O ingresá precio directo" oninput="calcRemFromMetro()">
+        <span class="form-hint">Ingresá por kg+rendimiento arriba, o escribí el precio/m directo acá</span>
       </div>
       <div class="form-group">
         <label class="form-label">Precio aprox x remera (Gs.)</label>
         <input class="form-input" id="f-precio-rem" type="number" min="0" placeholder="Calculado automáticamente">
-        <span class="form-hint" id="f-rem-hint">= P/metro × consumo en metros</span>
+        <span class="form-hint" id="f-rem-hint">= P/metro × consumo (según ancho)</span>
       </div>
     </div>
     <div style="margin-top:6px; padding:12px 14px; background:var(--surface2); border-radius:8px; border:1px solid var(--border); font-size:12px; color:var(--text2);">
       <strong>¿Cómo se calcula el consumo?</strong><br>
-      Si dejás el campo <em>Consumo</em> vacío, se calcula automáticamente: <code>1.28 m² ÷ ancho</code>.<br>
-      Ej: ancho 1.80m → 0.711m · ancho 1.60m → 0.800m · ancho 1.50m → 0.853m.<br>
-      Podés escribir tu propio valor si sabés el consumo exacto de esa tela.
+      Si dejás el campo <em>Consumo</em> vacío, se calcula automáticamente según el ancho:<br>
+      1.80m → <strong>0.735m</strong> · 1.60m → <strong>0.810m</strong> · 1.50m → <strong>0.900m</strong> · 1.45m → <strong>0.950m</strong><br>
+      Basado en moldería Basica2023 GDV, tizado trabado. Podés editarlo si el tejido tiene otro consumo real.
     </div>
       <div class="form-group full">
         <label class="form-label">Colores disponibles</label>
@@ -1332,10 +1332,29 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 // ── Factor de consumo por ancho de tela ──
 // Fórmula: consumo_m² ÷ ancho = metros lineales
 // Un talle M/L estándar usa ~1.28 m² de tela
-const CONSUMO_M2_REMERA = 1.28; // m² promedio talle M/L — se puede ajustar
+// Consumo real por ancho — basado en moldería Basica2023 GDV, tizado trabado 180cm
+// Fuente: medición directa sobre tizados de producción
+const CONSUMO_POR_ANCHO = [
+  { ancho: 1.80, consumo: 0.735 },
+  { ancho: 1.70, consumo: 0.773 },
+  { ancho: 1.65, consumo: 0.791 },
+  { ancho: 1.60, consumo: 0.810 },
+  { ancho: 1.50, consumo: 0.900 },
+  { ancho: 1.45, consumo: 0.950 },
+];
 function calcConsumo(anchoM) {
-  if(!anchoM || anchoM <= 0) return 0.71; // fallback si no hay ancho
-  return Math.round((CONSUMO_M2_REMERA / anchoM) * 1000) / 1000; // redondear a 3 decimales
+  if(!anchoM || anchoM <= 0) return 0.735; // fallback ancho estándar 1.80m
+  // Buscar coincidencia exacta
+  const exacta = CONSUMO_POR_ANCHO.find(r => r.ancho === anchoM);
+  if(exacta) return exacta.consumo;
+  // Interpolar entre los dos valores más cercanos
+  const mayor = CONSUMO_POR_ANCHO.filter(r => r.ancho >= anchoM).pop();
+  const menor = CONSUMO_POR_ANCHO.filter(r => r.ancho <= anchoM).shift();
+  if(!mayor) return menor.consumo;
+  if(!menor) return mayor.consumo;
+  // Interpolación lineal
+  const t = (anchoM - menor.ancho) / (mayor.ancho - menor.ancho);
+  return Math.round((menor.consumo + t * (mayor.consumo - menor.consumo)) * 1000) / 1000;
 }
 
 function showToast(msg, type='') {
@@ -1481,24 +1500,30 @@ function openEdit(idx) {
 }
 function closeModal() { document.getElementById('modal-edit').classList.remove('open'); }
 function calcModalAuto() {
-  const kg = parseFloat(document.getElementById('m-precio-kg').value);
-  const rend = parseFloat(document.getElementById('m-rendim').value);
+  const kg    = parseFloat(document.getElementById('m-precio-kg').value);
+  const rend  = parseFloat(document.getElementById('m-rendim').value);
   const ancho = parseFloat(document.getElementById('m-ancho').value);
-  if(kg&&rend) {
-    const pm = kg/rend;
+  // Actualizar placeholder consumo
+  if(ancho) {
+    const sug = calcConsumo(ancho);
+    document.getElementById('m-consumo').placeholder = sug + 'm (auto ' + ancho + 'm)';
+  }
+  // Calcular precio/metro desde kg + rendimiento
+  if(kg && rend) {
+    const pm = kg / rend;
     document.getElementById('m-precio-metro').value = Math.round(pm);
     recalcModalRem(pm, ancho);
+  } else if(!kg && !rend) {
+    recalcModalRem(null, ancho);
   }
 }
 function recalcModalRem(pm, ancho) {
   if(!pm) pm = parseFloat(document.getElementById('m-precio-metro').value)||0;
   if(!ancho) ancho = parseFloat(document.getElementById('m-ancho').value)||0;
   if(!pm) return;
-  const consumo = parseFloat(document.getElementById('m-consumo').value) || calcConsumo(ancho);
-  // Actualizar el campo consumo con el calculado si está vacío
-  const consumoInput = document.getElementById('m-consumo');
-  if(!consumoInput.value && ancho) consumoInput.value = calcConsumo(ancho);
-  if(consumo > 0) document.getElementById('m-precio-rem').value = Math.round(pm * consumo);
+  const consumoManual = parseFloat(document.getElementById('m-consumo').value);
+  const consumo = consumoManual || calcConsumo(ancho);
+  document.getElementById('m-precio-rem').value = Math.round(pm * consumo);
 }
 function saveEdit() {
   const idx = parseInt(document.getElementById('m-idx').value);
@@ -1565,27 +1590,38 @@ function renderProvCards(prov) {
 //  FORM ADD
 // ═══════════════════════════════════════════════════════
 function calcFormAuto() {
-  const kg = parseFloat(document.getElementById('f-precio-kg').value);
-  const rend = parseFloat(document.getElementById('f-rendim').value);
+  const kg    = parseFloat(document.getElementById('f-precio-kg').value);
+  const rend  = parseFloat(document.getElementById('f-rendim').value);
   const ancho = parseFloat(document.getElementById('f-ancho').value);
-  if(kg&&rend) {
-    const pm = kg/rend;
+  // Actualizar placeholder de consumo cuando cambia el ancho
+  if(ancho) {
+    const sug = calcConsumo(ancho);
+    document.getElementById('f-consumo').placeholder = sug + 'm (auto para ' + ancho + 'm ancho)';
+  }
+  // Calcular precio/metro desde kg + rendimiento
+  if(kg && rend) {
+    const pm = kg / rend;
     document.getElementById('f-precio-metro').value = Math.round(pm);
     recalcFormRem(pm, ancho);
+  } else if(!kg && !rend) {
+    // Si limpiaron kg/rendim, recalcular rem con precio metro actual
+    recalcFormRem(null, ancho);
   }
 }
 function recalcFormRem(pm, ancho) {
   if(!pm) pm = parseFloat(document.getElementById('f-precio-metro').value)||0;
   if(!ancho) ancho = parseFloat(document.getElementById('f-ancho').value)||0;
   if(!pm) return;
-  const consumo = parseFloat(document.getElementById('f-consumo').value) || calcConsumo(ancho);
-  // Sugerir el consumo calculado si el campo está vacío y hay ancho
-  const consumoInput = document.getElementById('f-consumo');
-  if(!consumoInput.value && ancho) consumoInput.value = calcConsumo(ancho);
-  if(consumo > 0) document.getElementById('f-precio-rem').value = Math.round(pm * consumo);
+  const consumoManual = parseFloat(document.getElementById('f-consumo').value);
+  const consumo = consumoManual || calcConsumo(ancho);
+  const rem = Math.round(pm * consumo);
+  document.getElementById('f-precio-rem').value = rem;
+  // Hint dinámico
+  const hint = document.getElementById('f-rem-hint');
+  if(hint) hint.textContent = `= ${gs(pm)}/m × ${consumo}m = ${gs(rem)}`;
 }
 function calcRemFromMetro() {
-  const pm = parseFloat(document.getElementById('f-precio-metro').value);
+  const pm    = parseFloat(document.getElementById('f-precio-metro').value);
   const ancho = parseFloat(document.getElementById('f-ancho').value);
   recalcFormRem(pm, ancho);
 }
