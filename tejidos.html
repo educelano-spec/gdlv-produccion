@@ -417,15 +417,100 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
 
 
 /* ── FOTO EN CARD ── */
+.card-foto-gallery {
+  position: relative; width: 100%; height: 140px;
+  border-radius: 8px; margin-bottom: 10px;
+  overflow: hidden; background: var(--bg2);
+  border: 1px solid var(--border);
+}
+.card-foto-gallery img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: none; border-radius: 8px;
+}
+.card-foto-gallery img.active { display: block; }
+.gallery-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(0,0,0,.45); color: #fff; border: none;
+  border-radius: 50%; width: 26px; height: 26px;
+  font-size: 14px; line-height: 26px; text-align: center;
+  cursor: pointer; padding: 0; opacity: 0; transition: opacity .15s;
+}
+.card-foto-gallery:hover .gallery-nav { opacity: 1; }
+.gallery-nav.prev { left: 5px; }
+.gallery-nav.next { right: 5px; }
+.gallery-dots {
+  position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 4px;
+}
+.gallery-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,.5); transition: background .15s;
+}
+.gallery-dot.active { background: #fff; }
 .card-foto {
   width: 100%; height: 140px;
-  object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg2);
-  display: block;
+  object-fit: cover; border-radius: 8px;
+  margin-bottom: 10px; border: 1px solid var(--border);
+  background: var(--bg2); display: block;
 }
+.fotos-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(90px,1fr));
+  gap: 8px; margin-top: 8px;
+}
+.foto-thumb-wrap {
+  position: relative; height: 80px; border-radius: 6px;
+  overflow: hidden; border: 1px solid var(--border);
+  background: var(--bg2);
+}
+.foto-thumb-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.foto-thumb-del {
+  position: absolute; top: 3px; right: 3px;
+  background: rgba(0,0,0,.55); color: #fff;
+  border: none; border-radius: 50%; width: 20px; height: 20px;
+  font-size: 11px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; padding: 0;
+}
+.foto-thumb-del:hover { background: var(--danger); }
+.btn-add-foto {
+  height: 80px; border-radius: 6px;
+  border: 2px dashed var(--border2);
+  background: var(--surface2); cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px; font-size: 20px; color: var(--muted);
+  transition: all .18s;
+}
+.btn-add-foto:hover { border-color: var(--accent3); color: var(--accent3); }
+.btn-add-foto span { font-size: 11px; }
+.detail-foto-gallery {
+  width: 100%; height: 100%; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.detail-foto-gallery img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: none;
+}
+.detail-foto-gallery img.active { display: block; }
+.detail-gallery-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(0,0,0,.45); color: #fff; border: none;
+  border-radius: 50%; width: 32px; height: 32px;
+  font-size: 16px; line-height: 32px; text-align: center;
+  cursor: pointer; padding: 0; z-index: 2;
+}
+.detail-gallery-nav.prev { left: 8px; }
+.detail-gallery-nav.next { right: 8px; }
+.detail-gallery-dots {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px; z-index: 2;
+}
+.detail-gallery-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.5); cursor: pointer; transition: background .15s;
+}
+.detail-gallery-dot.active { background: #fff; }
 .card-foto-placeholder {
   width: 100%; height: 100px;
   border-radius: 8px;
@@ -720,13 +805,10 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
         <label class="form-label">Notas / Observaciones</label>
         <textarea class="form-input" id="f-notas" rows="2" placeholder="Ej: ideal para ropa deportiva..." style="resize:vertical"></textarea>
       </div>
-      <div class="form-group full foto-upload-wrap">
-        <label class="form-label">Foto del tejido (opcional)</label>
-        <img id="f-foto-preview" class="foto-preview">
-        <button type="button" class="btn-upload" id="f-upload-btn" onclick="document.getElementById('f-foto-file').click()">
-          📷 Subir foto
-        </button>
-        <input type="file" id="f-foto-file" accept="image/*" onchange="uploadFoto(this,'f')">
+      <div class="form-group full">
+        <label class="form-label">Fotos del tejido (hasta 5)</label>
+        <div class="fotos-grid" id="f-fotos-grid"></div>
+        <input type="file" id="f-foto-file" accept="image/*" multiple style="display:none" onchange="uploadFotos(this,'f')">
       </div>
     <div style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
       <button class="btn-primary" id="btn-guardar" onclick="guardarTejido()">GUARDAR TEJIDO</button>
@@ -992,14 +1074,10 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
         <label class="form-label">Notas / Observaciones</label>
         <textarea class="form-input" id="m-notas" rows="2" placeholder="Ej: ideal para ropa deportiva, textura suave..." style="resize:vertical"></textarea>
       </div>
-      <div class="form-group full foto-upload-wrap">
-        <label class="form-label">Foto del tejido</label>
-        <img id="m-foto-preview" class="foto-preview">
-        <div id="m-foto-actual" style="font-size:11px;color:var(--muted);margin-top:4px;display:none"></div>
-        <button type="button" class="btn-upload" id="m-upload-btn" onclick="document.getElementById('m-foto-file').click()">
-          📷 Subir foto
-        </button>
-        <input type="file" id="m-foto-file" accept="image/*" onchange="uploadFoto(this,'m')">
+      <div class="form-group full">
+        <label class="form-label">Fotos del tejido (hasta 5)</label>
+        <div class="fotos-grid" id="m-fotos-grid"></div>
+        <input type="file" id="m-foto-file" accept="image/*" multiple style="display:none" onchange="uploadFotos(this,'m')">
       </div>
     <div class="modal-actions">
       <button class="btn-outline" onclick="closeModal()">Cancelar</button>
@@ -1012,7 +1090,13 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
 <div class="modal-overlay" id="modal-detail">
   <div class="modal-detail">
     <div class="detail-foto-col" id="detail-foto-col">
-      <div class="detail-foto-placeholder">🧵</div>
+      <div class="detail-foto-placeholder" id="detail-foto-ph">🧵</div>
+      <div class="detail-foto-gallery" id="detail-foto-gallery" style="display:none">
+        <button class="detail-gallery-nav prev" id="detail-nav-prev" onclick="detailGalNav(-1)">&#8249;</button>
+        <div id="detail-fotos-imgs"></div>
+        <button class="detail-gallery-nav next" id="detail-nav-next" onclick="detailGalNav(1)">&#8250;</button>
+        <div class="detail-gallery-dots" id="detail-gallery-dots"></div>
+      </div>
     </div>
     <div class="detail-info-col">
       <div class="detail-prov" id="detail-prov"></div>
@@ -1075,59 +1159,108 @@ let simPiezas = [
 //  UTILS
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
-//  FOTO: COMPRESIÓN A BASE64 Y GUARDADO EN RTDB
+//  FOTOS MÚLTIPLES — COMPRESIÓN A BASE64
 // ═══════════════════════════════════════════════════════
-function uploadFoto(input, prefix) {
-  const file = input.files[0];
-  if(!file) return;
-  const btn = document.getElementById(prefix+'-upload-btn');
-  const prev = document.getElementById(prefix+'-foto-preview');
-  btn.textContent = '⏳ Procesando...';
-  btn.classList.add('uploading');
-  btn.disabled = true;
+window._newFotos  = [];
+window._editFotos = [];
 
-  const img = new Image();
-  const reader = new FileReader();
+function comprimirImagen(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 900;
+        let w = img.width, h = img.height;
+        if(w > h) { if(w > MAX){ h = Math.round(h*MAX/w); w = MAX; } }
+        else       { if(h > MAX){ w = Math.round(w*MAX/h); h = MAX; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
-  reader.onload = function(e) {
-    img.src = e.target.result;
-  };
+async function uploadFotos(input, prefix) {
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  const arr = prefix==='m' ? window._editFotos : window._newFotos;
+  const MAX_FOTOS = 5;
+  const disponibles = MAX_FOTOS - arr.length;
+  if(disponibles <= 0) { showToast('Máximo 5 fotos por tejido','error'); return; }
+  const toProcess = files.slice(0, disponibles);
+  if(files.length > disponibles) showToast(`Solo se agregaron ${disponibles} foto(s) — máximo 5`,'');
 
-  img.onload = function() {
-    // Comprimir a max 400x400px, calidad 0.65
-    const MAX = 900; // px máx — alta resolución para ver textura de telas
-    let w = img.width, h = img.height;
-    if(w > h) { if(w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
-    else       { if(h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+  showToast(`⏳ Procesando ${toProcess.length} foto(s)...`);
+  let ok = 0;
+  for(const file of toProcess) {
+    try {
+      const b64 = await comprimirImagen(file);
+      arr.push(b64);
+      ok++;
+    } catch(e) { showToast('Error al procesar una imagen','error'); }
+  }
+  input.value = '';
+  renderFotosGrid(prefix, arr);
+  if(ok) showToast(`✓ ${ok} foto(s) agregada(s)`);
+}
 
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, w, h);
-    const base64 = canvas.toDataURL('image/jpeg', 0.88); // 88% calidad — textura bien visible
+function renderFotosGrid(prefix, fotos) {
+  const grid = document.getElementById(prefix+'-fotos-grid');
+  if(!grid) return;
+  const MAX = 5;
+  let html = fotos.map((f,i) => `
+    <div class="foto-thumb-wrap">
+      <img src="${f}" loading="lazy">
+      <button class="foto-thumb-del" onclick="deleteFoto('${prefix}',${i})" title="Eliminar">✕</button>
+    </div>`).join('');
+  if(fotos.length < MAX) {
+    html += `<button class="btn-add-foto" onclick="document.getElementById('${prefix}-foto-file').click()">
+      📷<span>${fotos.length===0?'Agregar foto':'+ Foto'}</span>
+    </button>`;
+  }
+  grid.innerHTML = html;
+}
 
-    // Mostrar preview
-    prev.src = base64;
-    prev.style.display = 'block';
-    btn.textContent = '✓ Foto lista — click para cambiar';
-    btn.classList.remove('uploading');
-    btn.disabled = false;
+function deleteFoto(prefix, idx) {
+  const arr = prefix==='m' ? window._editFotos : window._newFotos;
+  arr.splice(idx, 1);
+  renderFotosGrid(prefix, arr);
+}
 
-    if(prefix === 'm') window._editFotoUrl = base64;
-    else window._newFotoUrl = base64;
+// Navegación galería en cards
+function galNav(galId, dir) {
+  const gal = document.getElementById(galId);
+  if(!gal) return;
+  const imgs = gal.querySelectorAll('img');
+  const dots = gal.querySelectorAll('.gallery-dot');
+  let cur = 0;
+  imgs.forEach((img,i) => { if(img.classList.contains('active')) cur=i; });
+  imgs[cur].classList.remove('active');
+  if(dots[cur]) dots[cur].classList.remove('active');
+  cur = (cur + dir + imgs.length) % imgs.length;
+  imgs[cur].classList.add('active');
+  if(dots[cur]) dots[cur].classList.add('active');
+}
 
-    const kb = Math.round(base64.length * 0.75 / 1024);
-    showToast('✓ Foto lista (' + kb + ' KB)');
-  };
-
-  img.onerror = function() {
-    btn.textContent = '⚠ Error — click para reintentar';
-    btn.classList.remove('uploading');
-    btn.disabled = false;
-    showToast('Error al procesar la imagen', 'error');
-  };
-
-  reader.readAsDataURL(file);
+// Navegación galería en modal detalle
+function detailGalNav(dir, forcIdx) {
+  const fotos = window._detailFotos || [];
+  if(!fotos.length) return;
+  const imgs = document.querySelectorAll('#detail-fotos-imgs img');
+  const dots = document.querySelectorAll('#detail-gallery-dots .detail-gallery-dot');
+  if(imgs[window._detailFotoIdx]) imgs[window._detailFotoIdx].style.display='none';
+  if(dots[window._detailFotoIdx]) dots[window._detailFotoIdx].classList.remove('active');
+  if(forcIdx !== undefined) window._detailFotoIdx = forcIdx;
+  else window._detailFotoIdx = (window._detailFotoIdx + dir + fotos.length) % fotos.length;
+  if(imgs[window._detailFotoIdx]) imgs[window._detailFotoIdx].style.display='block';
+  if(dots[window._detailFotoIdx]) dots[window._detailFotoIdx].classList.add('active');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1223,6 +1356,7 @@ function init() {
   populateProvDatalist();
   renderConsumos();
   initSimulator();
+  renderFotosGrid('f', []);
   // fbListen() se llama desde el bloque Firebase al final del body
 }
 
@@ -1287,7 +1421,10 @@ function cardHTML(t, maxPm) {
       <button class="card-action-btn" onclick="event.stopPropagation();openEdit(${idx})" title="Editar">✏</button>
       <button class="card-action-btn delete" onclick="event.stopPropagation();deleteTejido(${idx})" title="Eliminar">🗑</button>
     </div>
-    ${t.foto ? `<img class="card-foto" src="${t.foto}" alt="${t.tipo}" loading="lazy" onerror="this.style.display='none'">` : ''}
+    ${(t.fotos&&t.fotos.length)||(t.foto) ? `<div class="card-foto-gallery" id="gal-${idx}" onclick="event.stopPropagation()">
+      ${(t.fotos&&t.fotos.length ? t.fotos : [t.foto]).map((f,i)=>`<img src="${f}" loading="lazy" class="${i===0?'active':''}" onerror="this.style.display='none'">`).join('')}
+      ${(t.fotos&&t.fotos.length>1)||(t.foto&&t.fotos&&t.fotos.length>1) ? `<button class="gallery-nav prev" onclick="galNav('gal-${idx}',-1)">&#8249;</button><button class="gallery-nav next" onclick="galNav('gal-${idx}',1)">&#8250;</button><div class="gallery-dots">${(t.fotos&&t.fotos.length?t.fotos:[t.foto]).map((_,i)=>`<div class="gallery-dot ${i===0?'active':''}"></div>`).join('')}</div>` : ''}
+    </div>` : ''}
     <div class="card-proveedor">${t.proveedor}</div>
     <div class="card-tipo">${t.tipo}</div>
     <div class="card-codigo">${t.codigo||'Sin código'}</div>
@@ -1337,15 +1474,9 @@ function openEdit(idx) {
   document.getElementById('m-consumo').value = t.consumo_rem||'';
   document.getElementById('m-colores').value = t.colores||'';
   document.getElementById('m-notas').value = t.notas||'';
-  const prevEl = document.getElementById('m-foto-preview');
-  const actEl  = document.getElementById('m-foto-actual');
-  if(t.foto) {
-    prevEl.src = t.foto; prevEl.style.display='block';
-    actEl.textContent = '✓ Ya tiene foto'; actEl.style.display='block';
-  } else {
-    prevEl.style.display='none'; actEl.style.display='none';
-  }
-  window._editFotoUrl = t.foto||null;
+  window._editFotos = Array.isArray(t.fotos) ? [...t.fotos] : (t.foto ? [t.foto] : []);
+  renderFotosGrid('m', window._editFotos);
+  renderFotosGrid('m', window._editFotos);
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeModal() { document.getElementById('modal-edit').classList.remove('open'); }
@@ -1386,7 +1517,7 @@ function saveEdit() {
     consumo_rem: parseFloat(document.getElementById('m-consumo').value)||null,
     colores: document.getElementById('m-colores').value.trim()||null,
     notas: document.getElementById('m-notas').value.trim()||null,
-    foto: window._editFotoUrl||null,
+    fotos: window._editFotos||[],
     historial_precios: (() => {
       const prev = tejidos[idx];
       const pm = parseFloat(document.getElementById('m-precio-metro').value)||null;
@@ -1473,15 +1604,14 @@ function guardarTejido() {
     consumo_rem: parseFloat(document.getElementById('f-consumo').value)||null,
     colores: document.getElementById('f-colores').value.trim()||null,
     notas: document.getElementById('f-notas').value.trim()||null,
-    foto: window._newFotoUrl||null,
+    fotos: window._newFotos||[],
   });
   fbSaveTejido(tejidos.length - 1);
   db.ref(FB_CONSUMOS).set(consumos).catch(e=>{});
   renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
   ['f-proveedor','f-tipo','f-codigo','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem','f-colores','f-consumo'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-foto-preview').style.display='none';
-  document.getElementById('f-upload-btn').textContent='📷 Subir foto';
-  window._newFotoUrl = null;
+  window._newFotos = [];
+  renderFotosGrid('f', []);
   showToast('✓ Tejido guardado correctamente');
 }
 
@@ -1832,12 +1962,24 @@ function openDetail(idx) {
   const t = tejidos[idx];
   if(!t) return;
 
-  // Foto
-  const fotoCol = document.getElementById('detail-foto-col');
-  if(t.foto) {
-    fotoCol.innerHTML = `<img src="${t.foto}" alt="${t.tipo}" style="width:100%;height:100%;object-fit:cover">`;
+  // Fotos — galería
+  const fotos = Array.isArray(t.fotos) && t.fotos.length ? t.fotos : (t.foto ? [t.foto] : []);
+  const ph = document.getElementById('detail-foto-ph');
+  const gal = document.getElementById('detail-foto-gallery');
+  const imgs = document.getElementById('detail-fotos-imgs');
+  const dots = document.getElementById('detail-gallery-dots');
+  const prev = document.getElementById('detail-nav-prev');
+  const next = document.getElementById('detail-nav-next');
+  if(fotos.length) {
+    ph.style.display='none'; gal.style.display='flex';
+    imgs.innerHTML = fotos.map((f,i)=>`<img src="${f}" style="width:100%;height:100%;object-fit:cover;display:${i===0?'block':'none'}" class="${i===0?'active':''}">`).join('');
+    dots.innerHTML = fotos.length>1 ? fotos.map((_,i)=>`<div class="detail-gallery-dot ${i===0?'active':''}" onclick="detailGalNav(0,${i})"></div>`).join('') : '';
+    prev.style.display = fotos.length>1?'block':'none';
+    next.style.display = fotos.length>1?'block':'none';
+    window._detailFotos = fotos; window._detailFotoIdx = 0;
   } else {
-    fotoCol.innerHTML = '<div class="detail-foto-placeholder">🧵</div>';
+    ph.style.display='flex'; gal.style.display='none';
+    window._detailFotos = []; window._detailFotoIdx = 0;
   }
 
   // Info básica
