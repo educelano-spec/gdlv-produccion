@@ -283,6 +283,45 @@ tbody tr:hover td{background:#fafaf8;}
 }
 
 /* ─── PESO TABLE ─── */
+
+/* ─── PESOS DETALLE MODAL ─── */
+#pesos-modal{position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px;}
+#pesos-modal.open{display:flex;}
+.pesos-modal-box{background:var(--white);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.2);width:100%;max-width:980px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.pesos-modal-hdr{padding:18px 26px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--panel2);flex-shrink:0;}
+.pesos-modal-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;flex:1;}
+.pesos-modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 8px;}
+.pesos-modal-close:hover{color:var(--ink);}
+.pesos-modal-body{padding:22px 26px;overflow-y:auto;flex:1;}
+.pesos-area-block{margin-bottom:20px;}
+.pesos-area-hdr{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border);}
+.pesos-area-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.pesos-area-stats{font-size:11.5px;color:var(--muted);font-family:'Fira Code',monospace;}
+.pesos-area-peso{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-left:auto;}
+.pesos-reg-table{width:100%;border-collapse:collapse;font-size:12px;}
+.pesos-reg-table th{background:var(--panel2);padding:6px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border);}
+.pesos-reg-table td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text2);}
+.pesos-reg-table tr:last-child td{border-bottom:none;}
+.pesos-reg-table tr:hover td{background:#fafaf8;}
+.pesos-reg-suspicious{background:#fffbeb!important;}
+.pesos-reg-suspicious td{color:#92400e!important;}
+/* Botones edit/del en fila de pesos */
+.pesos-row-actions{display:flex;gap:4px;justify-content:center;}
+.btn-pesos-del{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:13px;padding:3px 6px;border-radius:4px;transition:all .12s;}
+.btn-pesos-del:hover{color:var(--red);background:var(--red-bg);}
+.btn-pesos-edit{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:13px;padding:3px 6px;border-radius:4px;transition:all .12s;}
+.btn-pesos-edit:hover{color:var(--blue);background:#eff6ff;}
+/* Edit inline row */
+.pesos-edit-row td{background:#f0f7ff!important;padding:6px 8px!important;}
+.pesos-edit-row input,.pesos-edit-row select{font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:4px;background:var(--white);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;width:100%;}
+.pesos-edit-row input:focus,.pesos-edit-row select:focus{border-color:var(--accent);outline:none;}
+.btn-save-edit{background:var(--green);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;}
+.btn-cancel-edit{background:var(--border2);color:var(--text);border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;}
+/* Clickable prenda row */
+.pesos-tipo-cell{cursor:pointer;display:flex;align-items:center;gap:6px;}
+.pesos-tipo-cell:hover .pesos-tipo-name{color:var(--accent);text-decoration:underline;}
+.pesos-detail-icon{font-size:11px;color:var(--muted2);}
+
 .peso-good{color:var(--green);font-weight:700;}
 .peso-warn{color:var(--amber);font-weight:700;}
 .peso-bad{color:var(--red);font-weight:700;}
@@ -479,6 +518,45 @@ tbody tr:hover td{background:#fafaf8;}
 .role-badge.admin .rb-dot{background:var(--accent);}
 .role-badge.emp .rb-dot{background:var(--blue);}
 
+
+/* ─── DASHBOARD ADMIN ─── */
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;}
+.kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--accent));}
+.kpi-val{font-family:'Playfair Display',serif;font-weight:700;font-size:32px;line-height:1;color:var(--kpi-color,var(--text));letter-spacing:-.02em;}
+.kpi-lbl{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:6px;}
+.kpi-sub{font-size:11px;color:var(--muted2);margin-top:4px;font-family:'Fira Code',monospace;}
+.dash-section{margin-bottom:24px;}
+.dash-section-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--ink);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);}
+.rank-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s;}
+.rank-row:last-child{border-bottom:none;}
+.rank-row:hover{background:var(--panel2);}
+.rank-num{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--muted2);min-width:28px;}
+.rank-num.gold{color:#b8922a;}
+.rank-num.silver{color:#8a8a9a;}
+.rank-num.bronze{color:#9a6a3a;}
+.rank-name{font-weight:700;font-size:14px;flex:1;}
+.rank-bar-wrap{flex:2;background:var(--border);border-radius:20px;height:8px;overflow:hidden;}
+.rank-bar{height:100%;border-radius:20px;background:var(--accent);transition:width .4s ease;}
+.rank-val{font-family:'Fira Code',monospace;font-size:12px;font-weight:600;min-width:70px;text-align:right;color:var(--text2);}
+.rank-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--green-bg);color:var(--green);}
+.area-bars{display:grid;gap:8px;}
+.area-bar-row{display:grid;grid-template-columns:100px 1fr 80px;align-items:center;gap:10px;}
+.area-bar-lbl{font-size:11.5px;font-weight:700;color:var(--text2);}
+.area-bar-track{background:var(--border);border-radius:20px;height:10px;overflow:hidden;}
+.area-bar-fill{height:100%;border-radius:20px;transition:width .4s ease;}
+.area-bar-val{font-family:'Fira Code',monospace;font-size:11px;text-align:right;color:var(--muted);}
+.semana-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;}
+.semana-day{text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:4px 2px;}
+.semana-cell{border-radius:4px;padding:6px 4px;text-align:center;font-family:'Fira Code',monospace;font-size:11px;font-weight:600;background:var(--border);color:var(--muted2);min-height:36px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;}
+.semana-cell.has-data{background:var(--accent);color:#fff;}
+.semana-cell.hoy{box-shadow:0 0 0 2px var(--accent),0 0 0 4px #fff;}
+.alert-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:6px;margin-bottom:8px;font-size:12.5px;}
+.alert-warn{background:var(--amber-bg);border-left:3px solid var(--amber);color:#7a5a00;}
+.alert-err{background:var(--red-bg);border-left:3px solid var(--red);color:#8b1a1a;}
+.alert-ok{background:var(--green-bg);border-left:3px solid var(--green);color:#0a4a2a;}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+
 /* ─── ADMIN-ONLY / EMP-ONLY ─── */
 .admin-only{display:none;}
 body.role-admin .admin-only{display:unset;}
@@ -578,6 +656,7 @@ body.role-emp .emp-hidden{display:none!important;}
 
 <!-- ══════ TABS ══════ -->
 <nav class="tabs-bar">
+  <button class="tab-btn admin-only" onclick="tab('dashboard',this)"><span class="dot" style="background:var(--accent)"></span>DASHBOARD</button>
   <button class="tab-btn admin-only" onclick="tab('resumen',this)"><span class="dot"></span>RESUMEN</button>
   <button class="tab-btn on"         onclick="tab('corte',this)"><span class="dot" style="background:var(--area-corte)"></span>CORTE</button>
   <button class="tab-btn"            onclick="tab('impresion',this)"><span class="dot" style="background:var(--area-imp)"></span>IMPRESIÓN</button>
@@ -593,6 +672,66 @@ body.role-emp .emp-hidden{display:none!important;}
 </nav>
 
 <!-- ═══════════════════════════════════════════════ RESUMEN ═══ -->
+
+<!-- ══════════════════════════════════════════ DASHBOARD ADMIN ══════ -->
+<div class="view admin-only" id="v-dashboard">
+  <!-- KPIs -->
+  <div class="dash-grid" id="dash-kpis"></div>
+  <!-- Fila: Ranking empleados + Producción por área -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:22px" id="dash-mid-grid">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-stripe" style="background:var(--accent)"></div>
+        <div class="card-hdr-title">Ranking de Empleados</div>
+        <div class="card-hdr-sub" id="dash-rank-periodo"></div>
+      </div>
+      <div id="dash-ranking"></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-stripe" style="background:var(--blue)"></div>
+        <div class="card-hdr-title">Producción por Área</div>
+        <div class="card-hdr-sub">últimos 30 días</div>
+      </div>
+      <div class="card-body"><div class="area-bars" id="dash-areas"></div></div>
+    </div>
+  </div>
+  <!-- Fila: Heatmap semana + Alertas -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:22px">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-stripe" style="background:#6366f1"></div>
+        <div class="card-hdr-title">Actividad — Últimas 4 Semanas</div>
+      </div>
+      <div class="card-body"><div id="dash-heatmap"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-stripe" style="background:var(--amber)"></div>
+        <div class="card-hdr-title">Alertas & Observaciones</div>
+      </div>
+      <div class="card-body" id="dash-alertas"></div>
+    </div>
+  </div>
+  <!-- Top prendas -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--green)"></div>
+      <div class="card-hdr-title">Top Prendas — Últimos 30 días</div>
+      <div class="card-hdr-sub">por unidades producidas</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>PRENDA</th><th>UNIDADES</th><th>REGISTROS</th>
+          <th>ÁREAS ACTIVAS</th><th>MIN/U PROM (HH)</th><th>EMPLEADOS</th>
+        </tr></thead>
+        <tbody id="tb-dash-prendas"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="view on" id="v-resumen">
   <div class="stats" id="stats-strip"></div>
   <div class="card">
@@ -1025,7 +1164,7 @@ body.role-emp .emp-hidden{display:none!important;}
           <th>PRENDA</th>
           <th>CORTE</th><th>IMPRESIÓN</th><th>SUBLIMACIÓN</th>
           <th>COSTURA</th><th>SERIGRAFÍA</th><th>TRANSFER</th><th>EMPAQUE</th>
-          <th>REGISTROS</th><th>UNIDADES</th>
+          <th>REGISTROS</th><th>UNIDADES</th><th></th>
         </tr></thead>
         <tbody id="tb-pesos"></tbody>
       </table>
@@ -1321,6 +1460,18 @@ body.role-emp .emp-hidden{display:none!important;}
   <option>Film DTF</option><option>UV</option>
 </datalist>
 
+
+<!-- ══════════ MODAL DETALLE PESOS ══════════ -->
+<div id="pesos-modal">
+  <div class="pesos-modal-box">
+    <div class="pesos-modal-hdr">
+      <div class="pesos-modal-title" id="pesos-modal-title">Detalle de prenda</div>
+      <button class="pesos-modal-close" onclick="closePesosModal()">×</button>
+    </div>
+    <div class="pesos-modal-body" id="pesos-modal-body"></div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <!-- ══════════════════════════════════════════ SCRIPT ══════════════════════════════════════════ -->
@@ -1329,6 +1480,18 @@ body.role-emp .emp-hidden{display:none!important;}
 'use strict';
 
 // ── CONSTANTES ───────────────────────────────────────────────────────
+
+// ── NORMALIZACIÓN DE TIPOS DE PRENDA ────────────────────────────────
+function normTipo(t){
+  if(!t) return '';
+  let s = t.trim().replace(/\s+/g,' ').replace(/[,;.]+$/,'').trim();
+  s = s.replace(/\b\w/g, c => c.toUpperCase());
+  return s;
+}
+function normalizarTodosLosTipos(){
+  data = data.map(r => ({...r, tipo: normTipo(r.tipo)}));
+}
+
 const AREAS = ['corte','impresion','sublimacion','costura','serigrafia','transfer','empaque'];
 const LABELS = {corte:'CORTE',impresion:'IMPRESIÓN',sublimacion:'SUBLIMACIÓN',costura:'COSTURA',serigrafia:'SERIGRAFÍA',transfer:'TRANSFER',empaque:'EMPAQUE'};
 const COLORS = {corte:'#6d4fc2',impresion:'#0e7fa8',sublimacion:'#c4550a',costura:'#1a7a3c',serigrafia:'#9c1e6a',transfer:'#0e7a6a',empaque:'#8a6b0e'};
@@ -1394,6 +1557,7 @@ function initFirebase(){
       const remote = snap.val();
       if(remote){
         data = Object.values(remote);
+        normalizarTodosLosTipos();
         lsSave('gdlv_data', data);
         renderAll();
       }
@@ -1535,6 +1699,7 @@ function tab(id, btn){
   el('v-'+id)?.classList.add('on');
   btn?.classList.add('on');
   const renders = {
+    dashboard:   renderDashboard,
     resumen:     renderResumen,
     pesos:       renderPesos,
     marcaciones: renderMarcaciones,
@@ -1606,7 +1771,7 @@ function add(area){
   const get  = s => v(P+'-'+s);
   const getN = s => n(P+'-'+s);
 
-  const fecha=get('fecha'), tipo=get('tipo'), cant=getN('cant');
+  const fecha=get('fecha'), tipo=normTipo(get('tipo')), cant=getN('cant');
   if(!fecha){toast('Falta la fecha','err');return;}
   if(!tipo){toast('Falta el tipo de prenda','err');return;}
   if(cant<=0){toast('Ingresá una cantidad válida','err');return;}
@@ -1697,7 +1862,7 @@ function fNum(x,d=2){ return (x!==null&&x!==undefined&&!isNaN(x))?Number(x).toFi
 function renderTabla(area){
   const tb=el('tb-'+area);
   if(!tb) return;
-  const rows=data.filter(r=>r.area===area).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const rows=data.filter(r=>r.area===area).sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(r=>({...r,tipo:normTipo(r.tipo)}));
   const cnt=el('cnt-'+area);
   if(cnt) cnt.textContent=`${rows.length} reg · ${rows.reduce((s,r)=>s+r.cant,0)} ud`;
   if(!rows.length){tb.innerHTML=`<tr><td class="no-data" colspan="20">Sin registros aún</td></tr>`;return;}
@@ -1722,6 +1887,224 @@ function renderTabla(area){
   }).join('');
 }
 
+
+// ── DASHBOARD ADMIN ─────────────────────────────────────────────────
+function renderDashboard(){
+  const hoyStr = hoy();
+  const hace30 = new Date(); hace30.setDate(hace30.getDate()-30);
+  const hace30Str = hace30.toISOString().slice(0,10);
+  const semActual = semanaActual();
+
+  const d30 = data.filter(r => r.fecha >= hace30Str);
+  const dHoy = data.filter(r => r.fecha === hoyStr);
+  const dSem = data.filter(r => r.fecha >= semActual);
+
+  // ── KPIs ──────────────────────────────────────────────
+  const udHoy   = dHoy.reduce((s,r)=>s+r.cant,0);
+  const udSem   = dSem.reduce((s,r)=>s+r.cant,0);
+  const ud30    = d30.reduce((s,r)=>s+r.cant,0);
+  const udTotal = data.reduce((s,r)=>s+r.cant,0);
+
+  // Días únicos con producción en los últimos 30
+  const dias30 = new Set(d30.map(r=>r.fecha)).size;
+  const udDiaProm = dias30 > 0 ? (ud30/dias30).toFixed(0) : 0;
+
+  // Empleados activos (últimos 30 días)
+  const empsActivos = new Set(
+    d30.flatMap(r => (r.equipo||'').split(/[+,]/).map(s=>s.trim()).filter(Boolean))
+  ).size;
+
+  // Tipo de prenda más producido (últimos 30)
+  const tipoCount = {};
+  d30.forEach(r=>{ const t=normTipo(r.tipo); tipoCount[t]=(tipoCount[t]||0)+r.cant; });
+  const topTipo = Object.entries(tipoCount).sort((a,b)=>b[1]-a[1])[0];
+
+  // Área más activa
+  const areaCount = {};
+  d30.forEach(r=>{ areaCount[r.area]=(areaCount[r.area]||0)+r.cant; });
+  const topArea = Object.entries(areaCount).sort((a,b)=>b[1]-a[1])[0];
+
+  el('dash-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:var(--accent)">
+      <div class="kpi-val">${udHoy.toLocaleString()}</div>
+      <div class="kpi-lbl">Unidades Hoy</div>
+      <div class="kpi-sub">${dHoy.length} registros</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--green)">
+      <div class="kpi-val">${udSem.toLocaleString()}</div>
+      <div class="kpi-lbl">Unidades Esta Semana</div>
+      <div class="kpi-sub">${new Set(dSem.map(r=>r.fecha)).size} días activos</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--blue)">
+      <div class="kpi-val">${ud30.toLocaleString()}</div>
+      <div class="kpi-lbl">Unidades 30 Días</div>
+      <div class="kpi-sub">~${udDiaProm} ud/día promedio</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#6366f1">
+      <div class="kpi-val">${udTotal.toLocaleString()}</div>
+      <div class="kpi-lbl">Total Histórico</div>
+      <div class="kpi-sub">${data.length} registros</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--amber)">
+      <div class="kpi-val">${empsActivos}</div>
+      <div class="kpi-lbl">Empleados Activos</div>
+      <div class="kpi-sub">últimos 30 días</div>
+    </div>
+    <div class="kpi" style="--kpi-color:var(--green)">
+      <div class="kpi-val" style="font-size:18px">${topTipo?topTipo[0]:'—'}</div>
+      <div class="kpi-lbl">Prenda Top 30d</div>
+      <div class="kpi-sub">${topTipo?topTipo[1].toLocaleString()+' ud':''}</div>
+    </div>
+  `;
+
+  // ── RANKING EMPLEADOS (últimos 30 días) ────────────────
+  const empMap = {};
+  d30.forEach(r=>{
+    const nombres = (r.equipo||'').split(/[+,]/).map(s=>s.trim()).filter(Boolean);
+    if(!nombres.length) return;
+    nombres.forEach(nombre=>{
+      if(!empMap[nombre]) empMap[nombre]={ud:0,min:0,dias:new Set(),areas:new Set()};
+      empMap[nombre].ud += r.cant/nombres.length;
+      empMap[nombre].min += (r.minTot||0)/nombres.length;
+      empMap[nombre].dias.add(r.fecha);
+      empMap[nombre].areas.add(r.area);
+    });
+  });
+  const ranking = Object.entries(empMap).sort((a,b)=>b[1].ud-a[1].ud);
+  const maxUd = ranking[0]?.[1].ud || 1;
+  const medalColors = ['gold','silver','bronze'];
+  el('dash-ranking').innerHTML = ranking.length ? ranking.map(([nombre,d],i)=>{
+    const udDiaE = d.dias.size > 0 ? (d.ud/d.dias.size).toFixed(0) : 0;
+    const pct = Math.round(d.ud/maxUd*100);
+    return `<div class="rank-row">
+      <div class="rank-num ${medalColors[i]||''}">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px">${nombre}</div>
+        <div style="font-size:10.5px;color:var(--muted)">${d.dias.size} días · ${[...d.areas].map(a=>LABELS[a]||a).join(', ')}</div>
+      </div>
+      <div style="flex:2;display:flex;flex-direction:column;gap:3px">
+        <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pct}%"></div></div>
+        <div style="font-size:10px;color:var(--muted);font-family:'Fira Code',monospace">${udDiaE} ud/día</div>
+      </div>
+      <div class="rank-val">${Math.round(d.ud).toLocaleString()} ud</div>
+    </div>`;
+  }).join('') : '<div style="padding:20px;text-align:center;color:var(--muted2);font-size:13px">Sin datos en los últimos 30 días</div>';
+
+  el('dash-rank-periodo').textContent = `${ranking.length} empleados`;
+
+  // ── PRODUCCIÓN POR ÁREA ───────────────────────────────
+  const areaUd = {};
+  d30.forEach(r=>{ areaUd[r.area]=(areaUd[r.area]||0)+r.cant; });
+  const maxArea = Math.max(...Object.values(areaUd), 1);
+  const AREA_COLORS_LIST = [
+    ['corte','#6d4fc2'],['impresion','#0e7fa8'],['sublimacion','#c4550a'],
+    ['costura','#1a7a3c'],['serigrafia','#9c1e6a'],['transfer','#0e7a6a'],['empaque','#8a6b0e']
+  ];
+  el('dash-areas').innerHTML = AREA_COLORS_LIST.filter(([a])=>areaUd[a]).map(([area,color])=>{
+    const ud = areaUd[area]||0;
+    const pct = Math.round(ud/maxArea*100);
+    return `<div class="area-bar-row">
+      <div class="area-bar-lbl">${LABELS[area]}</div>
+      <div class="area-bar-track"><div class="area-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="area-bar-val">${ud.toLocaleString()} ud</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted2);font-size:12px">Sin datos</div>';
+
+  // ── HEATMAP 4 SEMANAS ─────────────────────────────────
+  const diasLabels = ['L','M','M','J','V','S','D'];
+  const heatData = {};
+  data.forEach(r=>{ heatData[r.fecha]=(heatData[r.fecha]||0)+r.cant; });
+  const maxHeat = Math.max(...Object.values(heatData), 1);
+
+  // Build 28 days back from today
+  const days = [];
+  for(let i=27; i>=0; i--){
+    const d2 = new Date(); d2.setDate(d2.getDate()-i);
+    days.push(d2.toISOString().slice(0,10));
+  }
+  // Pad to start on Monday
+  const firstDay = new Date(days[0]);
+  const pad = (firstDay.getDay()+6)%7; // 0=Mon
+  const paddedDays = Array(pad).fill(null).concat(days);
+
+  let heatHtml = '<div class="semana-grid">';
+  diasLabels.forEach(d2=>{ heatHtml+=`<div class="semana-day">${d2}</div>`; });
+  paddedDays.forEach(fecha=>{
+    if(!fecha){ heatHtml+=`<div class="semana-cell"></div>`; return; }
+    const ud = heatData[fecha]||0;
+    const isHoy = fecha===hoyStr;
+    const opacity = ud>0 ? Math.max(0.25, ud/maxHeat) : 0;
+    const style = ud>0 ? `background:rgba(192,57,43,${opacity.toFixed(2)});color:${opacity>0.5?'#fff':'var(--accent)'}` : '';
+    heatHtml+=`<div class="semana-cell ${ud>0?'has-data':''} ${isHoy?'hoy':''}" style="${style}" title="${fecha}: ${ud.toLocaleString()} ud">
+      <span>${fecha.slice(8)}</span>
+      ${ud>0?`<span style="font-size:9px">${ud>=1000?(ud/1000).toFixed(1)+'k':ud}</span>`:''}
+    </div>`;
+  });
+  heatHtml += '</div>';
+  el('dash-heatmap').innerHTML = heatHtml;
+
+  // ── ALERTAS ───────────────────────────────────────────
+  const alertas = [];
+
+  // Registros con minuHH sospechosos (>200 o negativos)
+  const raros = data.filter(r=>r.minuHH&&(r.minuHH>200||r.minuHH<0));
+  if(raros.length) alertas.push({tipo:'warn', icon:'⚠️',
+    msg:`${raros.length} registro${raros.length>1?'s':''} con Min/U (HH) sospechoso (>200 o negativo)`});
+
+  // Tipos de prenda duplicados por capitalización
+  const tiposRaw = [...new Set(data.map(r=>r.tipo.trim()))];
+  const tiposNorm = tiposRaw.map(t=>normTipo(t));
+  const dupes = tiposRaw.filter((t,i)=>tiposNorm.indexOf(tiposNorm[i])!==i);
+  if(dupes.length) alertas.push({tipo:'warn', icon:'🔤',
+    msg:`Tipos duplicados por capitalización detectados: ${[...new Set(dupes)].slice(0,4).join(', ')}${dupes.length>4?'...':''} — se unificaron automáticamente`});
+
+  // Registros sin equipo
+  const sinEquipo = data.filter(r=>!r.equipo||r.equipo.trim()==='').length;
+  if(sinEquipo>0) alertas.push({tipo:'warn', icon:'👤',
+    msg:`${sinEquipo} registro${sinEquipo>1?'s':''} sin empleado asignado`});
+
+  // Sin actividad hoy
+  if(dHoy.length===0) alertas.push({tipo:'warn', icon:'📅',
+    msg:`Sin registros de producción para hoy (${hoyStr})`});
+  else alertas.push({tipo:'ok', icon:'✅',
+    msg:`${dHoy.length} registros cargados hoy — ${udHoy.toLocaleString()} unidades`});
+
+  // Empleados sin tarifa
+  const sinTarifa = empleados.filter(e=>!e.tarifa||e.tarifa<=0);
+  if(sinTarifa.length) alertas.push({tipo:'warn', icon:'💰',
+    msg:`Sin tarifa: ${sinTarifa.map(e=>e.nombre).join(', ')}`});
+
+  el('dash-alertas').innerHTML = alertas.map(a=>
+    `<div class="alert-row alert-${a.tipo}"><span class="alert-icon">${a.icon}</span><span>${a.msg}</span></div>`
+  ).join('') || '<div style="color:var(--muted2);font-size:12px;padding:8px">Sin alertas activas</div>';
+
+  // ── TOP PRENDAS ────────────────────────────────────────
+  const prendaMap = {};
+  d30.forEach(r=>{
+    const t = normTipo(r.tipo);
+    if(!prendaMap[t]) prendaMap[t]={ud:0,cnt:0,areas:new Set(),emps:new Set(),minSum:0,minCnt:0};
+    prendaMap[t].ud += r.cant;
+    prendaMap[t].cnt++;
+    prendaMap[t].areas.add(r.area);
+    (r.equipo||'').split(/[+,]/).map(s=>s.trim()).filter(Boolean).forEach(e=>prendaMap[t].emps.add(e));
+    if(r.minuHH&&r.minuHH>0&&r.minuHH<200){ prendaMap[t].minSum+=r.minuHH; prendaMap[t].minCnt++; }
+  });
+  const topPrendas = Object.entries(prendaMap).sort((a,b)=>b[1].ud-a[1].ud).slice(0,10);
+  el('tb-dash-prendas').innerHTML = topPrendas.map(([tipo,d],i)=>{
+    const avgMin = d.minCnt>0 ? (d.minSum/d.minCnt).toFixed(2) : '—';
+    const areasHtml = [...d.areas].map(a=>`<span class="abadge" style="background:${COLORS[a]}18;color:${COLORS[a]}">${LABELS[a]}</span>`).join(' ');
+    return `<tr>
+      <td style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--muted2);text-align:center">${i+1}</td>
+      <td class="td-tipo">${tipo}</td>
+      <td class="td-num" style="color:var(--accent);font-weight:700;font-size:14px">${d.ud.toLocaleString()}</td>
+      <td class="td-num">${d.cnt}</td>
+      <td>${areasHtml}</td>
+      <td class="td-num">${avgMin}</td>
+      <td style="font-size:11px;color:var(--muted)">${[...d.emps].join(', ')||'—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td class="no-data" colspan="7">Sin datos en los últimos 30 días</td></tr>`;
+}
+
 // ── RENDER RESUMEN ───────────────────────────────────────────────────
 function renderResumen(){
   const total=data.length, ud=data.reduce((s,r)=>s+r.cant,0);
@@ -1734,7 +2117,7 @@ function renderResumen(){
     <div class="stat"><div class="stat-n" style="color:var(--green)">${hoyUd.toLocaleString()}</div><div class="stat-l">Unidades Hoy</div></div>
     <div class="stat"><div class="stat-n" style="color:#6366f1">${tipos}</div><div class="stat-l">Tipos de Prenda</div></div>`;
 
-  const rows=[...data].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const rows=[...data].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(r=>({...r,tipo:normTipo(r.tipo)}));
   el('resumen-count').textContent=`${rows.length} registros`;
   el('tb-resumen').innerHTML=rows.map(r=>`<tr>
     <td>${r.fecha}</td>
@@ -1750,20 +2133,25 @@ function renderResumen(){
 }
 
 // ── RENDER PESOS ─────────────────────────────────────────────────────
-function renderPesos(){
+function buildPesosMap(){
   const map={};
   data.forEach(r=>{
     if(!r.minuHH||r.minuHH<=0||r.minuHH>200) return;
-    const t=r.tipo.trim();
+    const t=normTipo(r.tipo);
     if(!map[t]) map[t]={};
     if(!map[t][r.area]) map[t][r.area]={sp:0,ud:0,cnt:0};
     map[t][r.area].sp+=r.minuHH*r.cant;
     map[t][r.area].ud+=r.cant;
     map[t][r.area].cnt++;
   });
+  return map;
+}
+
+function renderPesos(){
+  const map=buildPesosMap();
   const tipos=Object.keys(map).sort();
   const tb=el('tb-pesos');
-  if(!tipos.length){tb.innerHTML=`<tr><td class="no-data" colspan="10">Cargá registros para ver los pesos calculados automáticamente</td></tr>`;return;}
+  if(!tipos.length){tb.innerHTML=`<tr><td class="no-data" colspan="11">Cargá registros para ver los pesos calculados automáticamente</td></tr>`;return;}
   tb.innerHTML=tipos.map(tipo=>{
     let totReg=0, totUd=0;
     const celdas=AREAS.map(area=>{
@@ -1776,9 +2164,144 @@ function renderPesos(){
       const fiab=d.cnt<3?'*':'';
       return `<td class="td-num ${cls}" title="${d.cnt} reg · ${d.ud} ud · ${avgMinU.toFixed(2)} min/u">${peso.toFixed(2)}${fiab}</td>`;
     }).join('');
-    return `<tr><td class="td-tipo">${tipo}</td>${celdas}<td class="td-num" style="color:var(--muted)">${totReg}</td><td class="td-num" style="color:var(--muted)">${totUd}</td></tr>`;
+    const tipoEsc=tipo.replace(/'/g,"\\'");
+    return `<tr>
+      <td class="td-tipo">
+        <div class="pesos-tipo-cell" onclick="openPesosModal('${tipoEsc}')">
+          <span class="pesos-detail-icon">🔍</span>
+          <span class="pesos-tipo-name">${tipo}</span>
+        </div>
+      </td>
+      ${celdas}
+      <td class="td-num" style="color:var(--muted)">${totReg}</td>
+      <td class="td-num" style="color:var(--muted)">${totUd}</td>
+      <td>
+        <div class="pesos-row-actions">
+          <button class="btn-pesos-edit" title="Editar nombre" onclick="startEditPeso('${tipoEsc}',this)">✎</button>
+          <button class="btn-pesos-del"  title="Eliminar todos los registros de esta prenda" onclick="delPeso('${tipoEsc}')">✕</button>
+        </div>
+      </td>
+    </tr>`;
   }).join('');
 }
+
+// ── EDIT NOMBRE PRENDA (inline) ───────────────────────────────────────
+function startEditPeso(tipo, btn){
+  // Find the row
+  const row = btn.closest('tr');
+  const tipoCell = row.querySelector('.pesos-tipo-cell');
+  const currentName = tipo;
+  tipoCell.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="text" id="edit-peso-input" value="${currentName}" style="font-size:13px;padding:4px 8px;border:1.5px solid var(--accent);border-radius:4px;font-family:'Plus Jakarta Sans',sans-serif;width:160px">
+      <button class="btn-save-edit" onclick="saveEditPeso('${currentName.replace(/'/g,"\\'")}')">✓</button>
+      <button class="btn-cancel-edit" onclick="renderPesos()">✕</button>
+    </div>`;
+  const inp = el('edit-peso-input');
+  if(inp){ inp.focus(); inp.select(); }
+}
+
+function saveEditPeso(tipoViejo){
+  const nuevoRaw = el('edit-peso-input')?.value?.trim();
+  if(!nuevoRaw){ toast('Nombre vacío','err'); return; }
+  const nuevo = normTipo(nuevoRaw);
+  if(nuevo === normTipo(tipoViejo)){ renderPesos(); return; }
+  // Rename all records
+  let cnt=0;
+  data = data.map(r=>{
+    if(normTipo(r.tipo)===normTipo(tipoViejo)){ cnt++; return {...r, tipo:nuevo}; }
+    return r;
+  });
+  if(cnt>0){ save(); renderPesos(); toast(`✓ "${tipoViejo}" → "${nuevo}" (${cnt} registros actualizados)`,'ok'); }
+  else { toast('No se encontraron registros','err'); renderPesos(); }
+}
+
+// ── ELIMINAR TODOS LOS REGISTROS DE UNA PRENDA ───────────────────────
+function delPeso(tipo){
+  const cnt = data.filter(r=>normTipo(r.tipo)===normTipo(tipo)).length;
+  if(!confirm(`¿Eliminar los ${cnt} registros de "${tipo}"?\n\nEsta acción no se puede deshacer.`)) return;
+  data = data.filter(r=>normTipo(r.tipo)!==normTipo(tipo));
+  save(); renderAll();
+  toast(`✓ "${tipo}" eliminado (${cnt} registros)`,'ok');
+}
+
+// ── MODAL DETALLE PESOS ───────────────────────────────────────────────
+function openPesosModal(tipo){
+  el('pesos-modal-title').textContent = tipo;
+  const regs = data.filter(r=>normTipo(r.tipo)===normTipo(tipo));
+  const map = buildPesosMap();
+  const tipoMap = map[tipo] || {};
+
+  let html = '';
+
+  AREAS.forEach(area=>{
+    const regsArea = regs.filter(r=>r.area===area);
+    if(!regsArea.length) return;
+
+    const d = tipoMap[area];
+    const avgMinU = d ? d.sp/d.ud : null;
+    const peso = avgMinU ? avgMinU/(BASE[area]||1) : null;
+    const pesoColor = !peso?'var(--muted)':peso<0.85?'var(--green)':peso<1.15?'var(--muted)':peso<1.5?'var(--amber)':'var(--red)';
+    const color = COLORS[area]||'#888';
+
+    html += `<div class="pesos-area-block">
+      <div class="pesos-area-hdr">
+        <span class="pesos-area-badge" style="background:${color}18;color:${color}">${LABELS[area]}</span>
+        <span class="pesos-area-stats">${regsArea.length} registros · ${regsArea.reduce((s,r)=>s+r.cant,0).toLocaleString()} ud · base=${BASE[area]}</span>
+        ${peso ? `<span class="pesos-area-peso" style="color:${pesoColor}">Peso: ${peso.toFixed(3)}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:4px">(${avgMinU.toFixed(3)} min/u prom)</span>` : ''}
+      </div>
+      <table class="pesos-reg-table">
+        <thead><tr>
+          <th>FECHA</th><th>EQUIPO</th><th>N°</th><th>CANT</th>
+          <th>INICIO</th><th>FIN</th><th>MIN TOT</th>
+          <th>MIN/U (HH)</th><th>PESO CALC</th><th>OBS</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${regsArea.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(r=>{
+            const pesoR = r.minuHH ? r.minuHH/(BASE[area]||1) : null;
+            const pcls = !pesoR?'':pesoR<0.85?'color:var(--green)':pesoR<1.5?'':'color:var(--red)';
+            const suspicious = !r.minuHH||r.minuHH>200||r.minuHH<0;
+            const scls = suspicious ? 'pesos-reg-suspicious' : '';
+            return `<tr class="${scls}">
+              <td>${r.fecha}</td>
+              <td style="font-weight:600">${r.equipo||'—'}</td>
+              <td class="td-num">${r.nemp||1}</td>
+              <td class="td-num" style="font-weight:700">${r.cant}</td>
+              <td>${r.ini||'—'}</td><td>${r.fin||'—'}</td>
+              <td class="td-num">${r.minTot||'—'}</td>
+              <td class="td-num" style="font-weight:700;${suspicious?'color:var(--red)':''}">${r.minuHH!=null?r.minuHH.toFixed(4):'—'}${suspicious?' ⚠':''}</td>
+              <td class="td-num" style="${pcls};font-weight:700">${pesoR!=null?pesoR.toFixed(3):'—'}</td>
+              <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.obs||'—'}</td>
+              <td><button class="btn-pesos-del" title="Eliminar este registro" onclick="delFromModal(${r.id},'${tipo.replace(/'/g,"\\'")}')">✕</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+
+  if(!html) html = '<div style="padding:20px;color:var(--muted2);text-align:center">Sin registros con Min/U válido para esta prenda</div>';
+  el('pesos-modal-body').innerHTML = html;
+  el('pesos-modal').classList.add('open');
+}
+
+function closePesosModal(){
+  el('pesos-modal').classList.remove('open');
+}
+
+function delFromModal(id, tipo){
+  if(!confirm('¿Eliminar este registro?')) return;
+  data = data.filter(r=>r.id!==id);
+  save();
+  openPesosModal(tipo); // refrescar modal
+  renderPesos();        // refrescar tabla
+  toast('Registro eliminado','ok');
+}
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePesosModal(); });
+
 
 // ── MARCACIONES ──────────────────────────────────────────────────────
 function addMarcacion(){
@@ -1910,8 +2433,8 @@ function renderInformes(){
   const tipoAreaMap={};
   dr.forEach(r=>{
     if(!r.minuHH||r.minuHH<=0||r.minuHH>200) return;
-    const key=`${r.tipo}||${r.area}`;
-    if(!tipoAreaMap[key]) tipoAreaMap[key]={tipo:r.tipo,area:r.area,sp:0,ud:0,cnt:0};
+    const key=`${normTipo(r.tipo)}||${r.area}`;
+    if(!tipoAreaMap[key]) tipoAreaMap[key]={tipo:normTipo(r.tipo),area:r.area,sp:0,ud:0,cnt:0};
     tipoAreaMap[key].sp+=r.minuHH*r.cant;
     tipoAreaMap[key].ud+=r.cant;
     tipoAreaMap[key].cnt++;
@@ -2073,6 +2596,7 @@ function resetMarcaciones(){
 
 function renderAll(){
   renderResumen(); AREAS.forEach(renderTabla); renderPesos(); renderMarcaciones(); renderConfig();
+  if(document.body.classList.contains('role-admin') && el('v-dashboard')) renderDashboard();
 }
 
 // ── EXPORTAR EXCEL ───────────────────────────────────────────────────
@@ -2226,7 +2750,8 @@ function applyRole(role){
     const firstAdminTab = document.querySelector('.tab-btn.admin-only');
     if(firstAdminTab){ firstAdminTab.classList.add('on'); }
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
-    el('v-resumen')?.classList.add('on');
+    el('v-dashboard')?.classList.add('on');
+    renderDashboard();
     renderResumen();
   } else {
     // Empleado: tab activo = CORTE (primera área)
