@@ -559,7 +559,7 @@ tbody tr:hover td{background:#fafaf8;}
 
 /* ─── ADMIN-ONLY / EMP-ONLY ─── */
 .admin-only{display:none;}
-body.role-admin .admin-only{display:unset;}
+body.role-admin .admin-only:not(.view){display:unset;}
 body.role-admin .tab-btn.admin-only{display:flex;}
 body.role-emp .emp-hidden{display:none!important;}
 </style>
@@ -674,7 +674,7 @@ body.role-emp .emp-hidden{display:none!important;}
 <!-- ═══════════════════════════════════════════════ RESUMEN ═══ -->
 
 <!-- ══════════════════════════════════════════ DASHBOARD ADMIN ══════ -->
-<div class="view admin-only" id="v-dashboard">
+<div class="view" id="v-dashboard">
   <!-- KPIs -->
   <div class="dash-grid" id="dash-kpis"></div>
   <!-- Fila: Ranking empleados + Producción por área -->
