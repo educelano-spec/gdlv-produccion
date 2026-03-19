@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Producción Diaria — GDLV</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg:#f5f4f0;
+  --white:#ffffff;
+  --panel:#ffffff;
+  --panel2:#f9f8f6;
+  --border:#e4e2db;
+  --border2:#d0cdc4;
+  --text:#1a1916;
+  --text2:#3d3b35;
+  --muted:#8a8780;
+  --muted2:#b8b5ae;
+  --ink:#1a1916;
+
+  --accent:#c0392b;         /* rojo GDLV */
+  --accent2:#e8523f;
+  --green:#1a7f4e;
+  --green-bg:#edf7f2;
+  --red:#c0392b;
+  --red-bg:#fdf0ee;
+  --amber:#b07d1a;
+  --amber-bg:#fdf6e3;
+  --blue:#1a4f8f;
+
+  --area-corte:#6d4fc2;
+  --area-imp:#0e7fa8;
+  --area-sub:#c4550a;
+  --area-cos:#1a7a3c;
+  --area-ser:#9c1e6a;
+  --area-tra:#0e7a6a;
+  --area-emp:#8a6b0e;
+
+  --radius:6px;
+  --shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  min-height:100vh;
+}
+
+/* ─── HEADER ─── */
+.hdr{
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:0 32px;
+  height:60px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+  box-shadow:var(--shadow);
+}
+.hdr-brand{display:flex;align-items:center;gap:14px;}
+.hdr-logo{
+  font-family:'Playfair Display',serif;
+  font-weight:700;font-size:22px;
+  color:var(--accent);
+  letter-spacing:.01em;
+  line-height:1;
+}
+.hdr-divider{width:1px;height:24px;background:var(--border);}
+.hdr-sub{
+  font-size:11px;font-weight:600;color:var(--muted);
+  letter-spacing:.1em;text-transform:uppercase;
+}
+.hdr-right{display:flex;gap:10px;align-items:center;}
+
+/* ─── TABS ─── */
+.tabs-bar{
+  background:var(--white);
+  border-bottom:2px solid var(--border);
+  display:flex;overflow-x:auto;
+  padding:0 24px;
+  scrollbar-width:none;
+  gap:2px;
+}
+.tabs-bar::-webkit-scrollbar{display:none;}
+.tab-btn{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+  padding:14px 18px;cursor:pointer;color:var(--muted);
+  border-bottom:2px solid transparent;margin-bottom:-2px;
+  white-space:nowrap;transition:color .18s, border-color .18s;
+  display:flex;align-items:center;gap:7px;
+  background:none;border-top:none;border-left:none;border-right:none;
+}
+.tab-btn .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--border2);transition:background .18s, transform .18s;
+  flex-shrink:0;
+}
+.tab-btn:hover{color:var(--text2);}
+.tab-btn.on{color:var(--text);border-bottom-color:var(--accent);}
+.tab-btn.on .dot{background:var(--accent);transform:scale(1.2);}
+
+/* ─── VIEWS ─── */
+.view{display:none;padding:28px 32px;max-width:1340px;margin:0 auto;}
+.view.on{display:block;}
+
+/* ─── CARD ─── */
+.card{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  margin-bottom:20px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.card-hdr{
+  padding:14px 22px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+  background:var(--panel2);
+}
+.card-hdr-stripe{width:4px;height:20px;border-radius:3px;flex-shrink:0;}
+.card-hdr-title{
+  font-family:'Playfair Display',serif;
+  font-weight:700;font-size:15px;
+  color:var(--ink);letter-spacing:.01em;
+}
+.card-hdr-sub{font-size:11px;font-weight:600;color:var(--muted);margin-left:auto;letter-spacing:.04em;}
+.card-body{padding:22px;}
+
+/* ─── FORM GRID ─── */
+.fg{display:grid;gap:12px;}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g5{grid-template-columns:repeat(5,1fr);}
+.g6{grid-template-columns:repeat(6,1fr);}
+@media(max-width:768px){.g3,.g4,.g5,.g6{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.g2,.g3,.g4,.g5,.g6{grid-template-columns:1fr;}}
+
+.fld{display:flex;flex-direction:column;gap:5px;}
+.fld label{
+  font-size:10.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);
+}
+.fld input,.fld select{
+  background:var(--white);
+  border:1.5px solid var(--border2);
+  border-radius:5px;
+  color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:13.5px;font-weight:500;
+  padding:9px 12px;
+  outline:none;
+  transition:border-color .15s, box-shadow .15s;
+  width:100%;
+  -webkit-appearance:none;
+}
+.fld input:focus,.fld select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(192,57,43,.1);
+}
+.fld input::placeholder{color:var(--muted2);font-weight:400;}
+.fld select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a8780'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+  padding-right:30px;cursor:pointer;
+}
+
+/* Calculated preview bar */
+.calc-bar{
+  background:var(--panel2);
+  border:1.5px solid var(--border);
+  border-radius:5px;
+  padding:10px 16px;
+  font-family:'Fira Code',monospace;
+  font-size:12px;font-weight:500;
+  color:var(--muted);
+  margin-top:8px;
+  display:flex;gap:22px;flex-wrap:wrap;align-items:center;
+}
+.calc-val{
+  color:var(--accent);font-weight:700;
+  font-family:'Fira Code',monospace;
+}
+
+/* ─── BUTTONS ─── */
+.btn{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  padding:9px 20px;border-radius:5px;border:1.5px solid;cursor:pointer;
+  transition:all .15s;white-space:nowrap;
+}
+.btn-prim{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  box-shadow:0 2px 4px rgba(192,57,43,.25);
+}
+.btn-prim:hover{background:var(--accent2);border-color:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 8px rgba(192,57,43,.3);}
+.btn-prim:active{transform:none;}
+.btn-sec{background:transparent;color:var(--muted);border-color:var(--border2);}
+.btn-sec:hover{color:var(--text);border-color:var(--text2);}
+.btn-export{
+  background:var(--green-bg);color:var(--green);
+  border-color:rgba(26,127,78,.3);
+  font-weight:700;
+}
+.btn-export:hover{background:#d6f0e5;border-color:var(--green);}
+.btn-row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+
+/* ─── TABLE ─── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead{border-bottom:2px solid var(--border);}
+th{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);padding:10px 12px;
+  text-align:left;white-space:nowrap;
+  background:var(--panel2);
+}
+th:first-child{border-radius:0;}
+td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  font-size:13px;white-space:nowrap;
+  color:var(--text2);
+}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#fafaf8;}
+.td-del{color:var(--muted2);cursor:pointer;font-size:14px;text-align:center;}
+.td-del:hover{color:var(--red);}
+.td-tipo{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700;font-size:13px;color:var(--ink);
+}
+.td-num{
+  text-align:right;
+  font-family:'Fira Code',monospace;
+  font-size:12.5px;font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+.no-data{
+  text-align:center;color:var(--muted2);
+  padding:40px!important;font-size:13px;
+  font-style:italic;
+}
+
+/* ─── AREA BADGE ─── */
+.abadge{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700;font-size:10px;letter-spacing:.07em;
+  padding:3px 9px;border-radius:20px;text-transform:uppercase;
+}
+
+/* ─── STATS STRIP ─── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:22px;}
+.stat{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px 20px;
+  box-shadow:var(--shadow);
+}
+.stat-n{
+  font-family:'Playfair Display',serif;
+  font-weight:700;font-size:36px;line-height:1;
+  letter-spacing:-.02em;
+}
+.stat-l{
+  font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin-top:6px;
+}
+
+/* ─── PESO TABLE ─── */
+.peso-good{color:var(--green);font-weight:700;}
+.peso-warn{color:var(--amber);font-weight:700;}
+.peso-bad{color:var(--red);font-weight:700;}
+.peso-base{color:var(--muted);}
+.peso-na{color:var(--muted2);}
+
+/* ─── TOAST ─── */
+.toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.toast{
+  background:var(--white);
+  border:1.5px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-md);
+  padding:11px 16px;font-size:12.5px;font-weight:600;
+  animation:toastIn .22s ease;min-width:200px;
+}
+.toast.ok{border-left:4px solid var(--green);color:var(--green);}
+.toast.err{border-left:4px solid var(--red);color:var(--red);}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ─── SEPARATOR ─── */
+.row-sep{height:1px;background:var(--border);margin:18px 0;}
+
+/* ─── PESOS INFO ─── */
+.pesos-legend{
+  display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;
+  font-size:11.5px;font-weight:600;
+  padding:12px 18px;
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.pl-item{display:flex;align-items:center;gap:7px;color:var(--text2);}
+
+/* ─── FIREBASE STATUS ─── */
+#fb-status{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;color:var(--muted);
+  padding:4px 10px;border-radius:20px;
+  border:1px solid var(--border);background:var(--panel2);
+}
+#fb-status .fbs-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);transition:background .4s;}
+#fb-status.ok .fbs-dot{background:var(--green);}
+#fb-status.err .fbs-dot{background:var(--red);}
+#fb-status.sync .fbs-dot{background:var(--amber);animation:pulse .8s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ─── IMPORT MODAL ─── */
+#import-modal{
+  position:fixed;inset:0;z-index:8000;
+  background:rgba(0,0,0,.4);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+#import-modal.open{display:flex;}
+.import-box{
+  background:var(--white);border-radius:12px;
+  box-shadow:0 24px 80px rgba(0,0,0,.18);
+  width:100%;max-width:920px;max-height:90vh;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.import-hdr{
+  padding:20px 28px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--panel2);flex-shrink:0;
+}
+.import-hdr-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;}
+.import-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 6px;}
+.import-close:hover{color:var(--ink);}
+.import-body{padding:24px 28px;overflow-y:auto;flex:1;}
+.import-footer{
+  padding:16px 28px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--panel2);flex-shrink:0;flex-wrap:wrap;gap:10px;
+}
+.import-drop{
+  border:2px dashed var(--border2);border-radius:8px;
+  padding:36px;text-align:center;cursor:pointer;
+  transition:all .18s;margin-bottom:20px;
+}
+.import-drop:hover,.import-drop.drag{border-color:var(--accent);background:#fff5f4;}
+.import-drop-icon{font-size:36px;margin-bottom:10px;}
+.import-drop-text{font-size:14px;font-weight:600;color:var(--text2);}
+.import-drop-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+.import-preview-area{margin-top:4px;}
+.import-area-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:6px 6px 0 0;cursor:pointer;margin-top:10px;
+}
+.import-area-hdr-left{display:flex;align-items:center;gap:10px;}
+.import-area-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.import-area-cnt{font-size:12px;color:var(--muted);}
+.import-area-toggle{font-size:12px;color:var(--muted);}
+.import-area-rows{
+  border:1px solid var(--border);border-top:none;
+  border-radius:0 0 6px 6px;overflow:hidden;display:none;
+}
+.import-area-rows.open{display:block;}
+.import-area-table{width:100%;border-collapse:collapse;font-size:12px;}
+.import-area-table th{
+  background:var(--panel2);padding:7px 10px;text-align:left;
+  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border);
+}
+.import-area-table td{padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.import-area-table tr:last-child td{border-bottom:none;}
+.import-area-table tr:hover td{background:#fafaf8;}
+.import-row-ok td{color:var(--text2);}
+.import-row-warn td{background:#fffbeb!important;color:#92400e;}
+.import-row-err td{background:#fff5f5!important;color:var(--red);opacity:.7;}
+.import-row-err td::after{}
+.import-chk{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);}
+.import-summary{
+  display:flex;gap:16px;flex-wrap:wrap;
+  padding:14px 18px;background:var(--panel2);
+  border:1px solid var(--border);border-radius:6px;margin-bottom:16px;
+}
+.import-summary-item{font-size:12.5px;font-weight:600;}
+.import-summary-item span{font-family:'Fira Code',monospace;font-weight:700;}
+
+/* ─── LOGIN OVERLAY ─── */
+#login-overlay{
+  position:fixed;inset:0;z-index:9000;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.login-box{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,.12);
+  width:100%;max-width:400px;
+  overflow:hidden;
+}
+.login-top{
+  background:var(--accent);
+  padding:32px 32px 28px;
+  text-align:center;
+}
+.login-logo{
+  font-family:'Playfair Display',serif;
+  font-size:40px;font-weight:700;
+  color:#fff;letter-spacing:.02em;line-height:1;
+}
+.login-tagline{
+  color:rgba(255,255,255,.75);font-size:12px;
+  font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  margin-top:6px;
+}
+.login-body{padding:28px 32px 32px;}
+.login-title{
+  font-family:'Playfair Display',serif;
+  font-size:20px;font-weight:700;color:var(--ink);
+  margin-bottom:4px;
+}
+.login-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.role-card{
+  border:2px solid var(--border);border-radius:8px;
+  padding:14px 12px;text-align:center;cursor:pointer;
+  transition:all .18s;background:var(--panel2);
+}
+.role-card:hover{border-color:var(--border2);background:var(--white);}
+.role-card.selected{border-color:var(--accent);background:#fff5f4;}
+.role-card-icon{font-size:24px;margin-bottom:6px;}
+.role-card-name{font-weight:700;font-size:13px;color:var(--ink);}
+.role-card-desc{font-size:10.5px;color:var(--muted);margin-top:2px;}
+.pin-row{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
+.pin-row label{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.pin-input{
+  background:var(--panel2);border:1.5px solid var(--border2);border-radius:6px;
+  color:var(--ink);font-family:'Fira Code',monospace;font-size:20px;font-weight:500;
+  padding:10px 14px;outline:none;width:100%;letter-spacing:.2em;text-align:center;
+  transition:border-color .15s, box-shadow .15s;
+}
+.pin-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(192,57,43,.1);}
+.login-err{
+  color:var(--red);font-size:12px;font-weight:600;
+  text-align:center;margin-bottom:12px;min-height:18px;
+}
+.login-btn{width:100%;}
+
+/* ─── ROLE BADGE (header) ─── */
+.role-badge{
+  display:flex;align-items:center;gap:7px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;
+  padding:5px 12px;border-radius:20px;
+}
+.role-badge.admin{background:#fff0f0;color:var(--accent);border:1px solid #fca5a5;}
+.role-badge.emp{background:#f0f7ff;color:var(--blue);border:1px solid #bfdbfe;}
+.role-badge .rb-dot{width:6px;height:6px;border-radius:50%;}
+.role-badge.admin .rb-dot{background:var(--accent);}
+.role-badge.emp .rb-dot{background:var(--blue);}
+
+/* ─── ADMIN-ONLY / EMP-ONLY ─── */
+.admin-only{display:none;}
+body.role-admin .admin-only{display:unset;}
+body.role-admin .tab-btn.admin-only{display:flex;}
+body.role-emp .emp-hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- ══════ IMPORT MODAL ══════ -->
+<div id="import-modal">
+  <div class="import-box">
+    <div class="import-hdr">
+      <div class="import-hdr-title">Importar datos desde Excel</div>
+      <button class="import-close" onclick="closeImport()">×</button>
+    </div>
+    <div class="import-body">
+      <!-- Drop zone -->
+      <div class="import-drop" id="import-drop"
+        onclick="document.getElementById('import-file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleImportDrop(event)">
+        <div class="import-drop-icon">📂</div>
+        <div class="import-drop-text">Arrastrá o hacé clic para seleccionar el archivo Excel</div>
+        <div class="import-drop-sub">Formatos compatibles: .xlsx · .xlsm · .xls &nbsp;|&nbsp; Hojas: P-CORTE 2, P-IMPRESIÓN, P-SUBLIMACIÓN 2, P-COSTURA, P-SERIGRAFIA, P-TRANSFER, P-ASEO Y EMPAQUE</div>
+      </div>
+      <input type="file" id="import-file-input" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="handleImportFile(this.files[0])">
+
+      <!-- Resumen de parsing -->
+      <div id="import-summary-bar" class="import-summary" style="display:none"></div>
+
+      <!-- Preview por área -->
+      <div id="import-preview-area" class="import-preview-area"></div>
+    </div>
+    <div class="import-footer">
+      <div style="font-size:12px;color:var(--muted)" id="import-footer-msg">Seleccioná un archivo para previsualizar los datos</div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-sec" onclick="closeImport()">Cancelar</button>
+        <button class="btn btn-prim" id="btn-confirmar-import" onclick="confirmarImport()" style="display:none">✓ CONFIRMAR IMPORTACIÓN</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ LOGIN OVERLAY ══════ -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-top">
+      <div class="login-logo">GDLV</div>
+      <div class="login-tagline">Sistema de Producción</div>
+    </div>
+    <div class="login-body">
+      <div class="login-title">Ingresá al sistema</div>
+      <div class="login-sub">Seleccioná tu perfil e ingresá tu PIN</div>
+      <div class="role-grid">
+        <div class="role-card selected" id="rc-admin" onclick="selectRole('admin')">
+          <div class="role-card-icon">🔑</div>
+          <div class="role-card-name">Administrador</div>
+          <div class="role-card-desc">Acceso completo</div>
+        </div>
+        <div class="role-card" id="rc-emp" onclick="selectRole('emp')">
+          <div class="role-card-icon">👷</div>
+          <div class="role-card-name">Empleado</div>
+          <div class="role-card-desc">Carga de producción</div>
+        </div>
+      </div>
+      <div class="pin-row">
+        <label>PIN de acceso</label>
+        <input class="pin-input" type="password" id="login-pin" maxlength="8"
+          inputmode="numeric" placeholder="• • • •"
+          onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div class="login-err" id="login-err"></div>
+      <button class="btn btn-prim login-btn" onclick="doLogin()">INGRESAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ HEADER ══════ -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-logo">GDLV</div>
+    <div class="hdr-divider"></div>
+    <div class="hdr-sub">Producción Diaria</div>
+  </div>
+  <div class="hdr-right">
+    <div id="fb-status" title="Estado Firebase"><div class="fbs-dot"></div><span id="fb-status-txt">Conectando…</span></div>
+    <div class="role-badge admin" id="hdr-role-badge" style="display:none">
+      <div class="rb-dot"></div>
+      <span id="hdr-role-label">Admin</span>
+    </div>
+    <button class="btn btn-export admin-only" onclick="exportarExcel()" style="display:none">↓ Exportar Excel</button>
+    <button class="btn btn-sec" id="btn-logout" onclick="doLogout()" style="display:none;font-size:11px">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ══════ TABS ══════ -->
+<nav class="tabs-bar">
+  <button class="tab-btn admin-only" onclick="tab('resumen',this)"><span class="dot"></span>RESUMEN</button>
+  <button class="tab-btn on"         onclick="tab('corte',this)"><span class="dot" style="background:var(--area-corte)"></span>CORTE</button>
+  <button class="tab-btn"            onclick="tab('impresion',this)"><span class="dot" style="background:var(--area-imp)"></span>IMPRESIÓN</button>
+  <button class="tab-btn"            onclick="tab('sublimacion',this)"><span class="dot" style="background:var(--area-sub)"></span>SUBLIMACIÓN</button>
+  <button class="tab-btn"            onclick="tab('costura',this)"><span class="dot" style="background:var(--area-cos)"></span>COSTURA</button>
+  <button class="tab-btn"            onclick="tab('serigrafia',this)"><span class="dot" style="background:var(--area-ser)"></span>SERIGRAFÍA</button>
+  <button class="tab-btn"            onclick="tab('transfer',this)"><span class="dot" style="background:var(--area-tra)"></span>TRANSFER</button>
+  <button class="tab-btn"            onclick="tab('empaque',this)"><span class="dot" style="background:var(--area-emp)"></span>EMPAQUE</button>
+  <button class="tab-btn admin-only" onclick="tab('pesos',this)"><span class="dot" style="background:var(--amber)"></span>PESOS/PRENDA</button>
+  <button class="tab-btn"            onclick="tab('marcaciones',this)"><span class="dot" style="background:#6366f1"></span>MARCACIONES</button>
+  <button class="tab-btn admin-only" onclick="tab('informes',this)"><span class="dot" style="background:#0891b2"></span>INFORMES</button>
+  <button class="tab-btn admin-only" onclick="tab('config',this)"><span class="dot" style="background:#64748b"></span>CONFIGURACIÓN</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════ RESUMEN ═══ -->
+<div class="view on" id="v-resumen">
+  <div class="stats" id="stats-strip"></div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--amber)"></div>
+      <div class="card-hdr-title">TODOS LOS REGISTROS</div>
+      <div class="card-hdr-sub" id="resumen-count"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>FECHA</th><th>ÁREA</th><th>PRENDA</th><th>CANT</th>
+          <th>EQUIPO</th><th>MIN TOT</th><th>MIN/U (HH)</th><th>OBS</th><th></th>
+        </tr></thead>
+        <tbody id="tb-resumen"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CORTE ═══ -->
+<div class="view" id="v-corte">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-corte)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — CORTE</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="cr-fecha"></div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="cr-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Remera Básica"></div>
+        <div class="fld"><label>Cantidad</label><input type="number" id="cr-cant" min="1" placeholder="0"></div>
+        <div class="fld"><label>UM</label><select id="cr-um"><option>UN</option><option>M</option></select></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="cr-equipo" list="dl-emp" autocomplete="off" placeholder="ej: Eduardo"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="cr-nemp" min="1" value="1"></div>
+        <div class="fld"><label>Hora inicio</label><input type="time" id="cr-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="cr-fin"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Tela</label><input type="text" id="cr-tela" list="dl-telas" autocomplete="off" placeholder="ej: Dry Fit"></div>
+        <div class="fld"><label>Ancho tela (m)</label><input type="number" id="cr-ancho" step="0.05" placeholder="ej: 1.60"></div>
+        <div class="fld"><label>Cant. tela cortada (m)</label><input type="number" id="cr-ctela" step="0.5" placeholder="0"></div>
+        <div class="fld"><label>Observaciones</label><input type="text" id="cr-obs" placeholder="opcional"></div>
+      </div>
+      <div class="calc-bar" id="cr-calc">
+        MIN TOTALES: <span class="calc-val" id="cr-min">—</span> &nbsp;|&nbsp;
+        HORAS-HOMBRE: <span class="calc-val" id="cr-hh">—</span> &nbsp;|&nbsp;
+        MIN/U (HH): <span class="calc-val" id="cr-minu">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('corte')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('corte')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-corte)"></div>
+      <div class="card-hdr-title">REGISTROS CORTE</div>
+      <div class="card-hdr-sub" id="cnt-corte"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>PRENDA</th><th>CANT</th><th>UM</th>
+        <th>EQUIPO</th><th>N°</th><th>INICIO</th><th>FIN</th>
+        <th>MIN TOT</th><th>HH</th><th>MIN/U (HH)</th>
+        <th>TELA</th><th>ANCHO</th><th>M TELA</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-corte"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ IMPRESION ═══ -->
+<div class="view" id="v-impresion">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-imp)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — IMPRESIÓN</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="im-fecha"></div>
+        <div class="fld"><label>Máquina</label>
+          <select id="im-maq"><option value="">—</option><option>Mimaki</option><option>Westman</option><option>Audley</option></select>
+        </div>
+        <div class="fld"><label>Perfil</label><input type="number" id="im-perfil" placeholder="ej: 74"></div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="im-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Remera Básica"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Talle</label><input type="text" id="im-talle" list="dl-talles" autocomplete="off" placeholder="ej: M"></div>
+        <div class="fld"><label>Cantidad</label><input type="number" id="im-cant" min="1" placeholder="0"></div>
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="im-equipo" list="dl-emp" autocomplete="off" placeholder="ej: Luis"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="im-nemp" min="1" value="1"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Hora inicio</label><input type="time" id="im-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="im-fin"></div>
+        <div class="fld"><label>Tinta (ml)</label><input type="number" id="im-tinta" step="0.1" placeholder="0"></div>
+        <div class="fld"><label>Papel (m²)</label><input type="number" id="im-papel" step="0.1" placeholder="0"></div>
+      </div>
+      <div class="fld" style="margin-top:10px"><label>Observaciones</label><input type="text" id="im-obs" placeholder="opcional"></div>
+      <div class="calc-bar">
+        MIN TOTALES: <span class="calc-val" id="im-min">—</span> &nbsp;|&nbsp;
+        MIN/U (MÁQ): <span class="calc-val" id="im-minu-maq">—</span> &nbsp;|&nbsp;
+        MIN/U (HH): <span class="calc-val" id="im-minu-hh">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('impresion')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('impresion')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-imp)"></div>
+      <div class="card-hdr-title">REGISTROS IMPRESIÓN</div>
+      <div class="card-hdr-sub" id="cnt-impresion"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>MÁQUINA</th><th>PERFIL</th><th>PRENDA</th><th>TALLE</th><th>CANT</th>
+        <th>EQUIPO</th><th>N°</th><th>INICIO</th><th>FIN</th>
+        <th>MIN TOT</th><th>MIN/U MÁQ</th><th>MIN/U HH</th>
+        <th>TINTA</th><th>PAPEL</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-impresion"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ SUBLIMACION ═══ -->
+<div class="view" id="v-sublimacion">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-sub)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — SUBLIMACIÓN</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="su-fecha"></div>
+        <div class="fld"><label>Máquina</label>
+          <select id="su-maq"><option value="">—</option><option>Calandra 1</option><option>Calandra 2</option></select>
+        </div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="su-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Remera Básica"></div>
+        <div class="fld"><label>Talle(s)</label><input type="text" id="su-talle" list="dl-talles" autocomplete="off" placeholder="ej: M  o  P,M,G"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Cantidad</label><input type="number" id="su-cant" min="1" placeholder="0"></div>
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="su-equipo" list="dl-emp" autocomplete="off" placeholder="ej: José+Luis"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="su-nemp" min="1" value="1"></div>
+        <div class="fld"><label>Observaciones</label><input type="text" id="su-obs" placeholder="opcional"></div>
+      </div>
+      <div class="fg g2" style="margin-top:10px">
+        <div class="fld"><label>Hora inicio</label><input type="time" id="su-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="su-fin"></div>
+      </div>
+      <div class="calc-bar">
+        MIN TOTALES: <span class="calc-val" id="su-min">—</span> &nbsp;|&nbsp;
+        MIN/U (MÁQ): <span class="calc-val" id="su-minu-maq">—</span> &nbsp;|&nbsp;
+        MIN/U (HH): <span class="calc-val" id="su-minu-hh">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('sublimacion')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('sublimacion')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-sub)"></div>
+      <div class="card-hdr-title">REGISTROS SUBLIMACIÓN</div>
+      <div class="card-hdr-sub" id="cnt-sublimacion"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>MÁQUINA</th><th>PRENDA</th><th>TALLE</th><th>CANT</th>
+        <th>EQUIPO</th><th>N°</th><th>INICIO</th><th>FIN</th>
+        <th>MIN TOT</th><th>MIN/U MÁQ</th><th>MIN/U HH</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-sublimacion"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ COSTURA ═══ -->
+<div class="view" id="v-costura">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-cos)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — COSTURA</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="co-fecha"></div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="co-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Remera Básica"></div>
+        <div class="fld"><label>Talle</label><input type="text" id="co-talle" list="dl-talles" autocomplete="off" placeholder="ej: M"></div>
+        <div class="fld"><label>Cantidad</label><input type="number" id="co-cant" min="1" placeholder="0"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="co-equipo" list="dl-emp" autocomplete="off" placeholder="ej: Luciano+Néstor"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="co-nemp" min="1" value="1"></div>
+        <div class="fld"><label>Hora inicio</label><input type="time" id="co-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="co-fin"></div>
+      </div>
+      <div class="fld" style="margin-top:10px"><label>Observaciones</label><input type="text" id="co-obs" placeholder="opcional"></div>
+      <div class="calc-bar">
+        MIN TOTALES: <span class="calc-val" id="co-min">—</span> &nbsp;|&nbsp;
+        MIN/U (OP): <span class="calc-val" id="co-minu-op">—</span> &nbsp;|&nbsp;
+        MIN/U (HH): <span class="calc-val" id="co-minu-hh">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('costura')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('costura')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-cos)"></div>
+      <div class="card-hdr-title">REGISTROS COSTURA</div>
+      <div class="card-hdr-sub" id="cnt-costura"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>PRENDA</th><th>TALLE</th><th>CANT</th>
+        <th>EQUIPO</th><th>N°</th><th>INICIO</th><th>FIN</th>
+        <th>MIN TOT</th><th>MIN/U OP</th><th>MIN/U HH</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-costura"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ SERIGRAFIA ═══ -->
+<div class="view" id="v-serigrafia">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-ser)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — SERIGRAFÍA</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="se-fecha"></div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="se-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Camiseta"></div>
+        <div class="fld"><label>Talle</label><input type="text" id="se-talle" list="dl-talles" autocomplete="off" placeholder="ej: VARIOS"></div>
+        <div class="fld"><label>Cantidad</label><input type="number" id="se-cant" min="1" placeholder="0"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="se-equipo" list="dl-emp" autocomplete="off" placeholder="ej: Javier"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="se-nemp" min="1" value="1"></div>
+        <div class="fld"><label>Tipo impresión</label><input type="text" id="se-tipimp" list="dl-tipimp" autocomplete="off" placeholder="ej: Al Agua"></div>
+        <div class="fld"><label>Ubicación</label><input type="text" id="se-ubic" placeholder="ej: Pecho"></div>
+      </div>
+      <div class="fg g5" style="margin-top:10px">
+        <div class="fld"><label>Ancho diseño (cm)</label><input type="number" id="se-ancho" step="0.5" placeholder="0"></div>
+        <div class="fld"><label>Alto diseño (cm)</label><input type="number" id="se-alto" step="0.5" placeholder="0"></div>
+        <div class="fld"><label>Cant colores</label><input type="number" id="se-colores" min="1" placeholder="1"></div>
+        <div class="fld"><label>Nro pasadas</label><input type="number" id="se-pasadas" min="1" placeholder="1"></div>
+        <div class="fld"><label>Cant tinta (ml)</label><input type="number" id="se-tinta" step="0.1" placeholder="0"></div>
+      </div>
+      <div class="fg g3" style="margin-top:10px">
+        <div class="fld"><label>Hora inicio</label><input type="time" id="se-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="se-fin"></div>
+        <div class="fld"><label>Observaciones</label><input type="text" id="se-obs" placeholder="opcional"></div>
+      </div>
+      <div class="calc-bar">
+        ÁREA DISEÑO: <span class="calc-val" id="se-area">—</span> cm² &nbsp;|&nbsp;
+        UM TRAB. TOTAL: <span class="calc-val" id="se-um-tot">—</span> &nbsp;|&nbsp;
+        MIN TOTALES: <span class="calc-val" id="se-min">—</span> &nbsp;|&nbsp;
+        U/H: <span class="calc-val" id="se-uh">—</span> &nbsp;|&nbsp;
+        MIN/U: <span class="calc-val" id="se-minu">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('serigrafia')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('serigrafia')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-ser)"></div>
+      <div class="card-hdr-title">REGISTROS SERIGRAFÍA</div>
+      <div class="card-hdr-sub" id="cnt-serigrafia"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>PRENDA</th><th>TALLE</th><th>CANT</th><th>EQUIPO</th><th>N°</th>
+        <th>TIPO IMP</th><th>ANCHO</th><th>ALTO</th><th>ÁREA</th>
+        <th>COLORES</th><th>PASADAS</th><th>UBIC</th><th>INICIO</th><th>FIN</th>
+        <th>MIN TOT</th><th>U/H</th><th>MIN/U</th><th>TINTA</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-serigrafia"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TRANSFER ═══ -->
+<div class="view" id="v-transfer">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-tra)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — TRANSFER</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="tr-fecha"></div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="tr-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Remera Básica"></div>
+        <div class="fld"><label>Talle</label><input type="text" id="tr-talle" list="dl-talles" autocomplete="off" placeholder="ej: G"></div>
+        <div class="fld"><label>Cantidad</label><input type="number" id="tr-cant" min="1" placeholder="0"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="tr-equipo" list="dl-emp" autocomplete="off" placeholder="ej: Sandra"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="tr-nemp" min="1" value="1"></div>
+        <div class="fld"><label>Tipo impresión</label><input type="text" id="tr-tipimp" placeholder="ej: Vinilo / Film DTF"></div>
+        <div class="fld"><label>Ubicación</label><input type="text" id="tr-ubic" placeholder="ej: Pecho / Espalda"></div>
+      </div>
+      <div class="fg g5" style="margin-top:10px">
+        <div class="fld"><label>Ancho diseño (cm)</label><input type="number" id="tr-ancho" step="0.5" placeholder="0"></div>
+        <div class="fld"><label>Alto diseño (cm)</label><input type="number" id="tr-alto" step="0.5" placeholder="0"></div>
+        <div class="fld"><label>Cant metros film</label><input type="number" id="tr-metros" step="0.5" placeholder="0"></div>
+        <div class="fld"><label>Hora inicio</label><input type="time" id="tr-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="tr-fin"></div>
+      </div>
+      <div class="fld" style="margin-top:10px"><label>Observaciones</label><input type="text" id="tr-obs" placeholder="opcional"></div>
+      <div class="calc-bar">
+        ÁREA DISEÑO: <span class="calc-val" id="tr-area">—</span> cm² &nbsp;|&nbsp;
+        UM TRAB. TOTAL: <span class="calc-val" id="tr-um-tot">—</span> &nbsp;|&nbsp;
+        MIN TOTALES: <span class="calc-val" id="tr-min">—</span> &nbsp;|&nbsp;
+        U/H: <span class="calc-val" id="tr-uh">—</span> &nbsp;|&nbsp;
+        MIN/U: <span class="calc-val" id="tr-minu">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('transfer')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('transfer')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-tra)"></div>
+      <div class="card-hdr-title">REGISTROS TRANSFER</div>
+      <div class="card-hdr-sub" id="cnt-transfer"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>PRENDA</th><th>TALLE</th><th>CANT</th><th>EQUIPO</th><th>N°</th>
+        <th>TIPO IMP</th><th>ANCHO</th><th>ALTO</th><th>ÁREA</th><th>UBIC</th>
+        <th>INICIO</th><th>FIN</th><th>MIN TOT</th><th>U/H</th><th>MIN/U</th>
+        <th>METROS</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-transfer"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ EMPAQUE ═══ -->
+<div class="view" id="v-empaque">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-emp)"></div>
+      <div class="card-hdr-title">NUEVO REGISTRO — ASEO Y EMPAQUE</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="em-fecha"></div>
+        <div class="fld"><label>Tipo de prenda</label><input type="text" id="em-tipo" list="dl-tipos" autocomplete="off" placeholder="ej: Camiseta"></div>
+        <div class="fld"><label>Talle</label><input type="text" id="em-talle" list="dl-talles" autocomplete="off" placeholder="ej: VARIOS"></div>
+        <div class="fld"><label>Cantidad</label><input type="number" id="em-cant" min="1" placeholder="0"></div>
+      </div>
+      <div class="fg g4" style="margin-top:10px">
+        <div class="fld"><label>Equipo (empleados)</label><input type="text" id="em-equipo" list="dl-emp" autocomplete="off" placeholder="ej: Lili+Irene"></div>
+        <div class="fld"><label>Nro empleados</label><input type="number" id="em-nemp" min="1" value="1"></div>
+        <div class="fld"><label>Tipo de empaque</label><input type="text" id="em-tipoemp" placeholder="ej: Embolsado / Doblado"></div>
+        <div class="fld"><label>Observaciones</label><input type="text" id="em-obs" placeholder="opcional"></div>
+      </div>
+      <div class="fg g2" style="margin-top:10px">
+        <div class="fld"><label>Hora inicio</label><input type="time" id="em-ini"></div>
+        <div class="fld"><label>Hora fin</label><input type="time" id="em-fin"></div>
+      </div>
+      <div class="calc-bar">
+        MIN TOTALES: <span class="calc-val" id="em-min">—</span> &nbsp;|&nbsp;
+        UM TRABAJO TOTAL: <span class="calc-val" id="em-umtot">—</span> &nbsp;|&nbsp;
+        U/H: <span class="calc-val" id="em-uh">—</span> &nbsp;|&nbsp;
+        MIN/U: <span class="calc-val" id="em-minu">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="add('empaque')">+ AGREGAR</button>
+        <button class="btn btn-sec" onclick="clear_form('empaque')">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--area-emp)"></div>
+      <div class="card-hdr-title">REGISTROS EMPAQUE</div>
+      <div class="card-hdr-sub" id="cnt-empaque"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>PRENDA</th><th>TALLE</th><th>CANT</th>
+        <th>EQUIPO</th><th>N°</th><th>TIPO EMP</th>
+        <th>INICIO</th><th>FIN</th><th>MIN TOT</th><th>U/H</th><th>MIN/U</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-empaque"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ PESOS ═══ -->
+<div class="view" id="v-pesos">
+  <div class="pesos-legend">
+    <div class="pl-item"><span style="color:var(--green);font-weight:700">■</span>&nbsp;Peso &lt; 0.85 — prenda más rápida que base</div>
+    <div class="pl-item"><span style="color:var(--muted)">■</span>&nbsp;Peso 0.85–1.15 — similar a la base</div>
+    <div class="pl-item"><span style="color:var(--amber);font-weight:700">■</span>&nbsp;Peso 1.15–1.5 — algo más lenta</div>
+    <div class="pl-item"><span style="color:var(--red);font-weight:700">■</span>&nbsp;Peso &gt; 1.5 — significativamente más lenta</div>
+    <div class="pl-item" style="color:var(--muted2)">— sin datos suficientes</div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--amber)"></div>
+      <div class="card-hdr-title">PESOS CALCULADOS POR PRENDA Y ÁREA</div>
+      <div class="card-hdr-sub">base = Remera Básica = 1.00 &nbsp;|&nbsp; Min/U (HH) promedio ponderado por unidades</div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl-pesos">
+        <thead><tr>
+          <th>PRENDA</th>
+          <th>CORTE</th><th>IMPRESIÓN</th><th>SUBLIMACIÓN</th>
+          <th>COSTURA</th><th>SERIGRAFÍA</th><th>TRANSFER</th><th>EMPAQUE</th>
+          <th>REGISTROS</th><th>UNIDADES</th>
+        </tr></thead>
+        <tbody id="tb-pesos"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ MARCACIONES ═══ -->
+<div class="view" id="v-marcaciones">
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#6366f1"></div>
+      <div class="card-hdr-title">Registrar Entrada / Salida</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Fecha</label><input type="date" id="ma-fecha"></div>
+        <div class="fld"><label>Empleado</label><input type="text" id="ma-emp" list="dl-emp" autocomplete="off" placeholder="Nombre del empleado"></div>
+        <div class="fld"><label>Hora entrada</label><input type="time" id="ma-entrada"></div>
+        <div class="fld"><label>Hora salida</label><input type="time" id="ma-salida"></div>
+      </div>
+      <div class="fg g2" style="margin-top:10px">
+        <div class="fld"><label>Área / Areas del día</label><input type="text" id="ma-area" placeholder="ej: COSTURA, EMPAQUE"></div>
+        <div class="fld"><label>Observaciones</label><input type="text" id="ma-obs" placeholder="opcional"></div>
+      </div>
+      <div class="calc-bar">
+        HORAS TRABAJADAS: <span class="calc-val" id="ma-hs">—</span> &nbsp;|&nbsp;
+        MINUTOS: <span class="calc-val" id="ma-min">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="addMarcacion()">+ REGISTRAR</button>
+        <button class="btn btn-sec" onclick="clearMarcacion()">LIMPIAR</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#6366f1"></div>
+      <div class="card-hdr-title">Historial de Marcaciones</div>
+      <div class="card-hdr-sub" id="cnt-marcaciones"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>FECHA</th><th>EMPLEADO</th><th>ENTRADA</th><th>SALIDA</th>
+        <th>HORAS</th><th>MINUTOS</th><th>ÁREA(S)</th><th>OBS</th><th></th>
+      </tr></thead>
+      <tbody id="tb-marcaciones"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ INFORMES ═══ -->
+<div class="view" id="v-informes">
+  <!-- Filtros -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#0891b2"></div>
+      <div class="card-hdr-title">Filtros de Informe</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Período</label>
+          <select id="inf-periodo" onchange="renderInformes()">
+            <option value="dia">Hoy</option>
+            <option value="semana" selected>Esta semana</option>
+            <option value="mes">Este mes</option>
+            <option value="custom">Rango personalizado</option>
+          </select>
+        </div>
+        <div class="fld"><label>Desde</label><input type="date" id="inf-desde" onchange="renderInformes()"></div>
+        <div class="fld"><label>Hasta</label><input type="date" id="inf-hasta" onchange="renderInformes()"></div>
+        <div class="fld"><label>Empleado</label>
+          <select id="inf-emp" onchange="renderInformes()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats resumen -->
+  <div class="stats" id="inf-stats"></div>
+
+  <!-- Productividad por empleado -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#0891b2"></div>
+      <div class="card-hdr-title">Productividad por Empleado</div>
+      <div class="card-hdr-sub">Unidades · Horas · Costo M.O. · Min/U promedio</div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>EMPLEADO</th><th>DÍAS TRABAJADOS</th><th>HS TOTALES</th>
+        <th>UNIDADES</th><th>UD/HS</th><th>UD/DÍA</th>
+        <th>COSTO HS</th><th>COSTO M.O. TOTAL</th><th>COSTO/UNIDAD</th><th>ÁREA PRINCIPAL</th>
+      </tr></thead>
+      <tbody id="tb-inf-empleados"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Capacidad por prenda -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#0891b2"></div>
+      <div class="card-hdr-title">Capacidad por Tipo de Prenda</div>
+      <div class="card-hdr-sub">Min/U (HH) · Ud/Hora · Ud/Día (8hs) · Ud/Mes estimado</div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>PRENDA</th><th>ÁREA</th><th>MIN/U (HH)</th>
+        <th>UD/HORA</th><th>UD/DÍA (8hs)</th><th>UD/MES (22 días)</th>
+        <th>REGISTROS</th><th>CONFIABILIDAD</th>
+      </tr></thead>
+      <tbody id="tb-inf-capacidad"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Costo M.O. por prenda -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#0891b2"></div>
+      <div class="card-hdr-title">Costo de Mano de Obra por Prenda</div>
+      <div class="card-hdr-sub">Requiere tarifa horaria cargada en Configuración</div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>PRENDA</th><th>ÁREA</th><th>MIN/U (HH)</th>
+        <th>COSTO/U (promedio)</th><th>COSTO/U (mín)</th><th>COSTO/U (máx)</th><th>REGISTROS</th>
+      </tr></thead>
+      <tbody id="tb-inf-costos"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Productividad diaria por área -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#0891b2"></div>
+      <div class="card-hdr-title">Producción por Área — Período seleccionado</div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>ÁREA</th><th>REGISTROS</th><th>UNIDADES</th>
+        <th>UD/DÍA PROM.</th><th>MIN TOT.</th><th>EMPLEADOS</th>
+      </tr></thead>
+      <tbody id="tb-inf-areas"></tbody></table>
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-top:4px">
+    <button class="btn btn-export" onclick="exportarInformes()">↓ Exportar Informes Excel</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CONFIG ═══ -->
+<div class="view" id="v-config">
+  <!-- Importar datos históricos -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:var(--green)"></div>
+      <div class="card-hdr-title">Importar datos históricos</div>
+      <div class="card-hdr-sub">Excel compatible con el formato GDLV de producción</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Importá una planilla Excel previamente cargada. El sistema leerá las hojas de cada área, te mostrará una previsualización y podrás confirmar o descartar filas individualmente antes de importar.
+      </p>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="openImport()" style="background:var(--green);border-color:var(--green)">↑ IMPORTAR EXCEL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empleados -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#64748b"></div>
+      <div class="card-hdr-title">Empleados</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g4">
+        <div class="fld"><label>Nombre</label><input type="text" id="cfg-emp-nombre" placeholder="Nombre completo"></div>
+        <div class="fld"><label>Área(s)</label><input type="text" id="cfg-emp-areas" placeholder="ej: COSTURA, EMPAQUE"></div>
+        <div class="fld"><label>Tarifa horaria (Gs/hora)</label><input type="number" id="cfg-emp-tarifa" placeholder="ej: 17000"></div>
+        <div class="fld"><label>Activo</label>
+          <select id="cfg-emp-activo"><option value="1">Sí</option><option value="0">No</option></select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="addEmpleado()">+ AGREGAR EMPLEADO</button>
+      </div>
+      <div class="row-sep"></div>
+      <table><thead><tr>
+        <th>NOMBRE</th><th>ÁREAS</th><th>TARIFA (Gs/h)</th><th>ESTADO</th><th></th>
+      </tr></thead>
+      <tbody id="tb-empleados"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Tipos de prenda guardados -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#64748b"></div>
+      <div class="card-hdr-title">Tipos de Prenda</div>
+      <div class="card-hdr-sub">Se agregan automáticamente al cargar producción. También podés agregar manualmente.</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g3">
+        <div class="fld"><label>Nombre de prenda</label><input type="text" id="cfg-prenda-nombre" placeholder="ej: Remera Básica Caballero"></div>
+        <div class="fld"><label>Descripción / notas</label><input type="text" id="cfg-prenda-desc" placeholder="opcional"></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-prim" onclick="addTipoPrenda()">+ AGREGAR</button>
+        </div>
+      </div>
+      <div class="row-sep"></div>
+      <div id="lista-prendas-cfg" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Parámetros generales -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#64748b"></div>
+      <div class="card-hdr-title">Parámetros Generales</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g3">
+        <div class="fld"><label>Horas de jornada laboral</label><input type="number" id="cfg-jornada" value="8" min="1" max="12" step="0.5"></div>
+        <div class="fld"><label>Días laborables / mes</label><input type="number" id="cfg-dias-mes" value="22" min="1" max="31"></div>
+        <div class="fld"><label>Días laborables / semana</label><input type="number" id="cfg-dias-sem" value="5" min="1" max="7"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="saveConfig()">GUARDAR CONFIGURACIÓN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PINs de acceso -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-stripe" style="background:#6366f1"></div>
+      <div class="card-hdr-title">PINs de Acceso</div>
+      <div class="card-hdr-sub">Dejá el campo vacío para no cambiar ese PIN</div>
+    </div>
+    <div class="card-body">
+      <div class="fg g2">
+        <div class="fld">
+          <label>🔑 Nuevo PIN Administrador</label>
+          <input type="password" id="cfg-pin-admin" class="pin-input" style="font-size:16px;letter-spacing:.15em;text-align:left" maxlength="8" inputmode="numeric" placeholder="Nuevo PIN (mín. 3 dígitos)">
+          <span style="font-size:11px;color:var(--muted);margin-top:3px">PIN actual: configurado (no se muestra)</span>
+        </div>
+        <div class="fld">
+          <label>👷 Nuevo PIN Empleado</label>
+          <input type="password" id="cfg-pin-emp" class="pin-input" style="font-size:16px;letter-spacing:.15em;text-align:left" maxlength="8" inputmode="numeric" placeholder="Nuevo PIN (mín. 3 dígitos)">
+          <span style="font-size:11px;color:var(--muted);margin-top:3px">PIN actual: configurado (no se muestra)</span>
+        </div>
+      </div>
+      <div style="background:var(--amber-bg);border:1px solid #f6d860;border-radius:5px;padding:10px 14px;margin-top:12px;font-size:12px;color:var(--amber)">
+        <strong>PINs por defecto:</strong> Administrador = <code>1234</code> &nbsp;|&nbsp; Empleado = <code>0000</code>. Cambiálos antes de usar en producción.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-prim" onclick="savePins()">GUARDAR PINs</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zona de peligro -->
+  <div class="card" style="border-color:#fecaca">
+    <div class="card-hdr" style="background:#fff5f5">
+      <div class="card-hdr-stripe" style="background:var(--red)"></div>
+      <div class="card-hdr-title" style="color:var(--red)">Zona de Peligro</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Estas acciones no se pueden deshacer.</p>
+      <div class="btn-row">
+        <button class="btn" style="background:var(--red-bg);color:var(--red);border-color:#fca5a5" onclick="resetDatos()">🗑 BORRAR TODOS LOS DATOS DE PRODUCCIÓN</button>
+        <button class="btn" style="background:var(--red-bg);color:var(--red);border-color:#fca5a5" onclick="resetMarcaciones()">🗑 BORRAR TODAS LAS MARCACIONES</button>
+      </div>
+    </div>
+  </div>
+</div>
+<datalist id="dl-tipos"></datalist>
+<datalist id="dl-talles">
+  <option>P</option><option>M</option><option>G</option><option>XG</option>
+  <option>XXL</option><option>3XL</option><option>VARIOS</option><option>UNICO</option>
+</datalist>
+<datalist id="dl-emp"></datalist>
+<datalist id="dl-telas">
+  <option>Dry Fit</option><option>Helanca</option><option>Sublimado</option>
+  <option>Algodón</option><option>Lycra</option><option>Interlock</option>
+</datalist>
+<datalist id="dl-tipimp">
+  <option>Al Agua</option><option>Relieve</option><option>Vinilo</option>
+  <option>Film DTF</option><option>UV</option>
+</datalist>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- ══════════════════════════════════════════ SCRIPT ══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════ SCRIPT ══════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── CONSTANTES ───────────────────────────────────────────────────────
+const AREAS = ['corte','impresion','sublimacion','costura','serigrafia','transfer','empaque'];
+const LABELS = {corte:'CORTE',impresion:'IMPRESIÓN',sublimacion:'SUBLIMACIÓN',costura:'COSTURA',serigrafia:'SERIGRAFÍA',transfer:'TRANSFER',empaque:'EMPAQUE'};
+const COLORS = {corte:'#6d4fc2',impresion:'#0e7fa8',sublimacion:'#c4550a',costura:'#1a7a3c',serigrafia:'#9c1e6a',transfer:'#0e7a6a',empaque:'#8a6b0e'};
+const BASE = {corte:1.78, impresion:1.63, sublimacion:1.02, costura:10.34, serigrafia:2.43, transfer:1.0, empaque:1.39};
+
+// ══════════════════════════════════════════════════════════
+// FIREBASE CONFIG & SYNC
+// ══════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyAlBy8V0Xh4F9qoYanlyTlo3AkCIjfs2fY",
+  authDomain:        "gdlv-produccion.firebaseapp.com",
+  databaseURL:       "https://gdlv-produccion-default-rtdb.firebaseio.com",
+  projectId:         "gdlv-produccion",
+  storageBucket:     "gdlv-produccion.firebasestorage.app",
+  messagingSenderId: "495597476558",
+  appId:             "1:495597476558:web:664d4ec0ca882dea044e9f"
+};
+
+let _db = null;
+let _fbReady = false;
+let _fbIgnoreNext = false;   // evita loop listener ↔ write
+
+function fbStatus(state, txt){
+  const s = document.getElementById('fb-status');
+  const t = document.getElementById('fb-status-txt');
+  if(!s) return;
+  s.className = state;                // 'ok' | 'err' | 'sync' | ''
+  if(t) t.textContent = txt;
+}
+
+function initFirebase(){
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    _db = firebase.database();
+
+    // Test conexión
+    _db.ref('.info/connected').on('value', snap=>{
+      if(snap.val()){
+        fbStatus('ok','Firebase ✓');
+        _fbReady = true;
+      } else {
+        fbStatus('err','Sin conexión');
+        _fbReady = false;
+      }
+    });
+
+    // ── Listener produccion/data ──
+    _db.ref('produccion/data').on('value', snap=>{
+      if(_fbIgnoreNext){ _fbIgnoreNext=false; return; }
+      const remote = snap.val();
+      if(remote){
+        data = Object.values(remote);
+        lsSave('gdlv_data', data);
+        renderAll();
+      }
+    });
+
+    // ── Listener marcaciones ──
+    _db.ref('produccion/marcas').on('value', snap=>{
+      const remote = snap.val();
+      if(remote){
+        marcas = Object.values(remote);
+        lsSave('gdlv_marcas', marcas);
+        renderMarcaciones();
+      }
+    });
+
+    // ── Listener config (empleados, tipos, cfg) — solo admin escribe, todos leen ──
+    _db.ref('produccion/empleados').on('value', snap=>{
+      const remote = snap.val();
+      if(remote){ empleados = Object.values(remote); lsSave('gdlv_empleados',empleados); updateDlEmp(); }
+    });
+    _db.ref('produccion/tipos').on('value', snap=>{
+      const remote = snap.val();
+      if(remote){ tiposPrenda = Object.values(remote); lsSave('gdlv_tipos',tiposPrenda); updateDlTipos(); }
+    });
+    _db.ref('produccion/config').on('value', snap=>{
+      const remote = snap.val();
+      if(remote){ config = remote; lsSave('gdlv_config',config); }
+    });
+
+  } catch(err){
+    fbStatus('err','Error Firebase');
+    console.warn('Firebase init error:', err);
+  }
+}
+
+// Convierte array a objeto keyed por id (Firebase no guarda arrays vacíos bien)
+function arrToObj(arr){ const o={}; arr.forEach(r=>{ o[r.id||Date.now()+Math.random()]=r; }); return o; }
+
+// ── ESTADO (localStorage como caché offline) ─────────────────────────
+let data        = lsGet('gdlv_data',      []);
+let marcas      = lsGet('gdlv_marcas',    []);
+let empleados   = lsGet('gdlv_empleados', []);
+let tiposPrenda = lsGet('gdlv_tipos',     []);
+let config      = lsGet('gdlv_config',    {jornada:8, diasMes:22, diasSem:5});
+
+function lsGet(k,def){ try{ return JSON.parse(localStorage.getItem(k))||def; }catch(e){ return def; } }
+function lsSave(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+// ── SAVE → Firebase + localStorage ───────────────────────────────────
+function save(){
+  lsSave('gdlv_data', data);
+  if(_fbReady){
+    fbStatus('sync','Guardando…');
+    _fbIgnoreNext = true;
+    _db.ref('produccion/data').set(arrToObj(data))
+      .then(()=>fbStatus('ok','Guardado ✓'))
+      .catch(()=>fbStatus('err','Error al guardar'));
+  }
+}
+function saveMarcas(){
+  lsSave('gdlv_marcas', marcas);
+  if(_fbReady) _db.ref('produccion/marcas').set(arrToObj(marcas)).catch(()=>{});
+}
+function saveEmp(){
+  lsSave('gdlv_empleados', empleados);
+  if(_fbReady) _db.ref('produccion/empleados').set(arrToObj(empleados)).catch(()=>{});
+}
+function saveTipos(){
+  lsSave('gdlv_tipos', tiposPrenda);
+  if(_fbReady) _db.ref('produccion/tipos').set(arrToObj(tiposPrenda)).catch(()=>{});
+}
+function saveCfg(){
+  lsSave('gdlv_config', config);
+  if(_fbReady) _db.ref('produccion/config').set(config).catch(()=>{});
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────
+const hoy  = () => new Date().toISOString().slice(0,10);
+const n    = (id) => parseFloat(document.getElementById(id)?.value)||0;
+const v    = (id) => (document.getElementById(id)?.value||'').trim();
+const el   = (id) => document.getElementById(id);
+const gs   = (x)  => x!=null?Math.round(x).toLocaleString('es-PY'):'—';
+
+function calcMin(ini,fin){
+  if(!ini||!fin) return 0;
+  const [ih,im]=ini.split(':').map(Number), [fh,fm]=fin.split(':').map(Number);
+  let d=(fh*60+fm)-(ih*60+im);
+  return d<0?d+1440:d;
+}
+function fN(x,d=2){ return (x!=null&&!isNaN(x)&&x>0)?Number(x).toFixed(d):'—'; }
+function semanaActual(){ const d=new Date(); const day=d.getDay()||7; d.setDate(d.getDate()-day+1); return d.toISOString().slice(0,10); }
+function mesActual(){ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); }
+function diasEntreFechas(f1,f2){ return Math.round((new Date(f2)-new Date(f1))/(1000*60*60*24))+1; }
+
+function toast(msg, tipo='ok'){
+  const w=el('toasts'), d=document.createElement('div');
+  d.className='toast '+tipo; d.textContent=msg; w.appendChild(d);
+  setTimeout(()=>d.remove(), 3000);
+}
+
+function tab(id, btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  el('v-'+id)?.classList.add('on');
+  btn?.classList.add('on');
+  const renders = {
+    resumen:     renderResumen,
+    pesos:       renderPesos,
+    marcaciones: renderMarcaciones,
+    informes:    renderInformes,
+    config:      renderConfig,
+  };
+  if(renders[id]) renders[id]();
+  else renderTabla(id);
+}
+
+// ── TIPOS DE PRENDA (lista compartida) ───────────────────────────────
+function allTipos(){
+  const fromData = new Set(data.map(r=>r.tipo.trim()));
+  const fromCfg  = new Set(tiposPrenda.map(t=>t.nombre));
+  return [...new Set([...fromCfg,...fromData])].sort();
+}
+
+function updateDlTipos(){
+  const tipos = allTipos();
+  el('dl-tipos').innerHTML = tipos.map(t=>`<option value="${t}">`).join('');
+}
+
+function updateDlEmp(){
+  const names = empleados.filter(e=>e.activo).map(e=>e.nombre).sort();
+  el('dl-emp').innerHTML = names.map(n=>`<option value="${n}">`).join('');
+  // Update informe filter
+  const sel = el('inf-emp');
+  if(sel){
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">Todos</option>` + names.map(n=>`<option value="${n}"${n===cur?' selected':''}>${n}</option>`).join('');
+  }
+}
+
+// ── CALCULADORES TIEMPO REAL ─────────────────────────────────────────
+function bindCalc(pfx, cantId, nempId, iniId, finId, cfg){
+  const update = ()=>{
+    const cant=n(cantId), nemp=n(nempId)||1;
+    const min=calcMin(v(iniId), v(finId));
+    if(cfg.min && el(cfg.min)) el(cfg.min).textContent=min>0?min:'—';
+    if(min>0&&cant>0){
+      const muMaq=min/cant, muHH=min*nemp/cant;
+      if(cfg.muMaq) el(cfg.muMaq).textContent=muMaq.toFixed(2);
+      if(cfg.muHH)  el(cfg.muHH).textContent=muHH.toFixed(2);
+      if(cfg.muOp)  el(cfg.muOp).textContent=muMaq.toFixed(2);
+      if(cfg.hh)    el(cfg.hh).textContent=(min*nemp/60).toFixed(2);
+      if(cfg.muSingle) el(cfg.muSingle).textContent=muMaq.toFixed(2);
+      if(cfg.uh)    el(cfg.uh).textContent=(60/muMaq).toFixed(1);
+      if(cfg.umTot) el(cfg.umTot).textContent=Math.round(cant);
+    } else {
+      [cfg.muMaq,cfg.muHH,cfg.muOp,cfg.hh,cfg.muSingle,cfg.uh,cfg.umTot].filter(Boolean)
+        .forEach(id=>{ if(el(id)) el(id).textContent='—'; });
+    }
+  };
+  [cantId,nempId,iniId,finId].forEach(id=>el(id)?.addEventListener('input',update));
+}
+
+function bindArea(anchoId,altoId,areaId,umTotId,cantId){
+  const update=()=>{
+    const a=n(anchoId), b=n(altoId), c=n(cantId);
+    if(el(areaId))  el(areaId).textContent =(a&&b)?Math.round(a*b):'—';
+    if(el(umTotId)) el(umTotId).textContent=(a&&b&&c)?Math.round(a*b*c):'—';
+  };
+  [anchoId,altoId,cantId].forEach(id=>el(id)?.addEventListener('input',update));
+}
+
+// ── ADD REGISTRO PRODUCCIÓN ──────────────────────────────────────────
+function add(area){
+  const P = {corte:'cr',impresion:'im',sublimacion:'su',costura:'co',serigrafia:'se',transfer:'tr',empaque:'em'}[area];
+  const get  = s => v(P+'-'+s);
+  const getN = s => n(P+'-'+s);
+
+  const fecha=get('fecha'), tipo=get('tipo'), cant=getN('cant');
+  if(!fecha){toast('Falta la fecha','err');return;}
+  if(!tipo){toast('Falta el tipo de prenda','err');return;}
+  if(cant<=0){toast('Ingresá una cantidad válida','err');return;}
+
+  const ini=get('ini'), fin=get('fin');
+  const minTot=calcMin(ini,fin);
+  const nemp=getN('nemp')||1;
+  const minuMaq=minTot>0&&cant>0?+(minTot/cant).toFixed(4):null;
+  const minuHH =minTot>0&&cant>0?+(minTot*nemp/cant).toFixed(4):null;
+  const uh     =minuMaq?+(60/minuMaq).toFixed(2):null;
+
+  const reg={id:Date.now(),area,fecha,tipo,cant,
+    equipo:get('equipo'),nemp,ini,fin,minTot:minTot||null,
+    minuMaq,minuHH,uh,obs:get('obs')};
+
+  if(area==='corte'){
+    reg.um=get('um'); reg.tela=get('tela');
+    reg.ancho=getN('ancho')||null; reg.ctela=getN('ctela')||null;
+    reg.hh=minTot>0?+(minTot*nemp/60).toFixed(2):null;
+  } else if(area==='impresion'){
+    reg.maq=get('maq'); reg.perfil=getN('perfil')||null; reg.talle=get('talle');
+    reg.tinta=getN('tinta')||null; reg.papel=getN('papel')||null;
+  } else if(area==='sublimacion'){
+    reg.maq=get('maq'); reg.talle=get('talle');
+  } else if(area==='costura'){
+    reg.talle=get('talle'); reg.minuOp=minuMaq;
+    reg.hh=minTot>0?+(minTot*nemp/60).toFixed(2):null;
+  } else if(area==='serigrafia'){
+    reg.talle=get('talle'); reg.tipimp=get('tipimp'); reg.ubic=get('ubic');
+    reg.ancho=getN('ancho')||null; reg.alto=getN('alto')||null;
+    reg.areaDis=getN('ancho')&&getN('alto')?Math.round(getN('ancho')*getN('alto')):null;
+    reg.umTot=reg.areaDis&&cant?Math.round(reg.areaDis*cant):null;
+    reg.colores=getN('colores')||null; reg.pasadas=getN('pasadas')||null;
+    reg.tinta=getN('tinta')||null;
+  } else if(area==='transfer'){
+    reg.talle=get('talle'); reg.tipimp=get('tipimp'); reg.ubic=get('ubic');
+    reg.ancho=getN('ancho')||null; reg.alto=getN('alto')||null;
+    reg.areaDis=getN('ancho')&&getN('alto')?Math.round(getN('ancho')*getN('alto')):null;
+    reg.umTot=reg.areaDis&&cant?Math.round(reg.areaDis*cant):null;
+    reg.metros=getN('metros')||null;
+  } else if(area==='empaque'){
+    reg.talle=get('talle'); reg.tipoemp=get('tipoemp'); reg.umTot=cant||null;
+  }
+
+  data.push(reg);
+  save();
+
+  // Agregar tipo a lista si no existe
+  const tipoNorm=tipo.trim();
+  if(!tiposPrenda.find(t=>t.nombre.toLowerCase()===tipoNorm.toLowerCase())){
+    tiposPrenda.push({nombre:tipoNorm, desc:''});
+    saveTipos();
+  }
+
+  updateDlTipos();
+  renderTabla(area);
+  renderResumen();
+  clear_form(area);
+  toast(`✓ ${tipo} — ${cant} unidades`,'ok');
+}
+
+function del(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  data=data.filter(r=>r.id!==id);
+  save(); renderAll();
+  toast('Registro eliminado');
+}
+
+function clear_form(area){
+  const P={corte:'cr',impresion:'im',sublimacion:'su',costura:'co',serigrafia:'se',transfer:'tr',empaque:'em'}[area];
+  document.querySelectorAll(`[id^="${P}-"]`).forEach(e=>{
+    if(e.tagName==='INPUT'){
+      if(e.type==='date') e.value=hoy();
+      else if(e.id===P+'-nemp') e.value='1';
+      else e.value='';
+    } else if(e.tagName==='SELECT') e.selectedIndex=0;
+    else if(e.tagName==='SPAN') e.textContent='—';
+  });
+  ['min','hh','minu','minu-maq','minu-hh','minu-op','area','um-tot','uh','umtot'].forEach(s=>{
+    const e=document.getElementById(P+'-'+s); if(e) e.textContent='—';
+  });
+}
+
+// ── RENDER TABLA ÁREA ────────────────────────────────────────────────
+function f(x){ return x??'—'; }
+function fNum(x,d=2){ return (x!==null&&x!==undefined&&!isNaN(x))?Number(x).toFixed(d):'—'; }
+
+function renderTabla(area){
+  const tb=el('tb-'+area);
+  if(!tb) return;
+  const rows=data.filter(r=>r.area===area).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const cnt=el('cnt-'+area);
+  if(cnt) cnt.textContent=`${rows.length} reg · ${rows.reduce((s,r)=>s+r.cant,0)} ud`;
+  if(!rows.length){tb.innerHTML=`<tr><td class="no-data" colspan="20">Sin registros aún</td></tr>`;return;}
+
+  tb.innerHTML=rows.map(r=>{
+    let cells='';
+    if(area==='corte')
+      cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td class="td-num">${r.cant}</td><td>${f(r.um)}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.hh)}</td><td class="td-num">${fNum(r.minuHH)}</td><td>${f(r.tela)}</td><td class="td-num">${f(r.ancho)}</td><td class="td-num">${f(r.ctela)}</td><td>${f(r.obs)}</td>`;
+    else if(area==='impresion')
+      cells=`<td>${f(r.fecha)}</td><td>${f(r.maq)}</td><td>${f(r.perfil)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td class="td-num">${fNum(r.minuHH)}</td><td class="td-num">${f(r.tinta)}</td><td class="td-num">${f(r.papel)}</td><td>${f(r.obs)}</td>`;
+    else if(area==='sublimacion')
+      cells=`<td>${f(r.fecha)}</td><td>${f(r.maq)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td class="td-num">${fNum(r.minuHH)}</td><td>${f(r.obs)}</td>`;
+    else if(area==='costura')
+      cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.minuOp)}</td><td class="td-num">${fNum(r.minuHH)}</td><td>${f(r.obs)}</td>`;
+    else if(area==='serigrafia')
+      cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.tipimp)}</td><td class="td-num">${f(r.ancho)}</td><td class="td-num">${f(r.alto)}</td><td class="td-num">${f(r.areaDis)}</td><td class="td-num">${f(r.colores)}</td><td class="td-num">${f(r.pasadas)}</td><td>${f(r.ubic)}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.uh,1)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td class="td-num">${f(r.tinta)}</td><td>${f(r.obs)}</td>`;
+    else if(area==='transfer')
+      cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.tipimp)}</td><td class="td-num">${f(r.ancho)}</td><td class="td-num">${f(r.alto)}</td><td class="td-num">${f(r.areaDis)}</td><td>${f(r.ubic)}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.uh,1)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td class="td-num">${f(r.metros)}</td><td>${f(r.obs)}</td>`;
+    else if(area==='empaque')
+      cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.tipoemp)}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.uh,1)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td>${f(r.obs)}</td>`;
+    return `<tr>${cells}<td class="td-del" onclick="del(${r.id})">✕</td></tr>`;
+  }).join('');
+}
+
+// ── RENDER RESUMEN ───────────────────────────────────────────────────
+function renderResumen(){
+  const total=data.length, ud=data.reduce((s,r)=>s+r.cant,0);
+  const hoyStr=hoy();
+  const hoyUd=data.filter(r=>r.fecha===hoyStr).reduce((s,r)=>s+r.cant,0);
+  const tipos=new Set(data.map(r=>r.tipo.toLowerCase())).size;
+  el('stats-strip').innerHTML=`
+    <div class="stat"><div class="stat-n" style="color:var(--accent)">${total}</div><div class="stat-l">Registros</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--blue)">${ud.toLocaleString()}</div><div class="stat-l">Unidades Totales</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--green)">${hoyUd.toLocaleString()}</div><div class="stat-l">Unidades Hoy</div></div>
+    <div class="stat"><div class="stat-n" style="color:#6366f1">${tipos}</div><div class="stat-l">Tipos de Prenda</div></div>`;
+
+  const rows=[...data].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  el('resumen-count').textContent=`${rows.length} registros`;
+  el('tb-resumen').innerHTML=rows.map(r=>`<tr>
+    <td>${r.fecha}</td>
+    <td><span class="abadge" style="background:${COLORS[r.area]}18;color:${COLORS[r.area]}">${LABELS[r.area]}</span></td>
+    <td class="td-tipo">${r.tipo}</td>
+    <td class="td-num">${r.cant}</td>
+    <td>${r.equipo||'—'}</td>
+    <td class="td-num">${r.minTot||'—'}</td>
+    <td class="td-num">${fNum(r.minuHH)}</td>
+    <td>${r.obs||'—'}</td>
+    <td class="td-del" onclick="del(${r.id})">✕</td>
+  </tr>`).join('') || `<tr><td class="no-data" colspan="9">Sin registros aún</td></tr>`;
+}
+
+// ── RENDER PESOS ─────────────────────────────────────────────────────
+function renderPesos(){
+  const map={};
+  data.forEach(r=>{
+    if(!r.minuHH||r.minuHH<=0||r.minuHH>200) return;
+    const t=r.tipo.trim();
+    if(!map[t]) map[t]={};
+    if(!map[t][r.area]) map[t][r.area]={sp:0,ud:0,cnt:0};
+    map[t][r.area].sp+=r.minuHH*r.cant;
+    map[t][r.area].ud+=r.cant;
+    map[t][r.area].cnt++;
+  });
+  const tipos=Object.keys(map).sort();
+  const tb=el('tb-pesos');
+  if(!tipos.length){tb.innerHTML=`<tr><td class="no-data" colspan="10">Cargá registros para ver los pesos calculados automáticamente</td></tr>`;return;}
+  tb.innerHTML=tipos.map(tipo=>{
+    let totReg=0, totUd=0;
+    const celdas=AREAS.map(area=>{
+      const d=map[tipo]?.[area];
+      if(!d) return `<td class="td-num peso-na">—</td>`;
+      const avgMinU=d.sp/d.ud;
+      const peso=avgMinU/(BASE[area]||1);
+      totReg+=d.cnt; totUd+=d.ud;
+      const cls=peso<0.85?'peso-good':peso<1.15?'peso-base':peso<1.5?'peso-warn':'peso-bad';
+      const fiab=d.cnt<3?'*':'';
+      return `<td class="td-num ${cls}" title="${d.cnt} reg · ${d.ud} ud · ${avgMinU.toFixed(2)} min/u">${peso.toFixed(2)}${fiab}</td>`;
+    }).join('');
+    return `<tr><td class="td-tipo">${tipo}</td>${celdas}<td class="td-num" style="color:var(--muted)">${totReg}</td><td class="td-num" style="color:var(--muted)">${totUd}</td></tr>`;
+  }).join('');
+}
+
+// ── MARCACIONES ──────────────────────────────────────────────────────
+function addMarcacion(){
+  const fecha=v('ma-fecha'), emp=v('ma-emp');
+  if(!fecha){toast('Falta la fecha','err');return;}
+  if(!emp){toast('Falta el empleado','err');return;}
+  const ini=v('ma-entrada'), fin=v('ma-salida');
+  const min=calcMin(ini,fin);
+  const hs=min>0?+(min/60).toFixed(2):null;
+  marcas.push({id:Date.now(),fecha,emp,entrada:ini,salida:fin,min:min||null,hs,area:v('ma-area'),obs:v('ma-obs')});
+  saveMarcas();
+  renderMarcaciones();
+  clearMarcacion();
+  toast(`✓ Marcación registrada — ${emp}`,'ok');
+}
+
+function delMarca(id){
+  if(!confirm('¿Eliminar marcación?')) return;
+  marcas=marcas.filter(m=>m.id!==id);
+  saveMarcas(); renderMarcaciones();
+}
+
+function clearMarcacion(){
+  ['ma-fecha','ma-emp','ma-entrada','ma-salida','ma-area','ma-obs'].forEach(id=>{
+    const e=el(id); if(e){ e.value = id==='ma-fecha'?hoy():''; }
+  });
+  el('ma-hs').textContent='—'; el('ma-min').textContent='—';
+}
+
+function renderMarcaciones(){
+  const rows=[...marcas].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const cnt=el('cnt-marcaciones');
+  if(cnt) cnt.textContent=`${rows.length} marcaciones`;
+  const tb=el('tb-marcaciones');
+  if(!tb) return;
+  tb.innerHTML=rows.map(m=>`<tr>
+    <td>${m.fecha}</td><td class="td-tipo">${m.emp}</td>
+    <td>${m.entrada||'—'}</td><td>${m.salida||'—'}</td>
+    <td class="td-num">${m.hs?m.hs.toFixed(2):'—'}</td>
+    <td class="td-num">${m.min||'—'}</td>
+    <td>${m.area||'—'}</td><td>${m.obs||'—'}</td>
+    <td class="td-del" onclick="delMarca(${m.id})">✕</td>
+  </tr>`).join('') || `<tr><td class="no-data" colspan="9">Sin marcaciones aún</td></tr>`;
+}
+
+// ── INFORMES ─────────────────────────────────────────────────────────
+function getFiltroFechas(){
+  const per = v('inf-periodo');
+  let desde, hasta = hoy();
+  if(per==='dia')    desde=hoy();
+  else if(per==='semana') desde=semanaActual();
+  else if(per==='mes')    desde=mesActual();
+  else { desde=v('inf-desde')||hoy(); hasta=v('inf-hasta')||hoy(); }
+  return {desde, hasta};
+}
+
+function filtrarData(desde, hasta, emp){
+  return data.filter(r=>r.fecha>=desde && r.fecha<=hasta && (!emp||r.equipo===emp||r.equipo?.includes(emp)));
+}
+function filtrarMarcas(desde, hasta, emp){
+  return marcas.filter(m=>m.fecha>=desde && m.fecha<=hasta && (!emp||m.emp===emp));
+}
+
+function tarifaEmp(nombre){
+  const e=empleados.find(e=>e.nombre.toLowerCase()===nombre?.toLowerCase());
+  return e?.tarifa||0;
+}
+
+function renderInformes(){
+  const {desde, hasta}=getFiltroFechas();
+  const empFiltro=v('inf-emp');
+  const dr=filtrarData(desde,hasta,empFiltro);
+  const mr=filtrarMarcas(desde,hasta,empFiltro);
+
+  // ─ STATS STRIP ─
+  const totalUd=dr.reduce((s,r)=>s+r.cant,0);
+  const diasUnicos=new Set(dr.map(r=>r.fecha)).size;
+  const udDia=diasUnicos>0?(totalUd/diasUnicos).toFixed(1):0;
+  const hsTotal=mr.reduce((s,m)=>s+(m.hs||0),0);
+  el('inf-stats').innerHTML=`
+    <div class="stat"><div class="stat-n" style="color:var(--accent)">${totalUd.toLocaleString()}</div><div class="stat-l">Unidades período</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--green)">${udDia}</div><div class="stat-l">Ud/día promedio</div></div>
+    <div class="stat"><div class="stat-n" style="color:#6366f1">${hsTotal.toFixed(1)}</div><div class="stat-l">Horas marcadas</div></div>
+    <div class="stat"><div class="stat-n" style="color:var(--amber)">${diasUnicos}</div><div class="stat-l">Días con producción</div></div>`;
+
+  // ─ POR EMPLEADO ─
+  const empMap={};
+  dr.forEach(r=>{
+    const emp=r.equipo||'(sin empleado)';
+    // Manejar equipos múltiples ej "Luis+José"
+    const nombres=emp.split(/[+,]/).map(s=>s.trim()).filter(Boolean);
+    nombres.forEach(nombre=>{
+      if(!empMap[nombre]) empMap[nombre]={ud:0,minTot:0,fechas:new Set(),areas:{}};
+      empMap[nombre].ud+=r.cant/nombres.length;
+      empMap[nombre].minTot+=(r.minTot||0)/nombres.length;
+      empMap[nombre].fechas.add(r.fecha);
+      empMap[nombre].areas[r.area]=(empMap[nombre].areas[r.area]||0)+r.cant/nombres.length;
+    });
+  });
+  // Agregar horas de marcaciones
+  const hsMap={};
+  mr.forEach(m=>{ hsMap[m.emp]=(hsMap[m.emp]||0)+(m.hs||0); });
+
+  const empRows=Object.entries(empMap).sort((a,b)=>b[1].ud-a[1].ud).map(([nombre,d])=>{
+    const dias=d.fechas.size;
+    const hs=hsMap[nombre]||0;
+    const udHs=hs>0?(d.ud/hs).toFixed(1):'—';
+    const udDiaEmp=dias>0?(d.ud/dias).toFixed(1):'—';
+    const tarifa=tarifaEmp(nombre);
+    const costoTotal=tarifa>0&&hs>0?Math.round(tarifa*hs):null;
+    const costoUd=costoTotal&&d.ud>0?Math.round(costoTotal/d.ud):null;
+    const areaMain=Object.entries(d.areas).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+    return `<tr>
+      <td class="td-tipo">${nombre}</td>
+      <td class="td-num">${dias}</td>
+      <td class="td-num">${hs>0?hs.toFixed(1):'—'}</td>
+      <td class="td-num">${Math.round(d.ud).toLocaleString()}</td>
+      <td class="td-num">${udHs}</td>
+      <td class="td-num">${udDiaEmp}</td>
+      <td class="td-num">${tarifa>0?gs(tarifa):'—'}</td>
+      <td class="td-num">${costoTotal?gs(costoTotal):'—'}</td>
+      <td class="td-num">${costoUd?gs(costoUd):'—'}</td>
+      <td><span class="abadge" style="background:${COLORS[areaMain]||'#ddd'}18;color:${COLORS[areaMain]||'#888'}">${LABELS[areaMain]||areaMain}</span></td>
+    </tr>`;
+  }).join('') || `<tr><td class="no-data" colspan="10">Sin datos en el período seleccionado</td></tr>`;
+  el('tb-inf-empleados').innerHTML=empRows;
+
+  // ─ CAPACIDAD POR PRENDA ─
+  const tipoAreaMap={};
+  dr.forEach(r=>{
+    if(!r.minuHH||r.minuHH<=0||r.minuHH>200) return;
+    const key=`${r.tipo}||${r.area}`;
+    if(!tipoAreaMap[key]) tipoAreaMap[key]={tipo:r.tipo,area:r.area,sp:0,ud:0,cnt:0};
+    tipoAreaMap[key].sp+=r.minuHH*r.cant;
+    tipoAreaMap[key].ud+=r.cant;
+    tipoAreaMap[key].cnt++;
+  });
+  const jornadaH=config.jornada||8;
+  const capRows=Object.values(tipoAreaMap).sort((a,b)=>a.tipo.localeCompare(b.tipo)).map(d=>{
+    const avgMinU=d.sp/d.ud;
+    const udH=avgMinU>0?(60/avgMinU):0;
+    const udDiaVal=udH*jornadaH;
+    const udMes=udDiaVal*(config.diasMes||22);
+    const conf=d.cnt<3?'⚠ Baja':d.cnt<8?'✓ Media':'✓✓ Alta';
+    const confColor=d.cnt<3?'var(--amber)':d.cnt<8?'var(--blue)':'var(--green)';
+    return `<tr>
+      <td class="td-tipo">${d.tipo}</td>
+      <td><span class="abadge" style="background:${COLORS[d.area]}18;color:${COLORS[d.area]}">${LABELS[d.area]}</span></td>
+      <td class="td-num">${avgMinU.toFixed(2)}</td>
+      <td class="td-num">${udH.toFixed(1)}</td>
+      <td class="td-num">${Math.round(udDiaVal)}</td>
+      <td class="td-num">${Math.round(udMes).toLocaleString()}</td>
+      <td class="td-num">${d.cnt}</td>
+      <td style="color:${confColor};font-weight:600;font-size:11px">${conf}</td>
+    </tr>`;
+  }).join('') || `<tr><td class="no-data" colspan="8">Sin datos</td></tr>`;
+  el('tb-inf-capacidad').innerHTML=capRows;
+
+  // ─ COSTO M.O. POR PRENDA ─
+  // Solo si hay empleados con tarifa
+  const costoRows=Object.values(tipoAreaMap).sort((a,b)=>a.tipo.localeCompare(b.tipo)).map(d=>{
+    const avgMinU=d.sp/d.ud;
+    // Calcular costos usando registros reales con equipo
+    const regs=dr.filter(r=>r.tipo===d.tipo&&r.area===d.area&&r.minuHH>0);
+    const costos=regs.flatMap(r=>{
+      const nombres=(r.equipo||'').split(/[+,]/).map(s=>s.trim()).filter(Boolean);
+      return nombres.map(nombre=>{
+        const tar=tarifaEmp(nombre);
+        return tar>0?((r.minuHH||0)*tar/60):null;
+      }).filter(x=>x!=null);
+    });
+    const costoAvg=costos.length?costos.reduce((s,c)=>s+c,0)/costos.length:null;
+    const costoMin=costos.length?Math.min(...costos):null;
+    const costoMax=costos.length?Math.max(...costos):null;
+    return `<tr>
+      <td class="td-tipo">${d.tipo}</td>
+      <td><span class="abadge" style="background:${COLORS[d.area]}18;color:${COLORS[d.area]}">${LABELS[d.area]}</span></td>
+      <td class="td-num">${avgMinU.toFixed(2)}</td>
+      <td class="td-num">${costoAvg?gs(costoAvg):'—'}</td>
+      <td class="td-num">${costoMin?gs(costoMin):'—'}</td>
+      <td class="td-num">${costoMax?gs(costoMax):'—'}</td>
+      <td class="td-num">${d.cnt}</td>
+    </tr>`;
+  }).join('') || `<tr><td class="no-data" colspan="7">Sin datos o sin tarifas cargadas</td></tr>`;
+  el('tb-inf-costos').innerHTML=costoRows;
+
+  // ─ POR ÁREA ─
+  const areaMap={};
+  dr.forEach(r=>{
+    if(!areaMap[r.area]) areaMap[r.area]={ud:0,cnt:0,minTot:0,fechas:new Set(),emps:new Set()};
+    areaMap[r.area].ud+=r.cant;
+    areaMap[r.area].cnt++;
+    areaMap[r.area].minTot+=r.minTot||0;
+    areaMap[r.area].fechas.add(r.fecha);
+    if(r.equipo) r.equipo.split(/[+,]/).forEach(e=>areaMap[r.area].emps.add(e.trim()));
+  });
+  const areaRows=AREAS.filter(a=>areaMap[a]).map(a=>{
+    const d=areaMap[a];
+    const udDiaA=d.fechas.size>0?(d.ud/d.fechas.size).toFixed(1):'—';
+    return `<tr>
+      <td><span class="abadge" style="background:${COLORS[a]}18;color:${COLORS[a]}">${LABELS[a]}</span></td>
+      <td class="td-num">${d.cnt}</td>
+      <td class="td-num">${d.ud.toLocaleString()}</td>
+      <td class="td-num">${udDiaA}</td>
+      <td class="td-num">${d.minTot.toLocaleString()}</td>
+      <td>${[...d.emps].join(', ')||'—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td class="no-data" colspan="6">Sin datos</td></tr>`;
+  el('tb-inf-areas').innerHTML=areaRows;
+}
+
+// ── CONFIG ───────────────────────────────────────────────────────────
+function addEmpleado(){
+  const nombre=v('cfg-emp-nombre'), areas=v('cfg-emp-areas'), tarifa=n('cfg-emp-tarifa');
+  if(!nombre){toast('Falta el nombre','err');return;}
+  if(empleados.find(e=>e.nombre.toLowerCase()===nombre.toLowerCase())){
+    toast('Ya existe un empleado con ese nombre','err');return;
+  }
+  empleados.push({id:Date.now(),nombre,areas,tarifa:tarifa||0,activo:1});
+  saveEmp(); updateDlEmp(); renderConfig();
+  el('cfg-emp-nombre').value=''; el('cfg-emp-areas').value=''; el('cfg-emp-tarifa').value='';
+  toast(`✓ ${nombre} agregado`,'ok');
+}
+
+function delEmpleado(id){
+  if(!confirm('¿Eliminar empleado?')) return;
+  empleados=empleados.filter(e=>e.id!==id);
+  saveEmp(); updateDlEmp(); renderConfig();
+}
+
+function addTipoPrenda(){
+  const nombre=v('cfg-prenda-nombre'), desc=v('cfg-prenda-desc');
+  if(!nombre){toast('Falta el nombre','err');return;}
+  if(!tiposPrenda.find(t=>t.nombre.toLowerCase()===nombre.toLowerCase())){
+    tiposPrenda.push({nombre,desc});
+    saveTipos(); updateDlTipos();
+  }
+  el('cfg-prenda-nombre').value=''; el('cfg-prenda-desc').value='';
+  renderConfig();
+  toast(`✓ "${nombre}" agregado`,'ok');
+}
+
+function delTipoPrenda(nombre){
+  tiposPrenda=tiposPrenda.filter(t=>t.nombre!==nombre);
+  saveTipos(); updateDlTipos(); renderConfig();
+}
+
+function saveConfig(){
+  config.jornada  = n('cfg-jornada')||8;
+  config.diasMes  = n('cfg-dias-mes')||22;
+  config.diasSem  = n('cfg-dias-sem')||5;
+  saveCfg();
+  toast('Configuración guardada','ok');
+}
+
+function renderConfig(){
+  // Tabla empleados
+  const tb=el('tb-empleados');
+  if(tb) tb.innerHTML=empleados.map(e=>`<tr>
+    <td class="td-tipo">${e.nombre}</td>
+    <td>${e.areas||'—'}</td>
+    <td class="td-num">${e.tarifa?gs(e.tarifa):'—'}</td>
+    <td><span style="color:${e.activo?'var(--green)':'var(--red)'};font-weight:600;font-size:11px">${e.activo?'Activo':'Inactivo'}</span></td>
+    <td class="td-del" onclick="delEmpleado(${e.id})">✕</td>
+  </tr>`).join('') || `<tr><td class="no-data" colspan="5">Sin empleados cargados</td></tr>`;
+
+  // Tags prendas
+  const lp=el('lista-prendas-cfg');
+  const allT=allTipos();
+  if(lp) lp.innerHTML=allT.map(t=>`
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:12px;font-weight:600;">
+      ${t}
+      <span onclick="delTipoPrenda('${t.replace(/'/g,"\\'")}') " style="cursor:pointer;color:var(--muted2);font-size:14px;line-height:1" title="Quitar">×</span>
+    </span>`).join('');
+
+  // Parámetros
+  const j=el('cfg-jornada');    if(j) j.value=config.jornada||8;
+  const dm=el('cfg-dias-mes');  if(dm) dm.value=config.diasMes||22;
+  const ds=el('cfg-dias-sem');  if(ds) ds.value=config.diasSem||5;
+}
+
+function resetDatos(){
+  if(!confirm('¿Borrar TODOS los datos de producción? Esta acción no se puede deshacer.')) return;
+  data=[]; save(); renderAll();
+  toast('Datos borrados','ok');
+}
+function resetMarcaciones(){
+  if(!confirm('¿Borrar TODAS las marcaciones?')) return;
+  marcas=[]; saveMarcas(); renderMarcaciones();
+  toast('Marcaciones borradas','ok');
+}
+
+function renderAll(){
+  renderResumen(); AREAS.forEach(renderTabla); renderPesos(); renderMarcaciones(); renderConfig();
+}
+
+// ── EXPORTAR EXCEL ───────────────────────────────────────────────────
+function exportarExcel(){
+  if(!data.length){toast('Sin datos para exportar','err');return;}
+  const wb=XLSX.utils.book_new();
+  const schemas={
+    corte:{
+      headers:['Fecha','Tipo de prenda','Cantidad','UM (UN/M)','Área','Equipo (Empleados)','Nro Emp','Inicio','Fin','Min Totales','Horas-hombre','Min/U (HH)','TELA','ANCHO','Cantidad Tela','Observaciones'],
+      row:r=>[r.fecha,r.tipo,r.cant,r.um||'UN','CORTE',r.equipo,r.nemp,r.ini,r.fin,r.minTot,r.hh,r.minuHH,r.tela,r.ancho,r.ctela,r.obs]
+    },
+    impresion:{
+      headers:['Fecha','Máquina','Perfil','Tipo de prenda','Talle','Cantidad','Área','Equipo (Empleados)','Nro Emp','Inicio','Fin','Min Totales','Min/U (Máquina)','Min/U (HH)','TINTA','PAPEL','OBSERVACIONES'],
+      row:r=>[r.fecha,r.maq,r.perfil,r.tipo,r.talle,r.cant,'IMPRESION',r.equipo,r.nemp,r.ini,r.fin,r.minTot,r.minuMaq,r.minuHH,r.tinta,r.papel,r.obs]
+    },
+    sublimacion:{
+      headers:['Fecha','Máquina','Tipo de prenda','Talle','Cantidad','Área','Equipo (Empleados)','Nro Emp','Inicio','Fin','Min Totales','Min/U (Máquina)','Min/U (HH)','Observaciones'],
+      row:r=>[r.fecha,r.maq,r.tipo,r.talle,r.cant,'SUBLIMACION',r.equipo,r.nemp,r.ini,r.fin,r.minTot,r.minuMaq,r.minuHH,r.obs]
+    },
+    costura:{
+      headers:['Fecha','Tipo de prenda','Talle','Cantidad','Área','Equipo (Empleados)','Nro Emp','Inicio','Fin','Min Totales','Min/U (Operación)','Min/U (HH)','Observaciones'],
+      row:r=>[r.fecha,r.tipo,r.talle,r.cant,'COSTURA',r.equipo,r.nemp,r.ini,r.fin,r.minTot,r.minuOp,r.minuHH,r.obs]
+    },
+    serigrafia:{
+      headers:['Fecha','Tipo de prenda','Talle','Cantidad','Área','Equipo (Empleados)','Nro Emp','Tipo Impresión','Ancho','Alto','Área Diseño','Cant Colores','Nro Pasadas','Ubicación','UM (Trabajo Total)','Inicio','Fin','Min Totales','U/H (Prendas)','Min/U (Prenda)','Observaciones','Cant Tinta'],
+      row:r=>[r.fecha,r.tipo,r.talle,r.cant,'SERIGRAFIA',r.equipo,r.nemp,r.tipimp,r.ancho,r.alto,r.areaDis,r.colores,r.pasadas,r.ubic,r.umTot,r.ini,r.fin,r.minTot,r.uh,r.minuMaq,r.obs,r.tinta]
+    },
+    transfer:{
+      headers:['Fecha','Tipo de prenda','Talle','Cantidad','Área','Equipo (Empleados)','Nro Emp','Tipo Impresión','Ancho','Alto','Área Diseño','Ubicación','UM (Trabajo Total)','Inicio','Fin','Min Totales','U/H (Prendas)','Min/U (Prenda)','Observaciones','Cant Metros'],
+      row:r=>[r.fecha,r.tipo,r.talle,r.cant,'TRANSFER',r.equipo,r.nemp,r.tipimp,r.ancho,r.alto,r.areaDis,r.ubic,r.umTot,r.ini,r.fin,r.minTot,r.uh,r.minuMaq,r.obs,r.metros]
+    },
+    empaque:{
+      headers:['Fecha','Tipo de prenda','Talle','Cantidad','Área','Equipo (Empleados)','Nro Emp','Tipo de Empaque','UM (Trabajo Total)','Inicio','Fin','Min Totales','U/H (Prendas)','Min/U (Prenda)'],
+      row:r=>[r.fecha,r.tipo,r.talle,r.cant,'ASEO Y EMPAQUE',r.equipo,r.nemp,r.tipoemp,r.umTot,r.ini,r.fin,r.minTot,r.uh,r.minuMaq]
+    }
+  };
+  AREAS.forEach(area=>{
+    const rows=data.filter(r=>r.area===area);
+    if(!rows.length) return;
+    const s=schemas[area];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([s.headers,...rows.map(s.row)]),LABELS[area].slice(0,31));
+  });
+  // MARCACIONES
+  if(marcas.length){
+    const mHdr=['Fecha','Empleado','Entrada','Salida','Horas','Minutos','Área(s)','Observaciones'];
+    const mRows=marcas.map(m=>[m.fecha,m.emp,m.entrada,m.salida,m.hs,m.min,m.area,m.obs]);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([mHdr,...mRows]),'MARCACIONES');
+  }
+  // PESOS
+  const map2={};
+  data.forEach(r=>{ if(!r.minuHH||r.minuHH<=0||r.minuHH>200) return; const t=r.tipo.trim(); if(!map2[t]) map2[t]={}; if(!map2[t][r.area]) map2[t][r.area]={sp:0,ud:0,cnt:0}; map2[t][r.area].sp+=r.minuHH*r.cant; map2[t][r.area].ud+=r.cant; map2[t][r.area].cnt++; });
+  const pesosHdr=['Tipo de prenda',...AREAS.map(a=>LABELS[a]),'Registros','Unidades'];
+  const pesosData=Object.keys(map2).sort().map(tipo=>{ let totR=0,totU=0; const p=AREAS.map(a=>{ const d=map2[tipo]?.[a]; if(!d) return null; totR+=d.cnt; totU+=d.ud; return +((d.sp/d.ud)/(BASE[a]||1)).toFixed(2); }); return [tipo,...p,totR,totU]; });
+  if(pesosData.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([pesosHdr,...pesosData]),'PESOS POR PRENDA');
+  XLSX.writeFile(wb,'PRODUCCION_GDLV_'+hoy()+'.xlsx');
+  toast('Excel exportado','ok');
+}
+
+function exportarInformes(){
+  const {desde,hasta}=getFiltroFechas();
+  const emp=v('inf-emp');
+  const wb=XLSX.utils.book_new();
+  // Por empleado — recalcular
+  const empMap2={};
+  filtrarData(desde,hasta,emp).forEach(r=>{
+    const nombres=(r.equipo||'—').split(/[+,]/).map(s=>s.trim()).filter(Boolean);
+    nombres.forEach(nombre=>{
+      if(!empMap2[nombre]) empMap2[nombre]={ud:0,minTot:0,fechas:new Set()};
+      empMap2[nombre].ud+=r.cant/nombres.length;
+      empMap2[nombre].minTot+=(r.minTot||0)/nombres.length;
+      empMap2[nombre].fechas.add(r.fecha);
+    });
+  });
+  const hsMap2={};
+  filtrarMarcas(desde,hasta,emp).forEach(m=>{ hsMap2[m.emp]=(hsMap2[m.emp]||0)+(m.hs||0); });
+  const eHdr=['Empleado','Días','Horas','Unidades','Ud/Hora','Ud/Día','Tarifa Gs/h','Costo Total Gs','Costo/Unidad Gs'];
+  const eRows=Object.entries(empMap2).map(([nombre,d])=>{
+    const dias=d.fechas.size, hs=hsMap2[nombre]||0;
+    const tar=tarifaEmp(nombre), costo=tar&&hs?Math.round(tar*hs):null;
+    return [nombre,dias,hs.toFixed(2),Math.round(d.ud),hs?(d.ud/hs).toFixed(1):'',dias?(d.ud/dias).toFixed(1):'',tar||'',costo||'',costo&&d.ud?Math.round(costo/d.ud):''];
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([eHdr,...eRows]),'Por Empleado');
+  XLSX.writeFile(wb,'INFORMES_GDLV_'+desde+'_'+hasta+'.xlsx');
+  toast('Informe exportado','ok');
+}
+
+// ── MARCACION CALC ────────────────────────────────────────────────────
+function bindMarcaCalc(){
+  const update=()=>{
+    const min=calcMin(v('ma-entrada'),v('ma-salida'));
+    el('ma-min').textContent=min>0?min:'—';
+    el('ma-hs').textContent=min>0?(min/60).toFixed(2):'—';
+  };
+  el('ma-entrada')?.addEventListener('input',update);
+  el('ma-salida')?.addEventListener('input',update);
+}
+
+// ── SISTEMA DE ROLES / LOGIN ──────────────────────────────────────────
+// PINs por defecto: admin=1234, empleado=0000
+// Se pueden cambiar desde Configuración
+let _selectedRole = 'admin';
+
+function getPin(role){
+  const cfg2 = lsGet('gdlv_pins', {admin:'1234', emp:'0000'});
+  return cfg2[role];
+}
+
+function selectRole(role){
+  _selectedRole = role;
+  document.getElementById('rc-admin').classList.toggle('selected', role==='admin');
+  document.getElementById('rc-emp').classList.toggle('selected', role==='emp');
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('login-pin').focus();
+}
+
+function doLogin(){
+  const pin = document.getElementById('login-pin').value;
+  const correct = getPin(_selectedRole);
+  if(pin !== correct){
+    document.getElementById('login-err').textContent = 'PIN incorrecto. Intentá de nuevo.';
+    document.getElementById('login-pin').value = '';
+    document.getElementById('login-pin').focus();
+    return;
+  }
+  document.getElementById('login-err').textContent = '';
+  applyRole(_selectedRole);
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('btn-logout').style.display = '';
+}
+
+function applyRole(role){
+  document.body.classList.remove('role-admin','role-emp');
+  document.body.classList.add('role-'+role);
+
+  // Badge
+  const badge = document.getElementById('hdr-role-badge');
+  const label = document.getElementById('hdr-role-label');
+  badge.className = `role-badge ${role}`;
+  badge.style.display = '';
+  label.textContent = role==='admin' ? '🔑 Administrador' : '👷 Empleado';
+
+  // Botón exportar solo admin
+  document.querySelectorAll('.admin-only').forEach(e=>{
+    e.style.display = role==='admin' ? '' : 'none';
+  });
+
+  // Primera pestaña visible según rol
+  if(role === 'admin'){
+    // Admin: tab activo = RESUMEN
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+    const firstAdminTab = document.querySelector('.tab-btn.admin-only');
+    if(firstAdminTab){ firstAdminTab.classList.add('on'); }
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    el('v-resumen')?.classList.add('on');
+    renderResumen();
+  } else {
+    // Empleado: tab activo = CORTE (primera área)
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+    const tabs = document.querySelectorAll('.tab-btn:not(.admin-only)');
+    if(tabs[0]){ tabs[0].classList.add('on'); }
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    el('v-corte')?.classList.add('on');
+    renderTabla('corte');
+  }
+}
+
+function doLogout(){
+  document.body.classList.remove('role-admin','role-emp');
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('hdr-role-badge').style.display = 'none';
+  document.getElementById('btn-logout').style.display = 'none';
+  // Reset role cards
+  selectRole('admin');
+}
+
+// ── GESTIÓN DE PINs DESDE CONFIG ─────────────────────────────────────
+function savePins(){
+  const adminPin = v('cfg-pin-admin');
+  const empPin   = v('cfg-pin-emp');
+  if(adminPin && adminPin.length < 3){ toast('PIN admin debe tener al menos 3 dígitos','err'); return; }
+  if(empPin   && empPin.length   < 3){ toast('PIN empleado debe tener al menos 3 dígitos','err'); return; }
+  const pins = lsGet('gdlv_pins',{admin:'1234',emp:'0000'});
+  if(adminPin) pins.admin = adminPin;
+  if(empPin)   pins.emp   = empPin;
+  lsSave('gdlv_pins', pins);
+  el('cfg-pin-admin').value = '';
+  el('cfg-pin-emp').value   = '';
+  toast('PINs actualizados correctamente','ok');
+}
+
+// ══════════════════════════════════════════════════════════
+// IMPORTADOR EXCEL
+// ══════════════════════════════════════════════════════════
+
+let _importParsed = {};
+
+const SHEET_MAP = {
+  'P - CORTE 2':'corte','P-CORTE 2':'corte',
+  'P - IMPRESIÓN':'impresion','P-IMPRESIÓN':'impresion','P - IMPRESION':'impresion',
+  'P - SUBLIMACIÓN 2':'sublimacion','P-SUBLIMACIÓN 2':'sublimacion','P - SUBLIMACION 2':'sublimacion',
+  'P - COSTURA':'costura','P-COSTURA':'costura',
+  'P - SERIGRAFIA':'serigrafia','P - SERIGRAFÍA':'serigrafia','P-SERIGRAFIA':'serigrafia',
+  'P - TRANSFER':'transfer','P-TRANSFER':'transfer',
+  'P - ASEO Y EMPAQUE':'empaque','P-ASEO Y EMPAQUE':'empaque',
+};
+
+function openImport(){ document.getElementById('import-modal').classList.add('open'); }
+function closeImport(){
+  document.getElementById('import-modal').classList.remove('open');
+  document.getElementById('import-preview-area').innerHTML='';
+  document.getElementById('import-summary-bar').style.display='none';
+  document.getElementById('btn-confirmar-import').style.display='none';
+  document.getElementById('import-footer-msg').textContent='Seleccioná un archivo para previsualizar los datos';
+  document.getElementById('import-file-input').value='';
+  _importParsed={};
+}
+
+function handleImportDrop(ev){
+  ev.preventDefault(); ev.currentTarget.classList.remove('drag');
+  if(ev.dataTransfer.files[0]) handleImportFile(ev.dataTransfer.files[0]);
+}
+function handleImportFile(file){
+  if(!file) return;
+  document.getElementById('import-footer-msg').textContent='Leyendo archivo…';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{ parseImportWorkbook(XLSX.read(e.target.result,{type:'array',cellDates:true})); }
+    catch(err){ alert('No se pudo leer el archivo.\n'+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseImportFecha(val){
+  if(!val) return null;
+  if(val instanceof Date){
+    return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;
+  }
+  const s=String(val).replace(/\*/g,'/').trim();
+  const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){ const[,d,mo,y]=m; return `${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return null;
+}
+function parseImportHora(val){
+  if(!val) return null;
+  if(val instanceof Date) return `${String(val.getHours()).padStart(2,'0')}:${String(val.getMinutes()).padStart(2,'0')}`;
+  const m=String(val).match(/^(\d{1,2}):(\d{2})/);
+  return m?`${m[1].padStart(2,'0')}:${m[2]}`:null;
+}
+function norm(v){ return v==null?'':String(v).trim(); }
+function normNum(v){ const n=parseFloat(v); return isNaN(n)?null:+n.toFixed(4); }
+
+function parseImportWorkbook(wb){
+  _importParsed={}; let totalOk=0,totalWarn=0,totalErr=0;
+  wb.SheetNames.forEach(sname=>{
+    const area=SHEET_MAP[sname]; if(!area) return;
+    const ws=wb.Sheets[sname];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null});
+    if(rows.length<2) return;
+    let hdrIdx=0;
+    for(let i=0;i<Math.min(5,rows.length);i++){
+      if(rows[i]?.some(c=>c&&String(c).toLowerCase().includes('fecha'))){ hdrIdx=i; break; }
+    }
+    const hdr=rows[hdrIdx].map(h=>norm(h).toLowerCase());
+    const ci=names=>{ for(const nm of names){ const idx=hdr.findIndex(h=>h.includes(nm.toLowerCase())); if(idx!==-1) return idx; } return -1; };
+    const parsed=[];
+    for(let ri=hdrIdx+1;ri<rows.length;ri++){
+      const r=rows[ri]; if(!r||!r.some(v=>v!=null&&v!=='')) continue;
+      const fecha=parseImportFecha(r[ci(['fecha'])]);
+      const tipoRaw=norm(r[ci(['tipo de prenda','tipo'])]);
+      const cantRaw=r[ci(['cantidad','cant'])];
+      const cant=cantRaw!=null?Math.round(parseFloat(cantRaw)):null;
+      let status='ok'; const warns=[];
+      if(!fecha){status='warn';warns.push('Fecha inválida');}
+      if(!tipoRaw){status='err';warns.push('Sin tipo de prenda');}
+      if(!cant||cant<=0){status='err';warns.push('Cantidad inválida');}
+      const ini=parseImportHora(r[ci(['inicio'])]);
+      const fin=parseImportHora(r[ci(['fin'])]);
+      const minTot=normNum(r[ci(['min tot','min totales'])]);
+      const nemp=normNum(r[ci(['nro emp','nro. emp'])])||1;
+      const equipo=norm(r[ci(['equipo','empleados'])]).replace(/\s*\+\s*/g,'+');
+      let minuHH=normNum(r[ci(['min/u (hh)','min/u(hh)'])]);
+      let minuMaq=normNum(r[ci(['min/u (m','min/u(m'])]);
+      if(!minuHH&&minTot&&cant>0) minuHH=+((minTot*(nemp||1))/cant).toFixed(4);
+      if(!minuMaq&&minTot&&cant>0) minuMaq=+(minTot/cant).toFixed(4);
+      const uh=minuMaq?+(60/minuMaq).toFixed(2):null;
+      const rec={id:Date.now()+ri+Math.random(),area,fecha:fecha||norm(r[ci(['fecha'])]),
+        tipo:tipoRaw,cant:cant||0,equipo,nemp,ini,fin,minTot,minuHH,minuMaq,uh,
+        obs:norm(r[ci(['obs','observ'])]),_status:status,_warns:warns,_checked:(status!=='err')};
+      if(area==='corte'){rec.um=norm(r[ci(['um (un','um'])])||'UN';rec.tela=norm(r[ci(['tela'])]);rec.ancho=normNum(r[ci(['ancho'])]);rec.ctela=norm(r[ci(['cantidad tela'])]);rec.hh=normNum(r[ci(['horas-h','hh'])]);}
+      else if(area==='impresion'){rec.maq=norm(r[ci(['máquina','maquina'])]);rec.perfil=norm(r[ci(['perfil'])]);rec.talle=norm(r[ci(['talle'])]);rec.tinta=normNum(r[ci(['tinta'])]);rec.papel=normNum(r[ci(['papel'])]);}
+      else if(area==='sublimacion'){rec.maq=norm(r[ci(['máquina','maquina'])]);rec.talle=norm(r[ci(['talle'])]);}
+      else if(area==='costura'){rec.talle=norm(r[ci(['talle'])]);rec.minuOp=normNum(r[ci(['min/u (op','min/u(op'])])||minuMaq;rec.hh=rec.minTot?+(rec.minTot*rec.nemp/60).toFixed(2):null;}
+      else if(area==='serigrafia'){rec.talle=norm(r[ci(['talle'])]);rec.tipimp=norm(r[ci(['tipo imp'])]);rec.ancho=normNum(r[ci(['ancho'])]);rec.alto=normNum(r[ci(['alto'])]);rec.areaDis=rec.ancho&&rec.alto?Math.round(rec.ancho*rec.alto):null;rec.colores=normNum(r[ci(['cant col','colores'])]);rec.pasadas=normNum(r[ci(['nro pas','pasadas'])]);rec.ubic=norm(r[ci(['ubic'])]);rec.umTot=normNum(r[ci(['um (trab','umtot'])]);rec.tinta=normNum(r[ci(['tinta'])]);}
+      else if(area==='transfer'){rec.talle=norm(r[ci(['talle'])]);rec.tipimp=norm(r[ci(['tipo imp'])]);rec.ancho=normNum(r[ci(['ancho'])]);rec.alto=normNum(r[ci(['alto'])]);rec.areaDis=rec.ancho&&rec.alto?Math.round(rec.ancho*rec.alto):null;rec.ubic=norm(r[ci(['ubic'])]);rec.umTot=normNum(r[ci(['um (trab','umtot'])]);rec.metros=normNum(r[ci(['metros'])]);}
+      else if(area==='empaque'){rec.talle=norm(r[ci(['talle'])]);rec.tipoemp=norm(r[ci(['tipo de emp','tipoemp'])]);rec.umTot=normNum(r[ci(['um (trab','umtot'])])||cant;}
+      if(status!=='err') totalOk++; else totalErr++;
+      if(status==='warn') totalWarn++;
+      parsed.push(rec);
+    }
+    if(parsed.length) _importParsed[area]=parsed;
+  });
+  renderImportPreview(totalOk,totalWarn,totalErr);
+}
+
+function renderImportPreview(totalOk,totalWarn,totalErr){
+  const areas=Object.keys(_importParsed);
+  if(!areas.length){ document.getElementById('import-footer-msg').textContent='⚠ No se encontraron hojas compatibles en este archivo.'; return; }
+  const sb=document.getElementById('import-summary-bar'); sb.style.display='flex';
+  const totalRecs=Object.values(_importParsed).reduce((s,a)=>s+a.length,0);
+  sb.innerHTML=`
+    <div class="import-summary-item">Áreas detectadas: <span style="color:var(--blue)">${areas.length}</span></div>
+    <div class="import-summary-item">Total filas: <span style="color:var(--ink)">${totalRecs}</span></div>
+    <div class="import-summary-item">✓ Válidas: <span style="color:var(--green)">${totalOk}</span></div>
+    ${totalWarn?`<div class="import-summary-item">⚠ Advertencias: <span style="color:var(--amber)">${totalWarn}</span></div>`:''}
+    ${totalErr?`<div class="import-summary-item">✕ Errores: <span style="color:var(--red)">${totalErr}</span></div>`:''}
+    <div class="import-summary-item" style="margin-left:auto;font-size:11px;color:var(--muted)">Desmarcá las filas que no querés importar</div>`;
+  const container=document.getElementById('import-preview-area');
+  container.innerHTML=areas.map(area=>{
+    const recs=_importParsed[area];
+    const color=COLORS[area]||'#888';
+    const label=LABELS[area]||area.toUpperCase();
+    const ok=recs.filter(r=>r._status!=='err').length;
+    const colsDef=[
+      {key:'fecha',label:'Fecha'},{key:'tipo',label:'Tipo prenda'},{key:'cant',label:'Cant'},
+      {key:'equipo',label:'Equipo'},{key:'ini',label:'Inicio'},{key:'fin',label:'Fin'},
+      {key:'minTot',label:'Min Tot'},{key:'minuHH',label:'Min/U HH'},
+      ...({corte:[{key:'tela',label:'Tela'}],impresion:[{key:'maq',label:'Máq'},{key:'talle',label:'Talle'}],sublimacion:[{key:'maq',label:'Máq'},{key:'talle',label:'Talle'}],costura:[{key:'talle',label:'Talle'}],serigrafia:[{key:'talle',label:'Talle'},{key:'tipimp',label:'Tipo Imp'}],transfer:[{key:'talle',label:'Talle'},{key:'tipimp',label:'Tipo Imp'}],empaque:[{key:'talle',label:'Talle'},{key:'tipoemp',label:'Tipo Emp'}]}[area]||[])
+    ];
+    const hds=colsDef.map(c=>`<th>${c.label}</th>`).join('');
+    const rowsHtml=recs.map((r,ri)=>{
+      const rc=r._status==='err'?'import-row-err':r._status==='warn'?'import-row-warn':'import-row-ok';
+      const cells=colsDef.map(col=>`<td>${r[col.key]!=null?r[col.key]:''}</td>`).join('');
+      return `<tr class="${rc}" title="${r._warns.join(', ')||''}">
+        <td><input type="checkbox" class="import-chk" ${r._checked?'checked':''} onchange="toggleImportRow('${area}',${ri},this.checked)"></td>
+        ${cells}<td style="color:var(--muted);font-size:10px">${r._warns.join(' · ')||'✓'}</td></tr>`;
+    }).join('');
+    return `<div>
+      <div class="import-area-hdr" onclick="toggleImportSection('${area}')">
+        <div class="import-area-hdr-left">
+          <span class="import-area-badge" style="background:${color}18;color:${color}">${label}</span>
+          <span class="import-area-cnt">${ok} / ${recs.length} filas seleccionadas</span>
+        </div>
+        <span class="import-area-toggle" id="itgl-${area}">▼ ver filas</span>
+      </div>
+      <div class="import-area-rows" id="irows-${area}">
+        <div class="tbl-wrap"><table class="import-area-table">
+          <thead><tr><th>✓</th>${hds}<th>Estado</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table></div>
+      </div></div>`;
+  }).join('');
+  document.getElementById('btn-confirmar-import').style.display='';
+  document.getElementById('import-footer-msg').textContent=`${areas.length} área(s) detectadas. Revisá y confirmá.`;
+}
+
+function toggleImportSection(area){
+  const rows=document.getElementById('irows-'+area);
+  const tgl=document.getElementById('itgl-'+area);
+  rows.classList.toggle('open');
+  tgl.textContent=rows.classList.contains('open')?'▲ ocultar':'▼ ver filas';
+}
+function toggleImportRow(area,ri,checked){ if(_importParsed[area]?.[ri]) _importParsed[area][ri]._checked=checked; }
+
+function confirmarImport(){
+  let added=0;
+  Object.entries(_importParsed).forEach(([area,recs])=>{
+    recs.forEach(r=>{
+      if(!r._checked||r._status==='err') return;
+      const dup=data.find(d=>d.area===area&&d.fecha===r.fecha&&d.tipo===r.tipo&&d.cant===r.cant&&d.ini===r.ini);
+      if(dup) return;
+      const {_status,_warns,_checked,...clean}=r;
+      clean.id=Date.now()+Math.random();
+      data.push(clean);
+      if(r.tipo&&!tiposPrenda.find(t=>t.nombre.toLowerCase()===r.tipo.toLowerCase()))
+        tiposPrenda.push({nombre:r.tipo,desc:''});
+      added++;
+    });
+  });
+  if(!added){ alert('No hay filas válidas seleccionadas.'); return; }
+  save(); saveTipos(); updateDlTipos(); renderAll();
+  closeImport();
+  toast(`✓ ${added} registros importados y sincronizados con Firebase`,'ok');
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  ['cr','im','su','co','se','tr','em'].forEach(p=>{
+    const e=el(p+'-fecha'); if(e) e.value=hoy();
+  });
+  el('ma-fecha')?.setAttribute('value',hoy());
+  if(el('ma-fecha')) el('ma-fecha').value=hoy();
+
+  bindCalc('cr','cr-cant','cr-nemp','cr-ini','cr-fin',{min:'cr-min',hh:'cr-hh',muHH:'cr-minu'});
+  bindCalc('im','im-cant','im-nemp','im-ini','im-fin',{min:'im-min',muMaq:'im-minu-maq',muHH:'im-minu-hh'});
+  bindCalc('su','su-cant','su-nemp','su-ini','su-fin',{min:'su-min',muMaq:'su-minu-maq',muHH:'su-minu-hh'});
+  bindCalc('co','co-cant','co-nemp','co-ini','co-fin',{min:'co-min',muOp:'co-minu-op',muHH:'co-minu-hh'});
+  bindCalc('se','se-cant','se-nemp','se-ini','se-fin',{min:'se-min',muSingle:'se-minu',uh:'se-uh'});
+  bindCalc('tr','tr-cant','tr-nemp','tr-ini','tr-fin',{min:'tr-min',muSingle:'tr-minu',uh:'tr-uh'});
+  bindCalc('em','em-cant','em-nemp','em-ini','em-fin',{min:'em-min',muSingle:'em-minu',uh:'em-uh',umTot:'em-umtot'});
+  bindArea('se-ancho','se-alto','se-area','se-um-tot','se-cant');
+  bindArea('tr-ancho','tr-alto','tr-area','tr-um-tot','tr-cant');
+  bindMarcaCalc();
+
+  // Informe: actualizar fechas cuando cambia período
+  el('inf-periodo')?.addEventListener('change',()=>{
+    const per=v('inf-periodo');
+    const custom=per==='custom';
+    el('inf-desde').disabled=!custom;
+    el('inf-hasta').disabled=!custom;
+    renderInformes();
+  });
+  if(el('inf-desde')) el('inf-desde').value=semanaActual();
+  if(el('inf-hasta')) el('inf-hasta').value=hoy();
+
+  updateDlTipos();
+  updateDlEmp();
+  renderResumen();
+  AREAS.forEach(renderTabla);
+  renderConfig();
+  initFirebase();
+});
+</script>
+</body>
+</html>
