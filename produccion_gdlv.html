@@ -1529,7 +1529,20 @@ function normTipo(t){
   return s;
 }
 function normalizarTodosLosTipos(){
-  data = data.map(r => ({...r, tipo: normTipo(r.tipo)}));
+  let changed = false;
+  data = data.map(r => {
+    const norm = normTipo(r.tipo);
+    if(norm !== r.tipo){ changed = true; return {...r, tipo: norm}; }
+    return r;
+  });
+  // Si hubo cambios, guardar en Firebase y localStorage para que quede persistido
+  if(changed){
+    lsSave('gdlv_data', data);
+    if(_fbReady){
+      _fbIgnoreNext = true;
+      _db.ref('produccion/data').set(arrToObj(data)).catch(()=>{});
+    }
+  }
 }
 
 const AREAS = ['corte','impresion','sublimacion','costura','serigrafia','transfer','empaque'];
