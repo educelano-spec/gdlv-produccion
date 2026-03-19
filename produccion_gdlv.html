@@ -284,6 +284,30 @@ tbody tr:hover td{background:#fafaf8;}
 
 /* ─── PESO TABLE ─── */
 
+
+/* ─── MODAL EDICIÓN REGISTRO ─── */
+#edit-modal{position:fixed;inset:0;z-index:8600;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px;}
+#edit-modal.open{display:flex;}
+.edit-modal-box{background:var(--white);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.2);width:100%;max-width:640px;overflow:hidden;}
+.edit-modal-hdr{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--panel2);}
+.edit-modal-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;flex:1;}
+.edit-modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 8px;}
+.edit-modal-close:hover{color:var(--ink);}
+.edit-modal-body{padding:22px 24px;display:grid;gap:12px;}
+.edit-modal-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--panel2);}
+.edit-fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.edit-fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.edit-fg4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+.edit-fld{display:flex;flex-direction:column;gap:4px;}
+.edit-fld label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.edit-fld input,.edit-fld select{background:var(--white);border:1.5px solid var(--border2);border-radius:5px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:500;padding:8px 10px;outline:none;transition:border-color .15s;}
+.edit-fld input:focus,.edit-fld select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(192,57,43,.1);}
+.edit-calc-bar{background:var(--panel2);border:1px solid var(--border);border-radius:5px;padding:8px 14px;font-family:'Fira Code',monospace;font-size:11.5px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap;}
+.edit-calc-val{color:var(--accent);font-weight:700;}
+/* Botón editar en tablas */
+.td-edit{color:var(--muted2);cursor:pointer;font-size:13px;text-align:center;padding:10px 4px;}
+.td-edit:hover{color:var(--blue);}
+
 /* ─── PESOS DETALLE MODAL ─── */
 #pesos-modal{position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px;}
 #pesos-modal.open{display:flex;}
@@ -1461,6 +1485,22 @@ body.role-emp .emp-hidden{display:none!important;}
 </datalist>
 
 
+
+<!-- ══════════ MODAL EDICIÓN REGISTRO ══════════ -->
+<div id="edit-modal">
+  <div class="edit-modal-box">
+    <div class="edit-modal-hdr">
+      <div class="edit-modal-title" id="edit-modal-title">Editar registro</div>
+      <button class="edit-modal-close" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="edit-modal-body" id="edit-modal-body"></div>
+    <div class="edit-modal-foot">
+      <button class="btn btn-sec" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn btn-prim" onclick="saveEditModal()">✓ Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ MODAL DETALLE PESOS ══════════ -->
 <div id="pesos-modal">
   <div class="pesos-modal-box">
@@ -1556,7 +1596,15 @@ function initFirebase(){
       if(_fbIgnoreNext){ _fbIgnoreNext=false; return; }
       const remote = snap.val();
       if(remote){
-        data = Object.values(remote);
+        const remoteArr = Object.values(remote);
+        // Evitar re-render si los datos son idénticos a lo que ya tenemos
+        // (ocurre cuando nosotros mismos escribimos y Firebase refleja de vuelta)
+        const remoteIds = new Set(remoteArr.map(r=>r.id));
+        const localIds  = new Set(data.map(r=>r.id));
+        const same = remoteArr.length === data.length &&
+                     [...remoteIds].every(id=>localIds.has(id));
+        if(same) return; // echo de nuestra propia escritura — ignorar
+        data = remoteArr;
         normalizarTodosLosTipos();
         lsSave('gdlv_data', data);
         renderAll();
@@ -1883,7 +1931,7 @@ function renderTabla(area){
       cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.tipimp)}</td><td class="td-num">${f(r.ancho)}</td><td class="td-num">${f(r.alto)}</td><td class="td-num">${f(r.areaDis)}</td><td>${f(r.ubic)}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.uh,1)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td class="td-num">${f(r.metros)}</td><td>${f(r.obs)}</td>`;
     else if(area==='empaque')
       cells=`<td>${f(r.fecha)}</td><td class="td-tipo">${f(r.tipo)}</td><td>${f(r.talle)}</td><td class="td-num">${r.cant}</td><td>${f(r.equipo)}</td><td class="td-num">${r.nemp}</td><td>${f(r.tipoemp)}</td><td>${f(r.ini)}</td><td>${f(r.fin)}</td><td class="td-num">${f(r.minTot)}</td><td class="td-num">${fNum(r.uh,1)}</td><td class="td-num">${fNum(r.minuMaq)}</td><td>${f(r.obs)}</td>`;
-    return `<tr>${cells}<td class="td-del" onclick="del(${r.id})">✕</td></tr>`;
+    return `<tr>${cells}<td class="td-edit" onclick="openEditModal(${r.id},'${area}')">✎</td><td class="td-del" onclick="del(${r.id})">✕</td></tr>`;
   }).join('');
 }
 
@@ -2105,6 +2153,214 @@ function renderDashboard(){
   }).join('') || `<tr><td class="no-data" colspan="7">Sin datos en los últimos 30 días</td></tr>`;
 }
 
+
+// ── MODAL EDICIÓN REGISTRO ───────────────────────────────────────────
+let _editId = null;
+
+function openEditModal(id, area){
+  const r = data.find(d=>d.id===id);
+  if(!r){ toast('Registro no encontrado','err'); return; }
+  _editId = id;
+  const color = COLORS[area]||'#888';
+  el('edit-modal-title').innerHTML = `<span style="font-size:13px;font-weight:700;padding:2px 10px;border-radius:12px;background:${color}18;color:${color};margin-right:10px">${LABELS[area]||area}</span> Editar registro`;
+
+  // ── Campos comunes a todas las áreas ──
+  let commonHtml = `
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Fecha</label><input type="date" id="ef-fecha" value="${r.fecha||''}"></div>
+      <div class="edit-fld"><label>Tipo de prenda</label><input type="text" id="ef-tipo" list="dl-tipos" value="${r.tipo||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Cantidad</label><input type="number" id="ef-cant" min="1" value="${r.cant||''}"></div>
+      <div class="edit-fld"><label>Equipo</label><input type="text" id="ef-equipo" list="dl-emp" value="${r.equipo||''}" autocomplete="off"></div>
+    </div>
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Nro empleados</label><input type="number" id="ef-nemp" min="1" value="${r.nemp||1}"></div>
+      <div class="edit-fld"><label>Hora inicio</label><input type="time" id="ef-ini" value="${r.ini||''}"></div>
+      <div class="edit-fld"><label>Hora fin</label><input type="time" id="ef-fin" value="${r.fin||''}"></div>
+      <div class="edit-fld"><label>Observaciones</label><input type="text" id="ef-obs" value="${r.obs||''}"></div>
+    </div>`;
+
+  // ── Campos específicos por área ──
+  let extraHtml = '';
+  if(area==='corte') extraHtml = `
+    <div class="edit-fg3">
+      <div class="edit-fld"><label>UM</label><select id="ef-um"><option${r.um==='UN'?' selected':''}>UN</option><option${r.um==='M'?' selected':''}>M</option></select></div>
+      <div class="edit-fld"><label>Tela</label><input type="text" id="ef-tela" list="dl-telas" value="${r.tela||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Ancho tela (m)</label><input type="number" id="ef-ancho" step="0.05" value="${r.ancho||''}"></div>
+    </div>
+    <div class="edit-fg2">
+      <div class="edit-fld"><label>Cant. tela cortada (m)</label><input type="number" id="ef-ctela" step="0.5" value="${r.ctela||''}"></div>
+    </div>`;
+  else if(area==='impresion') extraHtml = `
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Máquina</label><input type="text" id="ef-maq" value="${r.maq||''}"></div>
+      <div class="edit-fld"><label>Perfil</label><input type="text" id="ef-perfil" value="${r.perfil||''}"></div>
+      <div class="edit-fld"><label>Talle</label><input type="text" id="ef-talle" list="dl-talles" value="${r.talle||''}" autocomplete="off"></div>
+    </div>
+    <div class="edit-fg2">
+      <div class="edit-fld"><label>Tinta (ml)</label><input type="number" id="ef-tinta" step="0.1" value="${r.tinta||''}"></div>
+      <div class="edit-fld"><label>Papel (m)</label><input type="number" id="ef-papel" step="0.1" value="${r.papel||''}"></div>
+    </div>`;
+  else if(area==='sublimacion') extraHtml = `
+    <div class="edit-fg2">
+      <div class="edit-fld"><label>Máquina</label><input type="text" id="ef-maq" value="${r.maq||''}"></div>
+      <div class="edit-fld"><label>Talle</label><input type="text" id="ef-talle" list="dl-talles" value="${r.talle||''}" autocomplete="off"></div>
+    </div>`;
+  else if(area==='costura') extraHtml = `
+    <div class="edit-fg2">
+      <div class="edit-fld"><label>Talle</label><input type="text" id="ef-talle" list="dl-talles" value="${r.talle||''}" autocomplete="off"></div>
+    </div>`;
+  else if(area==='serigrafia') extraHtml = `
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Talle</label><input type="text" id="ef-talle" list="dl-talles" value="${r.talle||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Tipo impresión</label><input type="text" id="ef-tipimp" list="dl-tipimp" value="${r.tipimp||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Ubicación</label><input type="text" id="ef-ubic" value="${r.ubic||''}"></div>
+    </div>
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Ancho diseño (cm)</label><input type="number" id="ef-ancho" step="0.1" value="${r.ancho||''}"></div>
+      <div class="edit-fld"><label>Alto diseño (cm)</label><input type="number" id="ef-alto" step="0.1" value="${r.alto||''}"></div>
+      <div class="edit-fld"><label>Cant. colores</label><input type="number" id="ef-colores" min="1" value="${r.colores||''}"></div>
+      <div class="edit-fld"><label>Nro pasadas</label><input type="number" id="ef-pasadas" min="1" value="${r.pasadas||''}"></div>
+    </div>
+    <div class="edit-fg2">
+      <div class="edit-fld"><label>Tinta (ml)</label><input type="number" id="ef-tinta" step="0.1" value="${r.tinta||''}"></div>
+    </div>`;
+  else if(area==='transfer') extraHtml = `
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Talle</label><input type="text" id="ef-talle" list="dl-talles" value="${r.talle||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Tipo impresión</label><input type="text" id="ef-tipimp" list="dl-tipimp" value="${r.tipimp||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Ubicación</label><input type="text" id="ef-ubic" value="${r.ubic||''}"></div>
+    </div>
+    <div class="edit-fg4">
+      <div class="edit-fld"><label>Ancho (cm)</label><input type="number" id="ef-ancho" step="0.1" value="${r.ancho||''}"></div>
+      <div class="edit-fld"><label>Alto (cm)</label><input type="number" id="ef-alto" step="0.1" value="${r.alto||''}"></div>
+      <div class="edit-fld"><label>Metros material</label><input type="number" id="ef-metros" step="0.1" value="${r.metros||''}"></div>
+    </div>`;
+  else if(area==='empaque') extraHtml = `
+    <div class="edit-fg2">
+      <div class="edit-fld"><label>Talle</label><input type="text" id="ef-talle" list="dl-talles" value="${r.talle||''}" autocomplete="off"></div>
+      <div class="edit-fld"><label>Tipo de empaque</label><input type="text" id="ef-tipoemp" value="${r.tipoemp||''}"></div>
+    </div>`;
+
+  // Barra de cálculo calculada en tiempo real
+  const minTotCalc = r.ini && r.fin ? calcMin(r.ini,r.fin) : (r.minTot||0);
+  const calcBar = `
+    <div class="edit-calc-bar" id="ef-calc-bar">
+      MIN TOT: <span class="edit-calc-val" id="ef-calc-min">${minTotCalc||'—'}</span>
+      &nbsp;|&nbsp; MIN/U (HH): <span class="edit-calc-val" id="ef-calc-minu">${r.minuHH?r.minuHH.toFixed(4):'—'}</span>
+      &nbsp;|&nbsp; HH: <span class="edit-calc-val" id="ef-calc-hh">${r.hh||r.minTot&&r.nemp?(r.minTot*r.nemp/60).toFixed(2):'—'}</span>
+    </div>`;
+
+  el('edit-modal-body').innerHTML = commonHtml + extraHtml + calcBar;
+
+  // Recalcular en tiempo real al cambiar ini/fin/cant/nemp
+  ['ef-ini','ef-fin','ef-cant','ef-nemp'].forEach(id=>{
+    el(id)?.addEventListener('input', recalcEditModal);
+  });
+
+  el('edit-modal').classList.add('open');
+  // Store area for save
+  el('edit-modal').dataset.area = area;
+}
+
+function recalcEditModal(){
+  const ini = el('ef-ini')?.value, fin = el('ef-fin')?.value;
+  const cant = parseFloat(el('ef-cant')?.value)||0;
+  const nemp = parseFloat(el('ef-nemp')?.value)||1;
+  const min = ini && fin ? calcMin(ini,fin) : 0;
+  if(el('ef-calc-min')) el('ef-calc-min').textContent = min||'—';
+  if(min>0 && cant>0){
+    const muHH = min*nemp/cant;
+    const hh = min*nemp/60;
+    if(el('ef-calc-minu')) el('ef-calc-minu').textContent = muHH.toFixed(4);
+    if(el('ef-calc-hh'))   el('ef-calc-hh').textContent   = hh.toFixed(2);
+  }
+}
+
+function saveEditModal(){
+  if(!_editId) return;
+  const area = el('edit-modal').dataset.area;
+  const idx = data.findIndex(d=>d.id===_editId);
+  if(idx<0){ toast('Registro no encontrado','err'); return; }
+
+  const r = {...data[idx]};
+
+  // Campos comunes
+  r.fecha   = el('ef-fecha')?.value || r.fecha;
+  r.tipo    = normTipo(el('ef-tipo')?.value || r.tipo);
+  r.cant    = parseFloat(el('ef-cant')?.value)||r.cant;
+  r.equipo  = el('ef-equipo')?.value?.trim() || r.equipo;
+  r.nemp    = parseFloat(el('ef-nemp')?.value)||r.nemp||1;
+  r.ini     = el('ef-ini')?.value || r.ini;
+  r.fin     = el('ef-fin')?.value || r.fin;
+  r.obs     = el('ef-obs')?.value?.trim() ?? r.obs;
+
+  // Recalcular tiempos
+  const min = r.ini && r.fin ? calcMin(r.ini, r.fin) : r.minTot;
+  if(min > 0){
+    r.minTot  = min;
+    r.minuMaq = r.cant > 0 ? +(min/r.cant).toFixed(4) : null;
+    r.minuHH  = r.cant > 0 ? +(min*r.nemp/r.cant).toFixed(4) : null;
+    r.uh      = r.minuMaq ? +(60/r.minuMaq).toFixed(2) : null;
+    if(area==='corte'||area==='costura') r.hh = +(min*r.nemp/60).toFixed(2);
+    if(area==='costura') r.minuOp = r.minuMaq;
+  }
+
+  // Campos específicos
+  if(area==='corte'){
+    r.um    = el('ef-um')?.value   || r.um;
+    r.tela  = el('ef-tela')?.value?.trim() ?? r.tela;
+    r.ancho = parseFloat(el('ef-ancho')?.value)||r.ancho||null;
+    r.ctela = el('ef-ctela')?.value ? parseFloat(el('ef-ctela').value)||null : r.ctela;
+  } else if(area==='impresion'){
+    r.maq    = el('ef-maq')?.value?.trim()  ?? r.maq;
+    r.perfil = el('ef-perfil')?.value?.trim() ?? r.perfil;
+    r.talle  = el('ef-talle')?.value?.trim() ?? r.talle;
+    r.tinta  = el('ef-tinta')?.value  ? parseFloat(el('ef-tinta').value)||null  : r.tinta;
+    r.papel  = el('ef-papel')?.value  ? parseFloat(el('ef-papel').value)||null  : r.papel;
+  } else if(area==='sublimacion'){
+    r.maq   = el('ef-maq')?.value?.trim()  ?? r.maq;
+    r.talle = el('ef-talle')?.value?.trim() ?? r.talle;
+  } else if(area==='costura'){
+    r.talle = el('ef-talle')?.value?.trim() ?? r.talle;
+  } else if(area==='serigrafia'){
+    r.talle   = el('ef-talle')?.value?.trim()  ?? r.talle;
+    r.tipimp  = el('ef-tipimp')?.value?.trim() ?? r.tipimp;
+    r.ubic    = el('ef-ubic')?.value?.trim()   ?? r.ubic;
+    r.ancho   = parseFloat(el('ef-ancho')?.value)||r.ancho||null;
+    r.alto    = parseFloat(el('ef-alto')?.value)||r.alto||null;
+    r.areaDis = r.ancho&&r.alto ? Math.round(r.ancho*r.alto) : r.areaDis;
+    r.umTot   = r.areaDis&&r.cant ? Math.round(r.areaDis*r.cant) : r.umTot;
+    r.colores = parseFloat(el('ef-colores')?.value)||r.colores||null;
+    r.pasadas = parseFloat(el('ef-pasadas')?.value)||r.pasadas||null;
+    r.tinta   = parseFloat(el('ef-tinta')?.value)||r.tinta||null;
+  } else if(area==='transfer'){
+    r.talle  = el('ef-talle')?.value?.trim()  ?? r.talle;
+    r.tipimp = el('ef-tipimp')?.value?.trim() ?? r.tipimp;
+    r.ubic   = el('ef-ubic')?.value?.trim()   ?? r.ubic;
+    r.ancho  = parseFloat(el('ef-ancho')?.value)||r.ancho||null;
+    r.alto   = parseFloat(el('ef-alto')?.value)||r.alto||null;
+    r.areaDis= r.ancho&&r.alto ? Math.round(r.ancho*r.alto) : r.areaDis;
+    r.umTot  = r.areaDis&&r.cant ? Math.round(r.areaDis*r.cant) : r.umTot;
+    r.metros = parseFloat(el('ef-metros')?.value)||r.metros||null;
+  } else if(area==='empaque'){
+    r.talle   = el('ef-talle')?.value?.trim()   ?? r.talle;
+    r.tipoemp = el('ef-tipoemp')?.value?.trim() ?? r.tipoemp;
+    r.umTot   = r.cant||r.umTot;
+  }
+
+  data[idx] = r;
+  save();
+  renderTabla(area);
+  renderResumen();
+  renderPesos();
+  closeEditModal();
+  toast(`✓ Registro actualizado — ${r.tipo} · ${r.cant} ud`,'ok');
+}
+
+function closeEditModal(){
+  el('edit-modal').classList.remove('open');
+  _editId = null;
+}
 // ── RENDER RESUMEN ───────────────────────────────────────────────────
 function renderResumen(){
   const total=data.length, ud=data.reduce((s,r)=>s+r.cant,0);
@@ -2128,6 +2384,7 @@ function renderResumen(){
     <td class="td-num">${r.minTot||'—'}</td>
     <td class="td-num">${fNum(r.minuHH)}</td>
     <td>${r.obs||'—'}</td>
+    <td class="td-edit" onclick="openEditModal(${r.id},'${r.area}')">✎</td>
     <td class="td-del" onclick="del(${r.id})">✕</td>
   </tr>`).join('') || `<tr><td class="no-data" colspan="9">Sin registros aún</td></tr>`;
 }
@@ -2300,7 +2557,7 @@ function delFromModal(id, tipo){
 }
 
 // Cerrar modal con Escape
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePesosModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePesosModal(); closeEditModal(); } });
 
 
 // ── MARCACIONES ──────────────────────────────────────────────────────
