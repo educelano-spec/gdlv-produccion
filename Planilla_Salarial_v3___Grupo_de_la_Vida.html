@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planilla Salarial v3 — Grupo de la Vida</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=DM+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#f4f3f0;--sur:#fff;--s2:#faf9f7;--bor:#e4e0d8;--bor2:#ccc8be;
+  --gold:#8a6a20;--g2:#6a4e10;--gl:#f5ecd4;--gm:#e8d4a0;
+  --tx:#18160e;--t2:#52493a;--t3:#928670;
+  --gr:#25703f;--gbg:#e8f5ee;--gbr:#a8d8bc;
+  --re:#b03030;--rbg:#fdf0f0;--rbr:#e0b0b0;
+  --bl:#1a5490;--bbg:#e8f2fc;--bbr:#a8c8ec;
+  --am:#a05a08;--abg:#fef3e4;--abr:#e8c880;
+  --sh:0 1px 3px rgba(0,0,0,.07);--shm:0 4px 16px rgba(0,0,0,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:Inter,sans-serif;font-size:13px}
+.hdr{background:var(--sur);border-bottom:1px solid var(--bor);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:100;box-shadow:var(--sh);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-ico{width:32px;height:32px;background:var(--gl);border:1px solid var(--gm);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.logo-nm{font-family:Fraunces,serif;font-size:13.5px;font-weight:700}
+.logo-sub{font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.pill-per{background:var(--gl);border:1px solid var(--gm);border-radius:20px;padding:4px 11px;font-size:11px;color:var(--g2);font-weight:600}
+.pill-tot{background:var(--tx);border-radius:20px;padding:4px 12px;display:flex;align-items:center;gap:6px}
+.pill-tot .lbl{font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:.07em}
+.pill-tot .val{font-size:12px;color:#fff;font-weight:700;font-family:'DM Mono',monospace}
+.fb-dot{width:8px;height:8px;border-radius:50%;background:#aaa;display:inline-block;margin-right:4px;transition:background .3s}
+.fb-dot.ok{background:#25a05a}
+.fb-dot.err{background:#b03030}
+.fb-dot.sync{background:#e8a020;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:transparent;color:var(--t2);border:1px solid var(--bor2);border-radius:7px;font-family:Inter,sans-serif;font-size:12px;cursor:pointer;transition:background .1s;white-space:nowrap}
+.btn:hover{background:var(--s2)}
+.btn-p{background:var(--tx);color:#fff;border-color:var(--tx)}
+.btn-p:hover{background:#2a2a2a;color:#fff}
+.btn-g{background:var(--gr);color:#fff;border-color:var(--gr)}
+.btn-g:hover{background:#1a5030;color:#fff}
+input[type=file]{display:none}
+/* BANNER */
+#banner{margin:18px 20px;background:var(--sur);border:2px dashed var(--bor2);border-radius:12px;padding:32px 24px;text-align:center;cursor:pointer;transition:all .15s}
+#banner:hover,#banner.drag{border-color:var(--gold);background:var(--gl)}
+.ban-ico{font-size:34px;margin-bottom:10px}
+.ban-title{font-family:Fraunces,serif;font-size:16px;font-weight:700;margin-bottom:6px}
+.ban-sub{font-size:12px;color:var(--t3);margin-bottom:18px;line-height:1.7;max-width:460px;margin-inline:auto}
+.ban-steps{display:flex;justify-content:center;gap:7px;margin-bottom:18px;flex-wrap:wrap}
+.ban-step{background:var(--s2);border:1px solid var(--bor);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--t2);display:flex;align-items:center;gap:5px}
+.ban-n{width:16px;height:16px;background:var(--tx);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0}
+/* APP */
+.app{display:grid;grid-template-columns:226px 1fr;min-height:calc(100vh - 58px)}
+aside{background:var(--sur);border-right:1px solid var(--bor);display:flex;flex-direction:column;overflow:hidden}
+.aside-hd{padding:12px 12px 7px;border-bottom:1px solid var(--bor)}
+.aside-lbl{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);font-weight:700}
+.aside-per{font-size:10px;color:var(--t2);font-weight:500;margin-top:2px}
+.emp-list{flex:1;overflow-y:auto;padding:5px 0}
+.ec{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-left:3px solid transparent;transition:background .1s}
+.ec:hover{background:var(--s2)}
+.ec.on{background:var(--gl);border-left-color:var(--gold)}
+.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.ec-nm{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ec-sub{font-size:9px;color:var(--t3);margin-top:1px}
+.ec-pay{font-size:10.5px;color:var(--g2);font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
+.aside-ft{border-top:1px solid var(--bor);padding:9px 12px}
+.tot-box{background:var(--s2);border:1px solid var(--bor);border-radius:7px;padding:9px 11px;margin-bottom:7px}
+.tot-box .tl{font-size:8.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.tot-box .tv{font-size:14px;font-weight:700;font-family:'DM Mono',monospace;margin-top:2px}
+.tot-box .tc{font-size:9px;color:var(--t3);margin-top:1px}
+.content{padding:18px 20px;overflow-y:auto}
+.tabbar{display:flex;border-bottom:1px solid var(--bor);margin-bottom:16px;overflow-x:auto}
+.tb{padding:7px 12px;font-size:11.5px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600;white-space:nowrap;transition:color .1s}
+.tb:hover{color:var(--t2)}
+.tb.on{color:var(--g2);border-bottom-color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px;margin-bottom:14px}
+.sc{background:var(--sur);border:1px solid var(--bor);border-radius:8px;padding:10px 11px;box-shadow:var(--sh)}
+.sc .sl{font-size:8.5px;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;font-weight:700}
+.sc .sv{font-size:15px;font-weight:700;font-family:'DM Mono',monospace}
+.sc .ss{font-size:9px;color:var(--t3);margin-top:2px}
+.sc.ok{border-color:var(--gbr);background:var(--gbg)}.sc.ok .sv{color:var(--gr)}
+.sc.warn{border-color:var(--abr);background:var(--abg)}.sc.warn .sv{color:var(--am)}
+.sc.hi{border-color:var(--gm);background:var(--gl)}.sc.hi .sv{color:var(--g2)}
+.sc.err{border-color:var(--rbr);background:var(--rbg)}.sc.err .sv{color:var(--re)}
+.sc.info{border-color:var(--bbr);background:var(--bbg)}.sc.info .sv{color:var(--bl)}
+.tw{overflow-x:auto;margin-bottom:16px}
+.ct{background:var(--sur);border:1px solid var(--bor);border-radius:8px;overflow:hidden;box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 11px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);background:var(--s2);border-bottom:1px solid var(--bor);white-space:nowrap;font-weight:700}
+td{padding:8px 11px;border-bottom:1px solid var(--bor);color:var(--t2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--s2)}
+td.s{color:var(--tx);font-weight:600}
+td.m{font-family:'DM Mono',monospace}
+td.tot{background:var(--s2);color:var(--tx);font-weight:700}
+.badge{display:inline-flex;align-items:center;font-size:9.5px;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap;gap:3px}
+.bok{background:var(--gbg);color:var(--gr);border:1px solid var(--gbr)}
+.btd{background:var(--abg);color:var(--am);border:1px solid var(--abr)}
+.bfn{background:var(--bbg);color:var(--bl);border:1px solid var(--bbr)}
+.bfa{background:var(--rbg);color:var(--re);border:1px solid var(--rbr)}
+.bno{background:#f0ecfc;color:#6040a0;border:1px solid #c8b8ec}
+.chip{font-size:9.5px;padding:2px 7px;border-radius:20px;font-weight:600}
+.cg{background:var(--gl);color:var(--g2);border:1px solid var(--gm)}
+.cb{background:var(--bbg);color:var(--bl);border:1px solid var(--bbr)}
+.cv{background:var(--gbg);color:var(--gr);border:1px solid var(--gbr)}
+.cm{background:var(--s2);color:var(--t2);border:1px solid var(--bor)}
+.ca{background:var(--abg);color:var(--am);border:1px solid var(--abr)}
+.alert-box{background:var(--abg);border:1px solid var(--abr);border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:var(--am);display:flex;gap:7px}
+.sttitle{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--t3);margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--bor);display:flex;align-items:center;gap:6px;font-weight:700}
+.sttitle::before{content:'';display:inline-block;width:3px;height:9px;background:var(--gold);border-radius:2px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;color:var(--t3);gap:8px}
+.empty .ei{font-size:30px;opacity:.5}
+.status{display:none;align-items:center;gap:7px;padding:8px 11px;background:var(--gbg);border:1px solid var(--gbr);border-radius:8px;font-size:12px;color:var(--gr);margin-bottom:12px;font-weight:500}
+.status.err{background:var(--rbg);border-color:var(--rbr);color:var(--re)}
+.status.wrn{background:var(--abg);border-color:var(--abr);color:var(--am)}
+.paybox{background:var(--tx);border-radius:9px;padding:11px 14px;text-align:right;min-width:165px}
+.paybox .pl{font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:.09em}
+.paybox .pa{font-size:21px;color:#fff;font-weight:700;font-family:'DM Mono',monospace;margin-top:1px}
+.paybox .ph{font-size:10px;color:#888;margin-top:1px}
+.ehdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.ehdr-l{display:flex;align-items:center;gap:11px}
+.ehdr-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.ehdr-nm{font-family:Fraunces,serif;font-size:17px;font-weight:700;line-height:1.2}
+.ehdr-chips{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center}
+/* RECARGOS BADGE */
+.rec-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+/* MODAL */
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.44);z-index:500;display:flex;align-items:center;justify-content:center;padding:18px}
+.modal{background:var(--sur);border-radius:11px;width:100%;max-width:580px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.22)}
+.mhd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bor)}
+.mhd h2{font-family:Fraunces,serif;font-size:15px;font-weight:700}
+.mcl{width:26px;height:26px;border-radius:6px;border:1px solid var(--bor);background:transparent;cursor:pointer;font-size:15px;color:var(--t3);display:flex;align-items:center;justify-content:center}
+.mcl:hover{background:var(--s2)}
+.mbdy{overflow-y:auto;padding:18px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fg2{grid-column:span 2}
+.fld label{display:block;font-size:10px;font-weight:600;color:var(--t2);margin-bottom:3px}
+.fi{width:100%;padding:7px 9px;border:1px solid var(--bor2);border-radius:7px;font-family:Inter,sans-serif;font-size:13px;color:var(--tx);background:var(--sur);outline:none;transition:border-color .1s}
+.fi:focus{border-color:var(--gold)}
+.fi[type=color]{height:34px;padding:2px 5px;cursor:pointer}
+.mft{padding:12px 18px;border-top:1px solid var(--bor);display:flex;gap:7px;justify-content:flex-end}
+.section-sep{grid-column:span 2;border-top:1px solid var(--bor);margin-top:4px;padding-top:4px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)}
+.ai{display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--s2);border:1px solid var(--bor);border-radius:7px;margin-bottom:5px}
+.ai-inf{flex:1}
+.ai-nm{font-size:11.5px;font-weight:600}
+.ai-dt{font-size:10px;color:var(--t3);margin-top:1px}
+.delbtn{width:24px;height:24px;border-radius:5px;border:1px solid var(--bor);background:transparent;cursor:pointer;font-size:13px;color:var(--t3);display:flex;align-items:center;justify-content:center}
+.delbtn:hover{background:var(--rbg);color:var(--re);border-color:var(--rbr)}
+.rtabs{display:flex;gap:5px;margin-bottom:12px}
+.rtab{padding:5px 11px;font-size:11px;border-radius:20px;cursor:pointer;border:1px solid var(--bor);color:var(--t2);font-weight:600;transition:all .1s}
+.rtab.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:9px}
+.rcard{background:var(--sur);border:1px solid var(--bor);border-radius:8px;overflow:hidden;box-shadow:var(--sh)}
+.rchd{padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between}
+.rcht{font-size:11px;font-weight:700}
+.rchs{font-size:9px;color:var(--t3)}
+.rrow{display:flex;justify-content:space-between;padding:4px 12px;font-size:11px}
+.rrow:hover{background:var(--s2)}
+.rrow .rn{color:var(--t2)}
+.rrow .rm{color:var(--g2);font-weight:700;font-family:'DM Mono',monospace;font-size:10.5px}
+.rcft{display:flex;justify-content:space-between;padding:6px 12px;border-top:1px solid var(--bor)}
+.rcft .fl{font-size:8.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.rcft .fv{font-size:13px;font-weight:700;font-family:'DM Mono',monospace}
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px;margin-bottom:14px}
+.acard{background:var(--sur);border:1px solid var(--bor);border-radius:7px;padding:10px 11px;text-align:center}
+.acard .al{font-size:8.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:3px}
+.acard .av2{font-size:14px;font-weight:700;font-family:'DM Mono',monospace}
+.acard .as{font-size:9px;color:var(--t3);margin-top:1px}
+/* FERIADOS */
+.feriado-item{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--s2);border:1px solid var(--bor);border-radius:7px;margin-bottom:5px}
+/* RECIBO */
+#recibo-container{max-width:680px}
+.recibo-print-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;background:var(--gl);border:1px solid var(--gm);border-radius:8px;padding:11px 14px}
+.recibo-wrap{background:#f5f4f0;border:1px solid #ddd;border-radius:9px;padding:14px;font-family:'DM Mono',monospace}
+.r-half{background:#fff;padding:18px 22px;border:1px solid #e0dcd3;border-radius:6px;color:#1a1a1a;font-size:11.5px;line-height:1.55}
+.cut{border:none;border-top:1.5px dashed #b0a898;margin:12px 0;position:relative;text-align:center}
+.cut::after{content:'✂  CORTAR AQUÍ';position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:#f5f4f0;color:#b0a898;font-size:8px;padding:0 9px;letter-spacing:.1em;font-family:Inter,sans-serif;font-weight:700}
+.r-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:9px;padding-bottom:9px;border-bottom:2px solid #1a1a1a}
+.r-logo{display:flex;align-items:center;gap:7px}
+.r-logo-ico{font-size:20px}
+.r-logo-nm{font-family:Fraunces,serif;font-size:14px;font-weight:700;line-height:1.2}
+.r-logo-sub{font-size:8.5px;color:#888;letter-spacing:.08em;text-transform:uppercase}
+.r-badge{font-size:8.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 9px;border-radius:3px;border:1.5px solid;display:inline-block}
+.r-badge.orig{border-color:#1a7a3a;color:#1a7a3a;background:#eaf5ee}
+.r-badge.cop{border-color:#1a4a8a;color:#1a4a8a;background:#eef2fc}
+.r-title{font-family:Fraunces,serif;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.r-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1px 14px;margin-bottom:9px}
+.r-item{padding:3px 0;border-bottom:1px solid #ede9e2}
+.r-item .rk{font-size:9px;color:#888;letter-spacing:.04em}
+.r-item .rv{font-size:11.5px;font-weight:500;margin-top:1px}
+.r-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:9px}
+.r-tbl th{text-align:right;padding:4px 6px;font-size:8.5px;font-weight:700;letter-spacing:.05em;border-bottom:1.5px solid #1a1a1a;color:#555}
+.r-tbl th:first-child{text-align:left}
+.r-tbl td{text-align:right;padding:4px 6px;border-bottom:1px solid #ede9e2;font-family:'DM Mono',monospace}
+.r-tbl td:first-child{text-align:left;color:#555;font-family:Inter,sans-serif;font-size:10.5px}
+.r-tbl .rsubt td{border-top:1px solid #ccc;font-weight:700;padding-top:6px}
+.r-tbl .rdesc td{color:#b03030}
+.r-tbl .rbon td{color:#25703f}
+.r-tbl .rtot td{border-top:1.5px solid #1a1a1a;border-bottom:2px solid #1a1a1a;font-weight:700;font-size:12.5px;padding:5px 6px}
+.r-firma{display:flex;justify-content:space-between;align-items:flex-end;margin-top:9px;padding-top:9px;border-top:1px solid #e0dcd3}
+.r-firma-left{font-size:10px;color:#888}
+.r-firma-line{border-bottom:1px solid #555;width:140px;height:22px;margin-bottom:3px}
+.r-firma-lbl{font-size:9px;color:#888;letter-spacing:.07em;text-transform:uppercase}
+.r-fecha{font-size:9.5px;color:#888;text-align:center;margin-top:5px}
+/* FERIADOS MODAL */
+.fer-list{max-height:200px;overflow-y:auto;margin-bottom:12px}
+/* PRINT */
+.ep-hidden{display:none}
+@media print{
+  @page{size:A4 portrait;margin:0}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body,html{background:#fff;margin:0;padding:0;width:210mm}
+  /* Ocultar todo salvo el recibo */
+  .hdr,.app>aside,#banner,.tabbar,.stats,.sttitle,.alert-box,#statusmsg,
+  .ehdr,.recibo-print-bar,#subtabs-bar,#epanel-marc,#epanel-liq,#epanel-acum,
+  #tab-resumen,#tab-historial,#tab-config,#tab-feriados,.btn,.btn-p,.btn-g{display:none!important}
+  /* Colapsar grid — el content ocupa el 100% */
+  .app{display:block!important;width:210mm}
+  .content{padding:0!important;width:210mm!important;max-width:none!important}
+  #tab-ficha{display:block!important;width:210mm}
+  .ep-hidden{display:none!important}
+  #epanel-rec{display:block!important}
+  #epanel-rec.ep-hidden{display:block!important}
+  #recibo-container{max-width:none;width:210mm}
+  .recibo-wrap{background:#fff;border:none;padding:0;width:210mm}
+  .r-half{border:none;border-radius:0;padding:10mm 16mm;width:210mm;box-sizing:border-box}
+  .cut{margin:4mm 0}
+  .cut::after{background:#fff}
+  /* Evitar corte de página dentro de cada mitad */
+  .r-half{page-break-inside:avoid;break-inside:avoid}
+  .cut{page-break-after:avoid;break-after:avoid}
+}
+</style>
+</head>
+<body>
+<input type="file" id="fi" accept=".xlsx,.xls" onchange="handleFile(event)">
+
+<div class="hdr">
+  <div class="logo">
+    <div class="logo-ico">🌿</div>
+    <div><div class="logo-nm">Grupo de la Vida S.R.L.</div><div class="logo-sub">Sistema de liquidación salarial v3</div></div>
+  </div>
+  <div class="hdr-r">
+    <span style="font-size:11px;color:var(--t3)"><span class="fb-dot" id="fb-dot"></span><span id="fb-lbl">Firebase</span></span>
+    <div class="pill-per" id="per-pill">Sin datos</div>
+    <div class="pill-tot"><span class="lbl">Total semana</span><span class="val" id="tot-hdr">Gs. 0</span></div>
+    <button class="btn" onclick="document.getElementById('fi').click()">📂 Importar Excel</button>
+    <button class="btn btn-p" onclick="showAdelModal()">💰 Adelantos</button>
+    <button class="btn" onclick="showFerModal()">📅 Feriados</button>
+    <button class="btn" onclick="showCfgModal()">⚙️ Config</button>
+  </div>
+</div>
+
+<div id="banner" onclick="document.getElementById('fi').click()">
+  <div class="ban-ico">⏱️</div>
+  <div class="ban-title">Importar reporte del reloj marcador</div>
+  <div class="ban-sub">Arrastrá el archivo Excel del reloj aquí o hacé clic.<br>Calcula automáticamente horas, extras, nocturnos, feriados y pagos.</div>
+  <div class="ban-steps">
+    <div class="ban-step"><div class="ban-n">1</div>Exportar Transacciones del reloj</div>
+    <div class="ban-step"><div class="ban-n">2</div>Subir el .xlsx aquí</div>
+    <div class="ban-step"><div class="ban-n">3</div>Revisar fichas y recibos</div>
+  </div>
+  <button class="btn btn-p" style="margin-right:7px" onclick="event.stopPropagation();document.getElementById('fi').click()">📂 Seleccionar archivo</button>
+  <button class="btn" onclick="event.stopPropagation();demo()">🧪 Ver demo</button>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <aside>
+    <div class="aside-hd">
+      <div class="aside-lbl">Empleados</div>
+      <div class="aside-per" id="aside-per">—</div>
+    </div>
+    <div class="emp-list" id="emp-list"></div>
+    <div class="aside-ft">
+      <div class="tot-box">
+        <div class="tl">Total a pagar</div>
+        <div class="tv" id="tot-side">Gs. 0</div>
+        <div class="tc" id="cnt-side">—</div>
+      </div>
+      <button class="btn" style="width:100%;justify-content:center;font-size:11px;margin-bottom:5px" onclick="document.getElementById('fi').click()">🔄 Cargar otra semana</button>
+      <button class="btn" style="width:100%;justify-content:center;font-size:11px" onclick="showAdelModal()">💰 Adelantos / Descuentos</button>
+    </div>
+  </aside>
+  <div class="content">
+    <div id="statusmsg" class="status"></div>
+    <div class="tabbar" id="gtabs">
+      <div class="tb on" onclick="gTab('ficha')">👤 Empleado</div>
+      <div class="tb" onclick="gTab('resumen')">📊 Resúmenes</div>
+      <div class="tb" onclick="gTab('historial')">📋 Historial</div>
+      <div class="tb" onclick="gTab('config')">⚙️ Config</div>
+      <div class="tb" onclick="gTab('feriados')">📅 Feriados</div>
+    </div>
+    <div id="tab-ficha"><div class="empty"><div class="ei">👈</div><p>Seleccioná un empleado</p></div></div>
+    <div id="tab-resumen" style="display:none">
+      <div class="rtabs">
+        <div class="rtab on" onclick="rTab('sem')">Semanal</div>
+        <div class="rtab" onclick="rTab('mes')">Mensual</div>
+        <div class="rtab" onclick="rTab('emp')">Por Empleado</div>
+      </div>
+      <div id="rcont"></div>
+    </div>
+    <div id="tab-historial" style="display:none">
+      <div style="display:flex;gap:7px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+        <select id="hfilt" onchange="renderHist()" class="fi" style="width:auto;padding:6px 9px"></select>
+        <button class="btn btn-p" onclick="csvExport()">⬇ Exportar CSV</button>
+      </div>
+      <div id="hcont"></div>
+    </div>
+    <div id="tab-config" style="display:none"><div id="cfg-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px"></div></div>
+    <div id="tab-feriados" style="display:none">
+      <div class="sttitle">Feriados registrados</div>
+      <p style="font-size:12px;color:var(--t3);margin-bottom:12px">Los días marcados como feriado pagarán al 100% adicional sobre la tarifa base.</p>
+      <div id="fer-grid"></div>
+      <button class="btn btn-p" onclick="showFerModal()" style="margin-top:8px">➕ Agregar feriado</button>
+    </div>
+  </div>
+</div>
+
+<!-- CFG MODAL -->
+<div class="mbg" id="cfg-modal" style="display:none" onclick="if(event.target===this)closeCfg()">
+  <div class="modal">
+    <div class="mhd"><h2 id="cfg-title">Configurar empleado</h2><button class="mcl" onclick="closeCfg()">✕</button></div>
+    <div class="mbdy">
+      <div class="fg">
+        <div class="fld fg2"><label>Nombre completo</label><input class="fi" type="text" id="c-nm" placeholder="Nombre Apellido"></div>
+        <div class="fld"><label>ID / Cédula</label><input class="fi" type="text" id="c-id" placeholder="1234567"></div>
+        <div class="fld"><label>Tipo de pago</label><select class="fi" id="c-tipo" onchange="updCF()"><option value="Hora">Por Hora</option><option value="Día">Por Día</option><option value="Mes">Mensual</option></select></div>
+        <div class="fld" id="cf-h"><label>Tarifa por hora (Gs.)</label><input class="fi" type="number" id="c-ph"></div>
+        <div class="fld" id="cf-d" style="display:none"><label>Jornal diario (Gs.) — base 9.5 hs</label><input class="fi" type="number" id="c-pd"></div>
+        <div class="fld" id="cf-m" style="display:none"><label>Salario mensual (Gs.)</label><input class="fi" type="number" id="c-pm"></div>
+        <div class="section-sep">Horario laboral</div>
+        <div class="fld"><label>Hora entrada</label><input class="fi" type="time" id="c-ent" value="07:00"></div>
+        <div class="fld"><label>Hora salida</label><input class="fi" type="time" id="c-sal" value="17:00"></div>
+        <div class="fld"><label>Salida almuerzo</label><input class="fi" type="time" id="c-salm" value="12:00"></div>
+        <div class="fld"><label>Regreso almuerzo</label><input class="fi" type="time" id="c-ralm" value="13:00"></div>
+        <div class="fld"><label>Tolerancia entrada (min)</label><input class="fi" type="number" id="c-tol" value="10"></div>
+        <div class="fld"><label>Tope horas semanales extras</label><input class="fi" type="number" id="c-tope" value="48"></div>
+        <div class="section-sep">IPS y deducciones</div>
+        <div class="fld"><label>Base IPS mensual (Gs.)</label><input class="fi" type="number" id="c-ips"></div>
+        <div class="fld"><label>Desc. IPS empleado (%)</label><input class="fi" type="number" id="c-ipsp" value="9"></div>
+        <div class="section-sep">Visual</div>
+        <div class="fld"><label>Color avatar</label><input class="fi" type="color" id="c-col" value="#4a7a9a"></div>
+        <div class="fld"><label>Siglas (2 letras)</label><input class="fi" type="text" id="c-ini" maxlength="2"></div>
+        <div class="fld"><label>Sábado laborable</label><select class="fi" id="c-sab"><option value="si">Sí</option><option value="no">No</option></select></div>
+        <div class="fld"><label>Activo</label><select class="fi" id="c-act"><option value="si">Sí</option><option value="no">No</option></select></div>
+      </div>
+    </div>
+    <div class="mft"><button class="btn" onclick="closeCfg()">Cancelar</button><button class="btn btn-p" onclick="saveCfg()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<!-- ADELANTOS MODAL -->
+<div class="mbg" id="adel-modal" style="display:none" onclick="if(event.target===this)closeAdel()">
+  <div class="modal">
+    <div class="mhd"><h2>Adelantos y Descuentos</h2><button class="mcl" onclick="closeAdel()">✕</button></div>
+    <div class="mbdy">
+      <div class="fg" style="margin-bottom:12px">
+        <div class="fld fg2"><label>Empleado</label><select class="fi" id="a-emp"></select></div>
+        <div class="fld"><label>Tipo</label><select class="fi" id="a-tipo"><option value="adelanto">Adelanto de sueldo</option><option value="descuento">Descuento</option><option value="bonus">Bonus / Premio</option></select></div>
+        <div class="fld"><label>Monto (Gs.)</label><input class="fi" type="number" id="a-monto" placeholder="500000"></div>
+        <div class="fld"><label>Fecha</label><input class="fi" type="date" id="a-fecha"></div>
+        <div class="fld fg2"><label>Concepto / Motivo</label><input class="fi" type="text" id="a-conc" placeholder="Ej: Adelanto quincenal"></div>
+      </div>
+      <button class="btn btn-p" onclick="addAdel()" style="margin-bottom:12px">➕ Agregar</button>
+      <div class="sttitle">Registros de esta semana</div>
+      <div id="adel-list"></div>
+    </div>
+    <div class="mft"><button class="btn btn-p" onclick="closeAdel();if(CUR)renderEmp(CUR)">✓ Aplicar y cerrar</button></div>
+  </div>
+</div>
+
+<!-- FERIADOS MODAL -->
+<div class="mbg" id="fer-modal" style="display:none" onclick="if(event.target===this)closeFer()">
+  <div class="modal" style="max-width:420px">
+    <div class="mhd"><h2>Agregar feriado</h2><button class="mcl" onclick="closeFer()">✕</button></div>
+    <div class="mbdy">
+      <div class="fg">
+        <div class="fld"><label>Fecha</label><input class="fi" type="date" id="fer-fecha"></div>
+        <div class="fld"><label>Descripción</label><input class="fi" type="text" id="fer-desc" placeholder="Ej: Año Nuevo"></div>
+      </div>
+    </div>
+    <div class="mft"><button class="btn" onclick="closeFer()">Cancelar</button><button class="btn btn-p" onclick="saveFer()">💾 Guardar</button></div>
+  </div>
+</div>
+<script>
+// ══════════════════════════════════════════════════════
+//  FIREBASE
+// ══════════════════════════════════════════════════════
+var FB_CFG={apiKey:"AIzaSyAlBy8V0Xh4F9qoYanlyTlo3AkCIjfs2fY",authDomain:"gdlv-produccion.firebaseapp.com",databaseURL:"https://gdlv-produccion-default-rtdb.firebaseio.com",projectId:"gdlv-produccion",storageBucket:"gdlv-produccion.firebasestorage.app",messagingSenderId:"495597476558",appId:"1:495597476558:web:664d4ec0ca882dea044e9f"};
+var DB=null;
+function initFirebase(){
+  if(typeof firebase==='undefined'){
+    // Firebase scripts not yet loaded — retry in 200ms
+    setTimeout(initFirebase,200);
+    return;
+  }
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(FB_CFG);
+    DB=firebase.database();
+  }catch(e){
+    console.warn('Firebase init error:',e);
+    fbDot('err');
+  }
+  renderCfgGrid();
+  initData();
+}
+window.addEventListener('load',initFirebase);
+function fbDot(s){var d=document.getElementById('fb-dot'),l=document.getElementById('fb-lbl');d.className='fb-dot '+(s==='ok'?'ok':s==='err'?'err':'sync');l.textContent=s==='ok'?'Firebase ✓':s==='err'?'Firebase ✗':'Sincronizando...';}
+function lsGet(k){try{var v=localStorage.getItem('gdlv_sal_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem('gdlv_sal_'+k,JSON.stringify(v));}catch(e){}}
+function fbWrite(path,data){fbDot('sync');return DB.ref('planilla_salarios/'+path).set(data).then(function(){fbDot('ok');lsSet(path,data);}).catch(function(){fbDot('err');lsSet(path,data);});}
+function fbRead(path,cb){DB.ref('planilla_salarios/'+path).once('value').then(function(s){fbDot('ok');var d=s.val();if(d!==null)cb(d);else{var ls=lsGet(path);if(ls)cb(ls);}}).catch(function(){fbDot('err');var ls=lsGet(path);if(ls)cb(ls);});}
+function fbListen(path,cb){DB.ref('planilla_salarios/'+path).on('value',function(s){fbDot('ok');var d=s.val();if(d!==null)cb(d);},function(){fbDot('err');});}
+
+// ══════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ══════════════════════════════════════════════════════
+var CFG={
+  '1282575':{nm:'Eduardo Portillo',tp:'Mes',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:null,pd:null,pm:4000000,ips:3800000,ipsp:9,tope:48,sab:true,col:'#7c6e8a',ini:'EP',act:true},
+  '6982681':{nm:'Irene Vargas',tp:'Hora',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:13937,pd:null,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#4a7a9a',ini:'IV',act:true},
+  '4683576':{nm:'Javier Noguera',tp:'Día',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:null,pd:160000,pm:null,ips:2899038,ipsp:9,tope:48,sab:true,col:'#4a8a6a',ini:'JN',act:true},
+  '3998285':{nm:'José Martinez',tp:'Hora',ent:'13:00',salm:null,ralm:null,sal:'18:00',tol:15,ph:13937,pd:null,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#8a7a5a',ini:'JM',act:true},
+  '2172278':{nm:'Liduvina Franco',tp:'Día',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:null,pd:180000,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#7a5a8a',ini:'LF',act:true},
+  '6042803216':{nm:'Néstor Franco',tp:'Día',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:null,pd:200000,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#4a6a8a',ini:'NF',act:true},
+  '4501472':{nm:'Zunilda Cuenca',tp:'Hora',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:15000,pd:null,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#8a5a6a',ini:'ZC',act:true}
+};
+var ADELS={},HIST=[],FERIADOS={};
+var SEM_INI='',SEM_FIN='',SEM_PER='',EMPS={},CUR=null,GTAB='ficha',RTAB='sem';
+
+// ══════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════
+function t2m(t){if(!t||t==='-'||t==='—')return null;var p=t.split(':');return +p[0]*60+ +p[1];}
+function m2t(m){if(m===null||m===undefined)return '—';return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+function gs(n){return 'Gs. '+Math.round(n).toLocaleString('es-PY');}
+function fd(d){var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function mesN(n){return ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][n-1];}
+function mKey(d){if(!d)return '';var dt=new Date(d+'T00:00:00');return dt.getFullYear()+'-'+(dt.getMonth()<9?'0':'')+(dt.getMonth()+1);}
+function mLabel(k){var p=k.split('-');return mesN(+p[1])+' '+p[0];}
+function sKey(){return SEM_INI+'__'+SEM_FIN;}
+
+// ── DIVISOR DE MES ─────────────────────────────────────
+// Regla GDV: SEMANA 1 del mes = sábado en o antes del día 1 del mes.
+// Se cuentan cuántas semanas tiene ese mes → ese es el divisor.
+function semanasDelMes(fechaIniISO){
+  // fechaIniISO: 'YYYY-MM-DD' inicio de la semana importada
+  if(!fechaIniISO) return 4;
+  var d = new Date(fechaIniISO+'T00:00:00');
+  // Encontrar a qué mes pertenece esta semana:
+  // avanzar 3 días (mitad de semana sáb→vier) para determinar mes "central"
+  // PERO según la regla GDV el mes se determina por el sábado de SEMANA 1
+  // que es el sábado en o antes del 1ero del mes.
+  // Entonces: encontramos el mes cuyo sábado-ancla <= d < sábado-ancla-del-mes-siguiente
+  var anio = d.getFullYear();
+  // Puede que la semana pertenezca a un mes del año anterior (ej: SEMANA1 JANUARY 2026 = 27/12/2025)
+  // Probar mes del año en curso y del siguiente/anterior
+  function sabAnclaMes(a, m){
+    // sábado en o antes del 1ero del mes m (0-based) del año a
+    var primer = new Date(a, m, 1);
+    while(primer.getDay() !== 6) primer = new Date(primer.getTime() - 86400000);
+    return primer;
+  }
+  // Buscar en rango año-1 a año+1
+  for(var ya = anio-1; ya <= anio+1; ya++){
+    for(var m = 0; m < 12; m++){
+      var sabEste = sabAnclaMes(ya, m);
+      var sabSig  = sabAnclaMes(ya, m+1 > 11 ? 0 : m+1);
+      if(m+1 > 11) sabSig = sabAnclaMes(ya+1, 0);
+      if(d >= sabEste && d < sabSig){
+        // Contar semanas de este mes
+        var cnt = 0, cur = new Date(sabEste);
+        while(cur < sabSig){ cnt++; cur = new Date(cur.getTime()+7*86400000); }
+        return cnt;
+      }
+    }
+  }
+  return 4; // fallback
+}
+// ────────────────────────────────────────────────────────
+function esFeriado(f){return !!FERIADOS[f];}
+
+// ══════════════════════════════════════════════════════
+//  SPLIT DIURNO/NOCTURNO
+// ══════════════════════════════════════════════════════
+function splitDiaNoche(en,sa,almHs){
+  var enM=t2m(en),saM=t2m(sa);
+  if(enM===null||saM===null)return{norm:0,noct:0};
+  if(saM<=enM)saM+=1440;
+  function overlap(s1,e1,s2,e2){return Math.max(0,Math.min(e1,e2)-Math.max(s1,s2));}
+  var noctMin=overlap(enM,saM,0,360)+overlap(enM,saM,1260,1800)+overlap(enM,saM,1800+1260,1800+1800);
+  var normMin=(saM-enM)-noctMin;
+  var almHsN=almHs||0;
+  normMin=Math.max(0,normMin-almHsN*60);
+  return{norm:Math.max(0,normMin/60),noct:Math.max(0,noctMin/60)};
+}
+
+// ══════════════════════════════════════════════════════
+//  PARSEO
+// ══════════════════════════════════════════════════════
+function parse(rows){
+  var hi=-1;
+  for(var i=0;i<rows.length;i++){if(rows[i]&&String(rows[i][0]||'').trim()==='Nombre'){hi=i;break;}}
+  if(hi<0)throw new Error('No se encontró fila "Nombre".');
+  SEM_INI='';SEM_FIN='';SEM_PER='';
+  for(var i=0;i<hi;i++){
+    var v=String(rows[i]&&rows[i][0]||'');
+    if(v.indexOf('Periodo:')===0){
+      SEM_PER=v.replace('Periodo:','').trim();
+      var p=SEM_PER.split(' - ');
+      if(p.length===2){SEM_INI=p[0].trim();SEM_FIN=p[1].trim();}
+    }
+  }
+  var raw={};
+  for(var i=hi+1;i<rows.length;i++){
+    var r=rows[i];if(!r||!r[0])continue;
+    var id=String(r[2]||'').trim(),fe=String(r[3]||'').trim(),di=String(r[4]||'').trim(),ho=String(r[5]||'').trim();
+    if(!id||!fe||!ho)continue;
+    if(!raw[id])raw[id]={nm:String(r[0]||'').trim()+' '+String(r[1]||'').trim(),dias:{}};
+    if(!raw[id].dias[fe])raw[id].dias[fe]={di:di,hs:[]};
+    raw[id].dias[fe].hs.push(ho);
+  }
+  EMPS={};
+  for(var id in raw){
+    var c=CFG[id];if(!c||!c.act)continue;
+    var marc=[];
+    for(var fe in raw[id].dias){
+      var dd=raw[id].dias[fe];
+      // 1. Deduplicar exactas
+      var seen={},sorted=[];
+      dd.hs.sort().forEach(function(h){if(!seen[h]){seen[h]=1;sorted.push(h);}});
+      // 2. Agrupar marcas con <=1 minuto de diferencia — tomar solo la primera de cada cluster
+      var uniq=[];
+      sorted.forEach(function(h){
+        if(!uniq.length||t2m(h)-t2m(uniq[uniq.length-1])>1)uniq.push(h);
+      });
+      var isDom=(dd.di==='Domingo'),isFer=esFeriado(fe),esEsp=isDom||isFer;
+      var en=null,sa=null,slam=null,rlam=null;
+      if(!c.salm||uniq.length<4){
+        en=uniq[0]||null;
+        sa=uniq.length>1?uniq[uniq.length-1]:null;
+      } else {
+        en=uniq[0];sa=uniq[uniq.length-1];
+        slam=uniq[1];rlam=uniq[uniq.length-2];
+        if(slam===rlam)rlam=null;
+      }
+      var almHs=0;
+      if(slam&&rlam){
+        almHs=Math.max(0,(t2m(rlam)-t2m(slam))/60);
+        // Si almuerzo < 30 min, descontar mínimo 30 min
+        if(almHs>0&&almHs<0.5)almHs=0.5;
+      }
+      // Si tiene horario almuerzo configurado pero no marcó almuerzo ese día:
+      // solo descontar 20 min si trabajó >6hs Y el horario se superpone con la franja almuerzo
+      if(c.salm&&!slam){
+        var enM0=t2m(uniq[0]),saM0=uniq.length>1?t2m(uniq[uniq.length-1]):null;
+        if(enM0!==null&&saM0!==null){
+          var brutProv=saM0-enM0;if(brutProv<0)brutProv+=1440;
+          var almS=t2m(c.salm),almR=t2m(c.ralm||'13:00');
+          // Superposición: el rango de trabajo cubre al menos parte de la franja almuerzo
+          var overlap=Math.max(0,Math.min(saM0,almR)-Math.max(enM0,almS));
+          if(brutProv>=360&&overlap>0)almHs=20/60; // >6hs y pasa por franja → 20 min fijos
+        }
+      }
+      var enM=t2m(en),saM=t2m(sa),brutMin=0;
+      if(enM!==null&&saM!==null){brutMin=saM-enM;if(brutMin<0)brutMin+=1440;brutMin-=almHs*60;}
+      var hsTotal=Math.max(0,brutMin/60);
+      var sp=splitDiaNoche(en,sa,almHs);
+      var tard=0,est='Asistió';
+      if(!esEsp&&en){var df=t2m(en)-(t2m(c.ent)||0);if(df>(c.tol||10)){tard=df;est='Tarde '+df+'min';}}
+      if(isDom)est='Domingo';if(isFer&&!isDom)est='Feriado';
+      marc.push({fe:fe,di:dd.di,isDom:isDom,isFer:isFer,esEsp:esEsp,en:en||'—',slam:slam||'—',rlam:rlam||'—',sa:sa||'—',hs:Math.round(hsTotal*100)/100,hsNorm:Math.round(sp.norm*100)/100,hsNoct:Math.round(sp.noct*100)/100,tard:tard,est:est});
+    }
+    marc.sort(function(a,b){return b.fe.localeCompare(a.fe);});
+    calcPago(id,c,marc);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CÁLCULO
+// ══════════════════════════════════════════════════════
+function calcPago(id,c,marc){
+  var sk=sKey(),TOPE=c.tope||48;
+  var hsNormD=0,hsNoctD=0,hsNormE=0,hsNoctE=0,diasTrab=0;
+  marc.forEach(function(m){
+    if(m.esEsp){hsNormE+=m.hsNorm;hsNoctE+=m.hsNoct;}
+    else{hsNormD+=m.hsNorm;hsNoctD+=m.hsNoct;}
+    if(m.hs>0)diasTrab++;
+  });
+  var hsTot=hsNormD+hsNoctD+hsNormE+hsNoctE;
+  var hsBase=hsNormD+hsNoctD;
+  var hsExt=Math.max(0,hsBase-TOPE);
+  var extN=Math.min(hsExt,hsNormD),extNo=Math.max(0,hsExt-extN);
+  var bruto=0,det=[];
+
+  if(c.tp==='Hora'){
+    var ph=c.ph;
+    var b1=Math.round((hsNormD-extN)*ph);if(hsNormD-extN>0)det.push({c:'Horas normales diurnas',q:(hsNormD-extN).toFixed(2)+' hs',t:gs(ph)+'/h',s:b1,tipo:'normal'});bruto+=b1;
+    var phN=Math.round(ph*1.3),b2=Math.round((hsNoctD-extNo)*phN);if(hsNoctD-extNo>0)det.push({c:'Horas nocturnas (+30%)',q:(hsNoctD-extNo).toFixed(2)+' hs',t:gs(phN)+'/h',s:b2,tipo:'noct'});bruto+=b2;
+    var phE=Math.round(ph*1.5),b3=Math.round(extN*phE);if(extN>0)det.push({c:'Horas extras diurnas (+50%)',q:extN.toFixed(2)+' hs',t:gs(phE)+'/h',s:b3,tipo:'extra'});bruto+=b3;
+    var phEN=Math.round(ph*1.8),b4=Math.round(extNo*phEN);if(extNo>0)det.push({c:'Horas extras nocturnas (+80%)',q:extNo.toFixed(2)+' hs',t:gs(phEN)+'/h',s:b4,tipo:'extra'});bruto+=b4;
+    var ph2=Math.round(ph*2),b5=Math.round(hsNormE*ph2);if(hsNormE>0)det.push({c:'Dom./Feriado diurno (+100%)',q:hsNormE.toFixed(2)+' hs',t:gs(ph2)+'/h',s:b5,tipo:'esp'});bruto+=b5;
+    var ph2N=Math.round(ph*2.3),b6=Math.round(hsNoctE*ph2N);if(hsNoctE>0)det.push({c:'Dom./Feriado nocturno (+130%)',q:hsNoctE.toFixed(2)+' hs',t:gs(ph2N)+'/h',s:b6,tipo:'esp'});bruto+=b6;
+
+  } else if(c.tp==='Día'){
+    var ph=c.pd/9.5;
+    var b1=Math.round((hsNormD-extN)*ph);if(hsNormD-extN>0)det.push({c:'Horas diurnas (prop. jornal)',q:(hsNormD-extN).toFixed(2)+' hs',t:gs(Math.round(ph))+'/h',s:b1,tipo:'normal'});bruto+=b1;
+    var phN=Math.round(ph*1.3),b2=Math.round((hsNoctD-extNo)*phN);if(hsNoctD-extNo>0)det.push({c:'Horas nocturnas (+30%)',q:(hsNoctD-extNo).toFixed(2)+' hs',t:gs(phN)+'/h',s:b2,tipo:'noct'});bruto+=b2;
+    var phE=Math.round(ph*1.5),b3=Math.round(extN*phE);if(extN>0)det.push({c:'Horas extras diurnas (+50%)',q:extN.toFixed(2)+' hs',t:gs(phE)+'/h',s:b3,tipo:'extra'});bruto+=b3;
+    var ph2=Math.round(ph*2),b4=Math.round(hsNormE*ph2);if(hsNormE>0)det.push({c:'Dom./Feriado diurno (+100%)',q:hsNormE.toFixed(2)+' hs',t:gs(ph2)+'/h',s:b4,tipo:'esp'});bruto+=b4;
+    var ph2N=Math.round(ph*2.3),b5=Math.round(hsNoctE*ph2N);if(hsNoctE>0)det.push({c:'Dom./Feriado nocturno (+130%)',q:hsNoctE.toFixed(2)+' hs',t:gs(ph2N)+'/h',s:b5,tipo:'esp'});bruto+=b5;
+
+  } else {
+    // Tipo Mes: proporcional por horas trabajadas
+    // ph = tarifa hora = (sueldo_mensual ÷ semanas_mes) ÷ horas_esperadas_semana
+    var DIV=semanasDelMes(SEM_INI);
+    var ph=c.pm/(DIV*TOPE); // tarifa hora base
+
+    // Horas normales diurnas trabajadas (sin extras, sin esp)
+    var hsNormTrab=Math.max(0,hsNormD-extN);
+    var hsNoctTrab=Math.max(0,hsNoctD-extNo);
+
+    // Base proporcional: horas normales diurnas × tarifa
+    if(hsNormTrab>0){
+      var bBase=Math.round(hsNormTrab*ph);
+      det.push({c:'Salario proporcional ('+hsNormTrab.toFixed(2)+'hs × Gs.'+Math.round(ph).toLocaleString('es-PY')+')',q:hsNormTrab.toFixed(2)+' hs',t:gs(Math.round(ph))+'/h',s:bBase,tipo:'normal'});
+      bruto+=bBase;
+    }
+    // Nocturno diurno: adicional 30% sobre tarifa
+    if(hsNoctTrab>0){
+      var phN=Math.round(ph*1.3),bN=Math.round(hsNoctTrab*phN);
+      det.push({c:'Horas nocturnas (+30%)',q:hsNoctTrab.toFixed(2)+' hs',t:gs(phN)+'/h',s:bN,tipo:'noct'});
+      bruto+=bN;
+    }
+    // Extras diurnas: 50% sobre tarifa
+    if(extN>0){
+      var phE=Math.round(ph*1.5),bE=Math.round(extN*phE);
+      det.push({c:'Horas extras diurnas (+50%)',q:extN.toFixed(2)+' hs',t:gs(phE)+'/h',s:bE,tipo:'extra'});
+      bruto+=bE;
+    }
+    // Extras nocturnas: 80%
+    if(extNo>0){
+      var phEN=Math.round(ph*1.8),bEN=Math.round(extNo*phEN);
+      det.push({c:'Horas extras nocturnas (+80%)',q:extNo.toFixed(2)+' hs',t:gs(phEN)+'/h',s:bEN,tipo:'extra'});
+      bruto+=bEN;
+    }
+    // Dom/Feriado: 100% adicional (paga doble = 2×ph)
+    if(hsNormE>0){
+      var phD=Math.round(ph*2),bD=Math.round(hsNormE*phD);
+      det.push({c:'Dom./Feriado diurno (+100%)',q:hsNormE.toFixed(2)+' hs',t:gs(phD)+'/h',s:bD,tipo:'esp'});
+      bruto+=bD;
+    }
+    if(hsNoctE>0){
+      var phDN=Math.round(ph*2.3),bDN=Math.round(hsNoctE*phDN);
+      det.push({c:'Dom./Feriado nocturno (+130%)',q:hsNoctE.toFixed(2)+' hs',t:gs(phDN)+'/h',s:bDN,tipo:'esp'});
+      bruto+=bDN;
+    }
+  }
+
+  var DIV2=semanasDelMes(SEM_INI);
+  var bIPS=c.ips?Math.round(c.ips/DIV2):0,dIPS=c.ips?Math.round(bIPS*(c.ipsp||9)/100):0;
+  var ads=(ADELS[id]||[]).filter(function(a){return a.sk===sk;});
+  var tAde=ads.filter(function(a){return a.tp==='adelanto';}).reduce(function(s,a){return s+a.mo;},0);
+  var tDes=ads.filter(function(a){return a.tp==='descuento';}).reduce(function(s,a){return s+a.mo;},0);
+  var tBon=ads.filter(function(a){return a.tp==='bonus';}).reduce(function(s,a){return s+a.mo;},0);
+  var neto=bruto-dIPS-tAde-tDes+tBon;
+  var tards=marc.filter(function(m){return m.tard>0;});
+  EMPS[id]={c:c,marc:marc,hsTot:Math.round(hsTot*100)/100,hsNorm:Math.round(hsNormD*100)/100,hsNoct:Math.round(hsNoctD*100)/100,hsExt:Math.round(hsExt*100)/100,hsEsp:Math.round((hsNormE+hsNoctE)*100)/100,diasTrab:diasTrab,bruto:bruto,det:det,dIPS:dIPS,bIPS:bIPS,ads:ads,tAde:tAde,tDes:tDes,tBon:tBon,neto:neto,tards:tards,totTard:tards.reduce(function(s,m){return s+m.tard;},0)};
+}
+
+// ══════════════════════════════════════════════════════
+//  CARGAR ARCHIVO
+// ══════════════════════════════════════════════════════
+function handleFile(ev){
+  var f=ev.target.files[0];if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',raw:false});var wsN=wb.SheetNames.find(function(n){return n.toUpperCase()==='TRANSACCIONES';})||wb.SheetNames[0];var ws=wb.Sheets[wsN];var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});parse(rows);aplicar(f.name);}
+    catch(err){showSt('Error: '+err.message,'err');}
+  };
+  rd.readAsArrayBuffer(f);ev.target.value='';
+}
+var bn=document.getElementById('banner');
+bn.addEventListener('dragover',function(e){e.preventDefault();bn.classList.add('drag');});
+bn.addEventListener('dragleave',function(){bn.classList.remove('drag');});
+bn.addEventListener('drop',function(e){
+  e.preventDefault();bn.classList.remove('drag');
+  var f=e.dataTransfer.files[0];if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(ev){try{var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',raw:false});var wsN=wb.SheetNames.find(function(n){return n.toUpperCase()==='TRANSACCIONES';})||wb.SheetNames[0];var ws=wb.Sheets[wsN];var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});parse(rows);aplicar(f.name);}catch(err){showSt('Error: '+err.message,'err');}};
+  rd.readAsArrayBuffer(f);
+});
+
+function aplicar(fname){
+  if(!Object.keys(EMPS).length){showSt('Sin empleados reconocidos.','wrn');return;}
+  var sk=sKey();
+  var hd={sk:sk,sem:SEM_PER,ini:SEM_INI,fin:SEM_FIN,emps:Object.keys(EMPS).map(function(id){var e=EMPS[id];return{id:id,nm:e.c.nm,hs:e.hsTot,hsExt:e.hsExt,hsNoct:e.hsNoct,hsEsp:e.hsEsp,bruto:e.bruto,neto:e.neto,dIPS:e.dIPS,tard:e.tards.length};})};
+  var idx=HIST.findIndex(function(h){return h.sk===sk;});
+  if(idx>=0)HIST[idx]=hd;else HIST.push(hd);
+  var ho={};HIST.forEach(function(h,i){ho['sem_'+i]=h;});
+  fbWrite('historial',ho);
+  document.getElementById('banner').style.display='none';
+  document.getElementById('app').style.display='grid';
+  document.getElementById('per-pill').textContent='📅 '+(SEM_PER||'Semana');
+  document.getElementById('aside-per').textContent=SEM_INI+' → '+SEM_FIN;
+  updTots();renderSide();renderCfgGrid();pobFilt();renderFeriados();
+  showSt((fname?fname+' — ':'')+Object.keys(EMPS).length+' empleados cargados.','ok');
+  selectEmp(Object.keys(EMPS)[0]);
+}
+
+function showSt(msg,tp){
+  var el=document.getElementById('statusmsg');el.textContent=msg;
+  el.className='status'+(tp==='err'?' err':tp==='wrn'?' wrn':'');el.style.display='flex';
+  setTimeout(function(){el.style.display='none';},5000);
+}
+function updTots(){
+  var tot=0,cnt=0;for(var id in EMPS){tot+=EMPS[id].neto;cnt++;}
+  document.getElementById('tot-hdr').textContent=gs(tot);
+  document.getElementById('tot-side').textContent=gs(tot);
+  document.getElementById('cnt-side').textContent=cnt+' empleado'+(cnt!==1?'s':'');
+}
+function renderSide(){
+  var h='';
+  for(var id in EMPS){
+    var e=EMPS[id],c=e.c,tags='';
+    if(e.hsExt>0)tags+='<span class="badge btd" style="font-size:8px;padding:1px 5px">E</span>';
+    if(e.hsNoct>0)tags+='<span class="badge bno" style="font-size:8px;padding:1px 5px">N</span>';
+    if(e.hsEsp>0)tags+='<span class="badge bfn" style="font-size:8px;padding:1px 5px">D</span>';
+    h+='<div class="ec'+(CUR===id?' on':'')+'" onclick="selectEmp(\''+id+'\')">'
+      +'<div class="av" style="background:'+c.col+'22;color:'+c.col+';border:1.5px solid '+c.col+'55">'+c.ini+'</div>'
+      +'<div style="flex:1;min-width:0"><div class="ec-nm">'+c.nm+'</div><div class="ec-sub" style="display:flex;gap:3px;align-items:center;margin-top:2px">'+c.tp+' · '+e.hsTot.toFixed(1)+'hs'+tags+'</div></div>'
+      +'<div class="ec-pay">'+gs(e.neto)+'</div></div>';
+  }
+  document.getElementById('emp-list').innerHTML=h;
+}
+
+// ══════════════════════════════════════════════════════
+//  NAVEGACIÓN
+// ══════════════════════════════════════════════════════
+function gTab(t){
+  GTAB=t;
+  ['ficha','resumen','historial','config','feriados'].forEach(function(x,i){
+    document.getElementById('tab-'+x).style.display=x===t?'block':'none';
+    document.querySelectorAll('#gtabs .tb')[i].classList.toggle('on',x===t);
+  });
+  if(t==='resumen')renderRes();
+  if(t==='historial')renderHist();
+  if(t==='config')renderCfgGrid();
+  if(t==='feriados')renderFeriados();
+  if(t==='ficha'&&CUR)renderEmp(CUR);
+}
+function selectEmp(id){CUR=id;renderSide();if(GTAB!=='ficha')gTab('ficha');else renderEmp(id);}
+function sTab(n){
+  ['epanel-marc','epanel-liq','epanel-rec','epanel-acum'].forEach(function(x,i){
+    var p=document.getElementById(x);if(!p)return;
+    p.style.display=i===n?'block':'none';
+  });
+  for(var i=0;i<4;i++){var t=document.getElementById('stb'+i);if(t)t.classList.toggle('on',i===n);}
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER EMPLEADO
+// ══════════════════════════════════════════════════════
+function mk(tag,cls){var d=document.createElement(tag);if(cls)d.className=cls;return d;}
+function sc(l,v,s,cls){return '<div class="sc'+(cls?' '+cls:'')+'"><div class="sl">'+l+'</div><div class="sv">'+v+'</div><div class="ss">'+s+'</div></div>';}
+
+function renderEmp(id){
+  var e=EMPS[id];if(!e)return;
+  var c=e.c,wrap=document.getElementById('tab-ficha');
+  wrap.innerHTML='';
+  var tipoBadge={'Hora':'<span class="chip cb">Por Hora</span>','Día':'<span class="chip cv">Por Día</span>','Mes':'<span class="chip cg">Mensual</span>'}[c.tp]||'';
+  var recTags='';
+  if(e.hsExt>0)recTags+='<span class="badge btd">⚡ '+e.hsExt.toFixed(1)+'h extra</span>';
+  if(e.hsNoct>0)recTags+='<span class="badge bno">🌙 '+e.hsNoct.toFixed(1)+'h noct.</span>';
+  if(e.hsEsp>0)recTags+='<span class="badge bfn">📅 '+e.hsEsp.toFixed(1)+'h feriado/dom.</span>';
+  var ehdr=mk('div','ehdr');
+  ehdr.innerHTML='<div class="ehdr-l"><div class="ehdr-av" style="background:'+c.col+'22;color:'+c.col+';border:2px solid '+c.col+'44">'+c.ini+'</div>'
+    +'<div><div class="ehdr-nm">'+c.nm+'</div><div class="ehdr-chips">'+tipoBadge+'<span class="chip cm">ID: '+id+'</span>'+(c.ips?'<span class="chip cv">IPS</span>':'')+'</div>'+(recTags?'<div class="rec-tags">'+recTags+'</div>':'')+'</div></div>'
+    +'<div style="display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap"><button class="btn" onclick="showCfgModal(\''+id+'\')">✏️ Editar</button>'
+    +'<div class="paybox"><div class="pl">Neto a cobrar</div><div class="pa">'+gs(e.neto)+'</div><div class="ph">'+e.hsTot.toFixed(2)+' hs · Bruto: '+gs(e.bruto)+'</div></div></div>';
+  wrap.appendChild(ehdr);
+  if(e.totTard>0){var al=mk('div','alert-box');al.innerHTML='⏱️ <span><strong>'+e.tards.length+' llegada'+(e.tards.length>1?'s':'')+' tarde</strong> — '+e.totTard+' min acumulados.</span>';wrap.appendChild(al);}
+  var st=mk('div','stats');
+  st.innerHTML=sc('Días trabaj.',e.diasTrab,'días','')
+    +sc('Horas totales',e.hsTot.toFixed(2),'hs','ok')
+    +sc('Hs. extras',e.hsExt.toFixed(2),e.hsExt>0?'+50%':'sin extras',e.hsExt>0?'warn':'')
+    +sc('Hs. nocturnas',e.hsNoct.toFixed(2),e.hsNoct>0?'+30%':'sin noct.',e.hsNoct>0?'info':'')
+    +sc('Dom./Feriado',e.hsEsp.toFixed(2),e.hsEsp>0?'+100%':'sin rec.',e.hsEsp>0?'info':'')
+    +sc('Tardanzas',e.tards.length,e.totTard>0?e.totTard+' min':'OK',e.tards.length>0?'warn':'')
+    +sc('Bruto',gs(e.bruto),'antes de deduc.','hi')
+    +sc('Desc. IPS',gs(e.dIPS),(c.ipsp||9)+'%',e.dIPS>0?'err':'');
+  wrap.appendChild(st);
+  var stbar=mk('div','tabbar');stbar.id='subtabs-bar';stbar.style.marginBottom='14px';
+  stbar.innerHTML='<div class="tb on" id="stb0" onclick="sTab(0)">📋 Marcaciones</div><div class="tb" id="stb1" onclick="sTab(1)">💵 Liquidación</div><div class="tb" id="stb2" onclick="sTab(2)">🖨️ Recibo A4</div><div class="tb" id="stb3" onclick="sTab(3)">📈 Acumulado</div>';
+  wrap.appendChild(stbar);
+  var p0=mk('div','');p0.id='epanel-marc';p0.innerHTML=buildMarcTable(e);wrap.appendChild(p0);
+  var p1=mk('div','');p1.id='epanel-liq';p1.style.display='none';p1.innerHTML=buildLiqTable(e,c);wrap.appendChild(p1);
+  var p2=mk('div','');p2.id='epanel-rec';p2.style.display='none';
+  var pbar=mk('div','recibo-print-bar');
+  pbar.innerHTML='<div style="font-size:22px">🖨️</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--g2)">Recibo listo para imprimir o descargar</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Imprimí en A4 o descargá como PDF para enviar.</div></div>';
+  var pbtn=document.createElement('button');pbtn.className='btn btn-p';pbtn.textContent='🖨️ Imprimir A4';
+  pbtn.onclick=function(){printRecibo(id,e,c);};
+  var pdfbtn=document.createElement('button');pdfbtn.className='btn btn-g';pdfbtn.textContent='⬇ Descargar PDF';
+  pdfbtn.onclick=function(){abrirRecibo(id,e,c,true);};
+  pbar.appendChild(pbtn);pbar.appendChild(pdfbtn);p2.appendChild(pbar);
+  var rw=mk('div','');rw.id='recibo-container';rw.innerHTML=buildRecibo(id,e,c);p2.appendChild(rw);wrap.appendChild(p2);
+  var p3=mk('div','');p3.id='epanel-acum';p3.style.display='none';p3.innerHTML=buildAcum(id);wrap.appendChild(p3);
+}
+
+// ══════════════════════════════════════════════════════
+//  TABLAS
+// ══════════════════════════════════════════════════════
+function buildMarcTable(e){
+  var rows='';
+  e.marc.forEach(function(m){
+    var b=m.tard>0?'<span class="badge btd">⏱ '+m.est+'</span>':m.isDom?'<span class="badge bfn">🌅 Dom.</span>':m.isFer?'<span class="badge bno">📅 Feriado</span>':'<span class="badge bok">✓ OK</span>';
+    rows+='<tr style="'+(m.esEsp?'background:#e8f2fc':'')+'">'
+      +'<td class="s">'+fd(m.fe)+'</td><td>'+m.di+'</td><td class="m">'+m.en+'</td>'
+      +'<td class="m">'+m.slam+'</td><td class="m">'+m.rlam+'</td><td class="m">'+m.sa+'</td>'
+      +'<td class="m s">'+m.hs.toFixed(2)+'</td>'
+      +(m.hsNoct>0?'<td class="m" style="color:#6040a0">'+m.hsNoct.toFixed(2)+'</td>':'<td>—</td>')
+      +'<td>'+b+'</td></tr>';
+  });
+  rows+='<tr><td colspan="5" class="tot" style="text-align:right;font-size:8.5px">TOTAL</td><td class="tot m">'+e.hsTot.toFixed(2)+'</td><td class="tot m">'+(e.hsNoct>0?e.hsNoct.toFixed(2):'—')+'</td><td class="tot"></td></tr>';
+  return '<div class="tw"><div class="ct"><table><thead><tr><th>Fecha</th><th>Día</th><th>Entrada</th><th>Sal.Alm</th><th>Reg.Alm</th><th>Salida</th><th>Hs.Total</th><th>Hs.Noct</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function buildLiqTable(e,c){
+  var col={normal:'var(--tx)',noct:'#6040a0',extra:'var(--am)',esp:'var(--bl)'};
+  var rows='';
+  e.det.forEach(function(d){rows+='<tr><td class="s" style="color:'+col[d.tipo]+'">'+d.c+'</td><td class="m">'+d.q+'</td><td class="m">'+d.t+'</td><td class="m s" style="color:'+col[d.tipo]+'">'+gs(d.s)+'</td></tr>';});
+  rows+='<tr><td colspan="3" class="tot" style="text-align:right;font-size:8.5px">SUBTOTAL BRUTO</td><td class="tot m">'+gs(e.bruto)+'</td></tr>';
+  if(e.dIPS>0)rows+='<tr><td style="color:var(--re)">Descuento IPS ('+c.ipsp+'%)</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--re)">- '+gs(e.dIPS)+'</td></tr>';
+  if(e.tAde>0)rows+='<tr><td style="color:var(--am)">Adelantos</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--am)">- '+gs(e.tAde)+'</td></tr>';
+  if(e.tDes>0)rows+='<tr><td style="color:var(--re)">Descuentos</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--re)">- '+gs(e.tDes)+'</td></tr>';
+  if(e.tBon>0)rows+='<tr><td style="color:var(--gr)">Bonus / Premio</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--gr)">+ '+gs(e.tBon)+'</td></tr>';
+  rows+='<tr><td colspan="3" class="tot" style="text-align:right;color:var(--g2);font-size:9.5px">TOTAL NETO A COBRAR</td><td class="tot m" style="color:var(--g2);font-size:13px">'+gs(e.neto)+'</td></tr>';
+  var html='<div class="tw"><div class="ct"><table><thead><tr><th>Concepto</th><th>Cantidad</th><th>Tarifa</th><th>Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  if(e.ads.length>0){
+    var ar='';e.ads.forEach(function(a){ar+='<tr><td><span class="badge '+(a.tp==='bonus'?'bok':a.tp==='adelanto'?'btd':'bfa')+'">'+a.tp+'</span></td><td class="m">'+a.fe+'</td><td>'+a.conc+'</td><td class="m s">'+gs(a.mo)+'</td></tr>';});
+    html+='<div class="sttitle">Adelantos y descuentos</div><div class="tw"><div class="ct"><table><thead><tr><th>Tipo</th><th>Fecha</th><th>Concepto</th><th>Monto</th></tr></thead><tbody>'+ar+'</tbody></table></div></div>';
+  }
+  return html;
+}
+
+// ══════════════════════════════════════════════════════
+//  RECIBO — vista previa en pantalla
+// ══════════════════════════════════════════════════════
+function buildRecibo(id,e,c){
+  var hoy=new Date().toLocaleDateString('es-PY',{day:'2-digit',month:'long',year:'numeric'});
+  var per=SEM_INI+' a '+SEM_FIN;
+  function half(tipo){
+    var isorig=(tipo==='ORIGINAL');
+    var tr='';
+    e.det.forEach(function(d){tr+='<tr><td>'+d.c+'</td><td>'+d.q+'</td><td>'+d.t+'</td><td>'+gs(d.s)+'</td></tr>';});
+    tr+='<tr class="rsubt"><td colspan="3" style="text-align:right">Subtotal bruto :</td><td>'+gs(e.bruto)+'</td></tr>';
+    if(e.dIPS>0)tr+='<tr class="rdesc"><td colspan="3" style="text-align:right">Descuento IPS ('+c.ipsp+'%) :</td><td>- '+gs(e.dIPS)+'</td></tr>';
+    if(e.tAde>0)tr+='<tr class="rdesc"><td colspan="3" style="text-align:right">Adelantos :</td><td>- '+gs(e.tAde)+'</td></tr>';
+    if(e.tDes>0)tr+='<tr class="rdesc"><td colspan="3" style="text-align:right">Descuentos :</td><td>- '+gs(e.tDes)+'</td></tr>';
+    if(e.tBon>0)tr+='<tr class="rbon"><td colspan="3" style="text-align:right">Bonus / Premio :</td><td>+ '+gs(e.tBon)+'</td></tr>';
+    tr+='<tr class="rtot"><td colspan="3" style="text-align:right">TOTAL NETO :</td><td>'+gs(e.neto)+'</td></tr>';
+    return '<div class="r-half">'
+      +'<div class="r-hdr"><div class="r-logo"><div class="r-logo-ico">🌿</div><div><div class="r-logo-nm">Grupo de la Vida S.R.L.</div><div class="r-logo-sub">Liquidación de salarios</div></div></div>'
+      +'<div class="r-badge '+(isorig?'orig':'cop')+'">'+tipo+'</div></div>'
+      +'<div class="r-title">Liquidación Semanal de Salarios</div>'
+      +'<div class="r-grid2">'
+      +'<div class="r-item"><div class="rk">EMPLEADO</div><div class="rv">'+c.nm+'</div></div>'
+      +'<div class="r-item"><div class="rk">CÉDULA / ID</div><div class="rv">'+id+'</div></div>'
+      +'<div class="r-item"><div class="rk">EMPLEADOR</div><div class="rv">Grupo de la Vida S.R.L.</div></div>'
+      +'<div class="r-item"><div class="rk">PERÍODO</div><div class="rv">'+per+'</div></div>'
+      +'</div>'
+      +'<table class="r-tbl"><thead><tr><th style="text-align:left">Concepto</th><th>Cant.</th><th>Tarifa</th><th>Total Gs.</th></tr></thead><tbody>'+tr+'</tbody></table>'
+      +'<div class="r-firma"><div class="r-firma-left">Recibí conforme</div><div><div class="r-firma-line"></div><div class="r-firma-lbl">Firma del empleado</div></div></div>'
+      +'<div class="r-fecha">'+hoy+'</div></div>';
+  }
+  return '<div class="recibo-wrap">'+half('ORIGINAL')+'<hr class="cut">'+half('COPIA')+'</div>';
+}
+
+// ══════════════════════════════════════════════════════
+//  IMPRIMIR — ventana nueva limpia
+// ══════════════════════════════════════════════════════
+function abrirRecibo(id,e,c,guardarPDF){
+  var contenido=buildRecibo(id,e,c);
+  var nmFile=c.nm.replace(/ /g,'_')+'_'+SEM_INI+'_'+SEM_FIN;
+  var titulo=guardarPDF?nmFile:('Recibo '+c.nm+' '+SEM_INI);
+  var css='@page{size:A4 portrait;margin:0}'
+    +'*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'body{background:#f5f4f0;font-family:Arial,sans-serif;width:210mm}'
+    +'.recibo-wrap{width:210mm;padding:8mm}'
+    +'.r-half{background:#fff;padding:10mm 14mm;width:100%;color:#1a1a1a;font-size:10.5px;line-height:1.5;page-break-inside:avoid}'
+    +'.cut{border:none;border-top:1.5px dashed #b0a898;margin:5mm 0;text-align:center;font-size:8px;color:#b0a898;font-weight:700;letter-spacing:.1em}'
+    +'.r-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;padding-bottom:7px;border-bottom:2px solid #1a1a1a}'
+    +'.r-logo-nm{font-size:13px;font-weight:700}'
+    +'.r-logo-sub{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:.07em}'
+    +'.r-badge{font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border:1.5px solid}'
+    +'.orig{border-color:#1a7a3a;color:#1a7a3a;background:#eaf5ee}'
+    +'.cop{border-color:#1a4a8a;color:#1a4a8a;background:#eef2fc}'
+    +'.r-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}'
+    +'.r-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1px 14px;margin-bottom:7px}'
+    +'.r-item{padding:2px 0;border-bottom:1px solid #ede9e2}'
+    +'.rk{font-size:8px;color:#888;letter-spacing:.04em}'
+    +'.rv{font-size:10.5px;font-weight:500;margin-top:1px}'
+    +'.r-tbl{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:7px}'
+    +'.r-tbl th{text-align:right;padding:3px 5px;font-size:8px;font-weight:700;border-bottom:1.5px solid #1a1a1a;color:#555}'
+    +'.r-tbl th:first-child{text-align:left}'
+    +'.r-tbl td{text-align:right;padding:3px 5px;border-bottom:1px solid #ede9e2;font-family:monospace}'
+    +'.r-tbl td:first-child{text-align:left;color:#555;font-family:Arial,sans-serif;font-size:9.5px}'
+    +'.rsubt td{border-top:1px solid #ccc;font-weight:700;padding-top:4px}'
+    +'.rdesc td{color:#b03030}'
+    +'.rbon td{color:#25703f}'
+    +'.rtot td{border-top:1.5px solid #1a1a1a;border-bottom:2px solid #1a1a1a;font-weight:700;font-size:12px;padding:4px 5px}'
+    +'.r-firma{display:flex;justify-content:space-between;align-items:flex-end;margin-top:7px;padding-top:7px;border-top:1px solid #e0dcd3}'
+    +'.r-firma-left{font-size:9px;color:#888}'
+    +'.r-firma-line{border-bottom:1px solid #555;width:130px;height:20px;margin-bottom:3px}'
+    +'.r-firma-lbl{font-size:8.5px;color:#888;text-transform:uppercase;letter-spacing:.07em}'
+    +'.r-fecha{font-size:9px;color:#888;text-align:center;margin-top:4px}'
+    +'@media screen{'
+    +'.toolbar{position:fixed;top:0;left:0;right:0;background:#1a1a1a;padding:8px 16px;display:flex;gap:8px;align-items:center;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}'
+    +'.toolbar-title{color:#ccc;font-size:11px;flex:1;font-family:Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    +'.tbtn{padding:6px 14px;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;font-family:Arial,sans-serif}'
+    +'.tbtn-print{background:#25703f;color:#fff}'
+    +'.tbtn-pdf{background:#1a5490;color:#fff}'
+    +'.tbtn-close{background:#555;color:#fff}'
+    +'.page-wrap{margin-top:48px}'
+    +'}'
+    +'@media print{.toolbar{display:none!important}.page-wrap{margin-top:0}}';
+  var win=window.open('',"_blank","width=860,height=1100");
+  win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>'+titulo+'</title><style>'+css+'</style></head><body>');
+  win.document.write('<div class="toolbar">');
+  win.document.write('<span class="toolbar-title">📄 '+titulo+'</span>');
+  win.document.write('<button class="tbtn tbtn-print" onclick="window.print()">🖨️ Imprimir</button>');
+  win.document.write('<button class="tbtn tbtn-pdf" onclick="document.title=\''+nmFile+'\';window.print()">⬇ Guardar PDF</button>');
+  win.document.write('<button class="tbtn tbtn-close" onclick="window.close()">✕ Cerrar</button>');
+  win.document.write('</div>');
+  win.document.write('<div class="page-wrap"><div class="recibo-wrap">'+contenido+'</div></div>');
+  if(guardarPDF){
+    win.document.write('<script>window.onload=function(){document.title="'+nmFile+'";window.print();}<\/script>');
+  }
+  win.document.write('</body></html>');
+  win.document.close();
+}
+function printRecibo(id,e,c){abrirRecibo(id,e,c,false);}
+
+// ══════════════════════════════════════════════════════
+//  ACUMULADO
+// ══════════════════════════════════════════════════════
+function buildAcum(id){
+  var sems=HIST.map(function(h){var e=h.emps.find(function(x){return x.id===id;});if(!e)return null;return{sem:h.sem,ini:h.ini,fin:h.fin,hs:e.hs,hsExt:e.hsExt||0,hsNoct:e.hsNoct||0,hsEsp:e.hsEsp||0,bruto:e.bruto,neto:e.neto,dIPS:e.dIPS,tard:e.tard};}).filter(Boolean);
+  if(!sems.length)return '<div class="empty"><div class="ei">📈</div><p>Cargá más semanas para ver el acumulado.</p></div>';
+  var tN=0,tB=0,tH=0,tE=0,tNo=0,tI=0,tT=0;
+  sems.forEach(function(s){tN+=s.neto;tB+=s.bruto;tH+=s.hs;tE+=s.hsExt;tNo+=s.hsNoct;tI+=s.dIPS;tT+=s.tard;});
+  var cards='<div class="agrid">'
+    +'<div class="acard"><div class="al">Semanas</div><div class="av2">'+sems.length+'</div></div>'
+    +'<div class="acard ok"><div class="al">Total horas</div><div class="av2">'+tH.toFixed(1)+'</div></div>'
+    +'<div class="acard warn"><div class="al">Hs. extras</div><div class="av2">'+tE.toFixed(1)+'</div></div>'
+    +'<div class="acard hi"><div class="al">Total bruto</div><div class="av2" style="font-size:12px">'+gs(tB)+'</div></div>'
+    +'<div class="acard err"><div class="al">Total IPS</div><div class="av2" style="font-size:12px">'+gs(tI)+'</div></div>'
+    +'<div class="acard" style="border-color:var(--gm);background:var(--gl)"><div class="al">Total neto</div><div class="av2" style="font-size:12px;color:var(--g2)">'+gs(tN)+'</div></div>'
+    +'<div class="acard'+(tT>0?' warn':'')+'"><div class="al">Tardanzas</div><div class="av2">'+tT+'</div></div>'
+    +'</div>';
+  var rows='';
+  sems.forEach(function(s){rows+='<tr><td class="s">'+s.sem+'</td><td class="m">'+s.ini+' — '+s.fin+'</td><td class="m">'+s.hs.toFixed(2)+'</td><td class="m"'+(s.hsExt>0?' style="color:var(--am)"':'')+'>'+(s.hsExt>0?s.hsExt.toFixed(2):'—')+'</td><td class="m">'+gs(s.bruto)+'</td><td class="m" style="color:var(--re)">'+gs(s.dIPS)+'</td><td class="m s">'+gs(s.neto)+'</td><td class="m"'+(s.tard>0?' style="color:var(--am)"':'')+'>'+s.tard+'</td></tr>';});
+  rows+='<tr><td colspan="2" class="tot">TOTAL</td><td class="tot m">'+tH.toFixed(2)+'</td><td class="tot m">'+tE.toFixed(2)+'</td><td class="tot m">'+gs(tB)+'</td><td class="tot m">'+gs(tI)+'</td><td class="tot m" style="color:var(--g2)">'+gs(tN)+'</td><td class="tot m">'+tT+'</td></tr>';
+  return cards+'<div class="sttitle">Por semana</div><div class="tw"><div class="ct"><table><thead><tr><th>Semana</th><th>Período</th><th>Hs.Total</th><th>Hs.Extra</th><th>Bruto</th><th>IPS</th><th>Neto</th><th>Tard.</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+// ══════════════════════════════════════════════════════
+//  RESÚMENES
+// ══════════════════════════════════════════════════════
+function rTab(t){RTAB=t;document.querySelectorAll('.rtab').forEach(function(el,i){el.classList.toggle('on',['sem','mes','emp'][i]===t);});renderRes();}
+function renderRes(){var c=document.getElementById('rcont');if(!c)return;c.innerHTML=RTAB==='sem'?resSem():RTAB==='mes'?resMes():resEmp();}
+function resSem(){
+  if(!HIST.length)return '<div class="empty"><div class="ei">📊</div><p>Cargá al menos una semana.</p></div>';
+  var h='<div class="rgrid">';
+  HIST.forEach(function(hd){
+    var tot=hd.emps.reduce(function(s,e){return s+e.neto;},0);
+    var rows='';hd.emps.forEach(function(e){rows+='<div class="rrow"><span class="rn">'+e.nm+'</span><span class="rm">'+gs(e.neto)+'</span></div>';});
+    h+='<div class="rcard"><div class="rchd"><span class="rcht">'+(hd.sem||hd.sk)+'</span><span class="rchs">'+hd.emps.length+' emp.</span></div><div>'+rows+'</div><div class="rcft"><span class="fl">Total Neto</span><span class="fv">'+gs(tot)+'</span></div></div>';
+  });
+  return h+'</div>';
+}
+function resMes(){
+  if(!HIST.length)return '<div class="empty"><div class="ei">📊</div><p>Sin datos.</p></div>';
+  var ms={};
+  HIST.forEach(function(hd){var mk2=mKey(hd.ini);if(!ms[mk2])ms[mk2]={lb:mLabel(mk2),n:0,emps:{}};ms[mk2].n++;hd.emps.forEach(function(e){if(!ms[mk2].emps[e.id])ms[mk2].emps[e.id]={nm:e.nm,ne:0};ms[mk2].emps[e.id].ne+=e.neto;});});
+  var h='<div class="rgrid">';
+  for(var mk2 in ms){var m=ms[mk2];var tot=Object.values(m.emps).reduce(function(s,e){return s+e.ne;},0);var rows='';Object.values(m.emps).forEach(function(e){rows+='<div class="rrow"><span class="rn">'+e.nm+'</span><span class="rm">'+gs(e.ne)+'</span></div>';});h+='<div class="rcard"><div class="rchd"><span class="rcht">'+m.lb+'</span><span class="rchs">'+m.n+' sem.</span></div><div>'+rows+'</div><div class="rcft"><span class="fl">Total Neto Mes</span><span class="fv">'+gs(tot)+'</span></div></div>';}
+  return h+'</div>';
+}
+function resEmp(){
+  if(!HIST.length)return '<div class="empty"><div class="ei">👤</div><p>Sin datos.</p></div>';
+  var em={};
+  HIST.forEach(function(hd){hd.emps.forEach(function(e){if(!em[e.id])em[e.id]={nm:e.nm,n:0,b:0,ne:0,h:0,ip:0,ta:0};em[e.id].n++;em[e.id].b+=e.bruto;em[e.id].ne+=e.neto;em[e.id].h+=e.hs;em[e.id].ip+=e.dIPS;em[e.id].ta+=e.tard;});});
+  var rows='',tB=0,tN=0,tI=0,tT=0,tH=0;
+  for(var id in em){var e=em[id];tB+=e.b;tN+=e.ne;tI+=e.ip;tT+=e.ta;tH+=e.h;rows+='<tr><td class="s">'+e.nm+'</td><td class="m">'+e.n+'</td><td class="m">'+e.h.toFixed(1)+'</td><td class="m">'+gs(e.b)+'</td><td class="m" style="color:var(--re)">'+gs(e.ip)+'</td><td class="m s">'+gs(e.ne)+'</td><td class="m"'+(e.ta>0?' style="color:var(--am)"':'')+'>'+e.ta+'</td></tr>';}
+  rows+='<tr><td class="tot">TOTAL</td><td class="tot"></td><td class="tot m">'+tH.toFixed(1)+'</td><td class="tot m">'+gs(tB)+'</td><td class="tot m">'+gs(tI)+'</td><td class="tot m" style="color:var(--g2)">'+gs(tN)+'</td><td class="tot m">'+tT+'</td></tr>';
+  return '<div class="tw"><div class="ct"><table><thead><tr><th>Empleado</th><th>Sem.</th><th>Hs.</th><th>Bruto</th><th>IPS</th><th>Neto</th><th>Tard.</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+// ══════════════════════════════════════════════════════
+//  HISTORIAL
+// ══════════════════════════════════════════════════════
+function pobFilt(){var s=document.getElementById('hfilt');s.innerHTML='<option value="all">Todos</option>';for(var id in CFG){if(CFG[id].act){var o=document.createElement('option');o.value=id;o.textContent=CFG[id].nm;s.appendChild(o);}}}
+function renderHist(){
+  var c=document.getElementById('hcont'),f=document.getElementById('hfilt').value;
+  if(!HIST.length){c.innerHTML='<div class="empty"><div class="ei">📋</div><p>El historial se llena al cargar semanas.</p></div>';return;}
+  var rows='';
+  HIST.forEach(function(hd){
+    var emps=hd.emps.filter(function(e){return f==='all'||e.id===f;});
+    if(!emps.length)return;
+    emps.forEach(function(e,i){
+      var skSafe=hd.sk.replace(/'/g,"\\'");
+      var label=hd.sem||hd.sk;
+      var delBtn=i===0?'<button onclick="eliminarSemana(\''+skSafe+'\')" title="Eliminar semana" style="background:none;border:1px solid var(--re);color:var(--re);border-radius:4px;padding:1px 7px;cursor:pointer;font-size:11px;line-height:1.4">🗑</button>':'';
+      rows+='<tr>'
+        +'<td class="s">'+(hd.sem||hd.sk)+'</td>'
+        +'<td class="m">'+hd.ini+' — '+hd.fin+'</td>'
+        +'<td class="s">'+e.nm+'</td>'
+        +'<td class="m">'+e.hs.toFixed(2)+'</td>'
+        +'<td class="m"'+(e.hsExt>0?' style="color:var(--am)"':'')+'>'+(e.hsExt>0?e.hsExt.toFixed(2):'—')+'</td>'
+        +'<td class="m">'+gs(e.bruto)+'</td>'
+        +'<td class="m" style="color:var(--re)">'+gs(e.dIPS)+'</td>'
+        +'<td class="m s">'+gs(e.neto)+'</td>'
+        +'<td class="m"'+(e.tard>0?' style="color:var(--am)"':'')+'>'+e.tard+'</td>'
+        +'<td class="m">'+delBtn+'</td>'
+        +'</tr>';
+    });
+  });
+  c.innerHTML=rows
+    ?'<div class="tw"><div class="ct"><table><thead><tr><th>Semana</th><th>Período</th><th>Empleado</th><th>Hs.Total</th><th>Hs.Extra</th><th>Bruto</th><th>IPS</th><th>Neto</th><th>Tard.</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
+    :'<div class="empty"><div class="ei">🔍</div><p>Sin resultados.</p></div>';
+}
+function eliminarSemana(sk){
+  var hd=HIST.find(function(h){return h.sk===sk;});
+  var label=hd?(hd.sem||hd.ini+' — '+hd.fin):sk;
+  if(!confirm('¿Eliminar la semana "'+label+'" del historial local?\n\nSolo se borra del localStorage de esta PC. Si ya fue guardada en Firebase, no se ve afectada.'))return;
+  HIST=HIST.filter(function(h){return h.sk!==sk;});
+  lsSet('hist',HIST);
+  pobFilt();
+  renderHist();
+  if(GTAB==='resumen')renderRes();
+  showSt('Semana "'+label+'" eliminada del historial local.','ok');
+}
+
+function csvExport(){
+  if(!HIST.length){alert('Sin datos.');return;}
+  var ln=['\uFEFFSemana,Inicio,Fin,Empleado,ID,Hs.Total,Hs.Extra,Bruto,IPS,Neto,Tardanzas'];
+  HIST.forEach(function(hd){hd.emps.forEach(function(e){ln.push('"'+(hd.sem||hd.sk)+'","'+hd.ini+'","'+hd.fin+'","'+e.nm+'","'+e.id+'","'+e.hs.toFixed(2)+'","'+(e.hsExt||0).toFixed(2)+'","'+e.bruto+'","'+e.dIPS+'","'+e.neto+'","'+e.tard+'"');});});
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ln.join('\n')],{type:'text/csv;charset=utf-8'}));a.download='historial_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+// ══════════════════════════════════════════════════════
+//  FERIADOS
+// ══════════════════════════════════════════════════════
+function showFerModal(){document.getElementById('fer-fecha').value=new Date().toISOString().slice(0,10);document.getElementById('fer-desc').value='';document.getElementById('fer-modal').style.display='flex';}
+function closeFer(){document.getElementById('fer-modal').style.display='none';}
+function saveFer(){var fe=document.getElementById('fer-fecha').value,desc=document.getElementById('fer-desc').value.trim()||'Feriado';if(!fe){alert('Ingresá una fecha.');return;}FERIADOS[fe]=desc;fbWrite('feriados',FERIADOS);lsSet('feriados',FERIADOS);closeFer();renderFeriados();showSt('Feriado guardado: '+fd(fe),'ok');}
+function delFer(fe){delete FERIADOS[fe];fbWrite('feriados',FERIADOS);lsSet('feriados',FERIADOS);renderFeriados();}
+function renderFeriados(){
+  var cont=document.getElementById('fer-grid');if(!cont)return;
+  var keys=Object.keys(FERIADOS).sort();
+  if(!keys.length){cont.innerHTML='<div class="empty"><div class="ei">📅</div><p>No hay feriados registrados.</p></div>';return;}
+  var h='';keys.forEach(function(fe){h+='<div class="feriado-item"><span style="font-size:18px">📅</span><div style="flex:1"><div style="font-size:12px;font-weight:600">'+fd(fe)+'</div><div style="font-size:10.5px;color:var(--t3)">'+FERIADOS[fe]+'</div></div><button class="delbtn" onclick="delFer(\''+fe+'\')">🗑</button></div>';});
+  cont.innerHTML=h;
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFIG EMPLEADOS
+// ══════════════════════════════════════════════════════
+var _eid=null;
+function showCfgModal(id){
+  _eid=id||null;var c=id?CFG[id]:null;
+  document.getElementById('cfg-title').textContent=c?'Editar: '+c.nm:'Nuevo empleado';
+  document.getElementById('c-nm').value=c?c.nm:'';
+  document.getElementById('c-id').value=id||'';document.getElementById('c-id').disabled=!!id;
+  document.getElementById('c-tipo').value=c?c.tp:'Hora';
+  document.getElementById('c-ph').value=c&&c.ph?c.ph:'';document.getElementById('c-pd').value=c&&c.pd?c.pd:'';document.getElementById('c-pm').value=c&&c.pm?c.pm:'';
+  document.getElementById('c-ent').value=c?c.ent:'07:00';document.getElementById('c-sal').value=c?c.sal:'17:00';
+  document.getElementById('c-salm').value=c&&c.salm?c.salm:'12:00';document.getElementById('c-ralm').value=c&&c.ralm?c.ralm:'13:00';
+  document.getElementById('c-tol').value=c?c.tol:10;document.getElementById('c-tope').value=c?c.tope:48;
+  document.getElementById('c-ips').value=c&&c.ips?c.ips:'';document.getElementById('c-ipsp').value=c?c.ipsp:9;
+  document.getElementById('c-col').value=c?c.col:'#4a7a9a';document.getElementById('c-ini').value=c?c.ini:'';
+  document.getElementById('c-sab').value=c&&c.sab===false?'no':'si';document.getElementById('c-act').value=c&&c.act===false?'no':'si';
+  updCF();document.getElementById('cfg-modal').style.display='flex';
+}
+function closeCfg(){document.getElementById('cfg-modal').style.display='none';}
+function updCF(){var t=document.getElementById('c-tipo').value;['h','d','m'].forEach(function(x,i){document.getElementById('cf-'+x).style.display=['Hora','Día','Mes'][i]===t?'':'none';});}
+function saveCfg(){
+  var id=_eid||document.getElementById('c-id').value.trim();if(!id){alert('Ingresá un ID.');return;}
+  var tp=document.getElementById('c-tipo').value;
+  CFG[id]={nm:document.getElementById('c-nm').value.trim(),tp:tp,ent:document.getElementById('c-ent').value,salm:document.getElementById('c-salm').value||null,ralm:document.getElementById('c-ralm').value||null,sal:document.getElementById('c-sal').value,tol:+document.getElementById('c-tol').value||10,ph:tp==='Hora'?+document.getElementById('c-ph').value||null:null,pd:tp==='Día'?+document.getElementById('c-pd').value||null:null,pm:tp==='Mes'?+document.getElementById('c-pm').value||null:null,ips:+document.getElementById('c-ips').value||null,ipsp:+document.getElementById('c-ipsp').value||9,tope:+document.getElementById('c-tope').value||48,sab:document.getElementById('c-sab').value==='si',col:document.getElementById('c-col').value,ini:document.getElementById('c-ini').value.toUpperCase()||document.getElementById('c-nm').value.slice(0,2).toUpperCase(),act:document.getElementById('c-act').value==='si'};
+  fbWrite('config_empleados',CFG);lsSet('cfg',CFG);closeCfg();renderCfgGrid();showSt('Guardado: '+CFG[id].nm,'ok');
+}
+function renderCfgGrid(){
+  var g=document.getElementById('cfg-grid');if(!g)return;
+  var tipB={'Hora':'<span class="chip cb">Hora</span>','Día':'<span class="chip cv">Día</span>','Mes':'<span class="chip cg">Mes</span>'};
+  var h='';
+  for(var id in CFG){var c=CFG[id];var tar=c.tp==='Hora'?(c.ph||0).toLocaleString('es-PY')+' /h':c.tp==='Día'?(c.pd||0).toLocaleString('es-PY')+' /día (9.5hs)':(c.pm||0).toLocaleString('es-PY')+' /mes';
+    h+='<div style="background:var(--sur);border:1px solid var(--bor);border-radius:8px;overflow:hidden;box-shadow:var(--sh)"><div style="padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--bor);display:flex;align-items:center;gap:7px"><div class="av" style="background:'+c.col+'22;color:'+c.col+';border:1.5px solid '+c.col+'55;width:26px;height:26px;font-size:9.5px">'+c.ini+'</div><span style="font-size:12px;font-weight:700;flex:1">'+c.nm+'</span><span style="font-size:9.5px;color:var(--t3)">'+id+'</span>'+(c.act===false?'<span class="chip cm">Inactivo</span>':'')+'</div>'
+      +'<div>'+crow('Tipo',tipB[c.tp]||c.tp)+crow('Tarifa','Gs. '+tar)+crow('Horario',c.ent+' – '+c.sal)+crow('Almuerzo',c.salm?c.salm+' / '+c.ralm:'— Sin franja —')+crow('Tolerancia',c.tol+' min')+crow('Tope extras',c.tope+' hs/sem')+crow('Sábado',c.sab!==false?'✓ Laborable':'✗ Descanso')+(c.ips?crow('Base IPS','Gs. '+c.ips.toLocaleString('es-PY')+'/mes'):'')+crow('Desc. IPS',(c.ipsp||9)+'%')+'</div>'
+      +'<div style="padding:8px 12px;border-top:1px solid var(--bor)"><button class="btn btn-p" style="font-size:11px;padding:5px 11px" onclick="showCfgModal(\''+id+'\')">✏️ Editar</button></div></div>';
+  }
+  h+='<div style="background:var(--sur);border:2px dashed var(--bor2);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;gap:7px;cursor:pointer" onclick="showCfgModal()"><div style="font-size:26px">➕</div><div style="font-size:12px;font-weight:600;color:var(--t2)">Agregar empleado</div></div>';
+  g.innerHTML=h;
+}
+function crow(k,v){return '<div style="display:flex;justify-content:space-between;padding:4px 12px;border-bottom:1px solid var(--bor);font-size:12px"><span style="color:var(--t3)">'+k+'</span><span style="font-weight:500">'+v+'</span></div>';}
+
+// ══════════════════════════════════════════════════════
+//  ADELANTOS
+// ══════════════════════════════════════════════════════
+function showAdelModal(){
+  var s=document.getElementById('a-emp');s.innerHTML='';
+  for(var id in CFG){if(CFG[id].act){var o=document.createElement('option');o.value=id;o.textContent=CFG[id].nm;s.appendChild(o);}}
+  if(CUR)s.value=CUR;
+  document.getElementById('a-fecha').value=new Date().toISOString().slice(0,10);
+  renderAdelList();document.getElementById('adel-modal').style.display='flex';
+}
+function closeAdel(){document.getElementById('adel-modal').style.display='none';}
+function addAdel(){
+  var id=document.getElementById('a-emp').value,tp=document.getElementById('a-tipo').value,mo=+document.getElementById('a-monto').value,fe=document.getElementById('a-fecha').value,conc=document.getElementById('a-conc').value.trim()||tp;
+  if(!id||!mo||mo<=0){alert('Completá empleado y monto.');return;}
+  if(!ADELS[id])ADELS[id]=[];
+  ADELS[id].push({tp:tp,mo:mo,fe:fe,conc:conc,sk:sKey()});
+  fbWrite('adelantos',ADELS);lsSet('adels',ADELS);
+  recalcEmp(id);renderAdelList();
+  document.getElementById('a-monto').value='';document.getElementById('a-conc').value='';
+}
+function delAdel(id,i){if(ADELS[id])ADELS[id].splice(i,1);fbWrite('adelantos',ADELS);lsSet('adels',ADELS);recalcEmp(id);renderAdelList();}
+function recalcEmp(id){if(EMPS[id])calcPago(id,CFG[id],EMPS[id].marc);updTots();renderSide();if(CUR===id)renderEmp(id);}
+function renderAdelList(){
+  var c=document.getElementById('adel-list'),sk=sKey(),all=[];
+  for(var id in ADELS){ADELS[id].filter(function(a){return a.sk===sk;}).forEach(function(a,i){all.push({id:id,i:i,nm:CFG[id]?CFG[id].nm:id,tp:a.tp,mo:a.mo,fe:a.fe,conc:a.conc});});}
+  if(!all.length){c.innerHTML='<div style="text-align:center;color:var(--t3);padding:14px;font-size:12px">Sin registros para esta semana.</div>';return;}
+  var h='';all.forEach(function(a){var col=a.tp==='bonus'?'var(--gr)':a.tp==='adelanto'?'var(--am)':'var(--re)';h+='<div class="ai"><div class="ai-inf"><div class="ai-nm">'+a.nm+'</div><div class="ai-dt">'+a.fe+' · '+a.conc+'</div></div><span style="font-family:monospace;font-weight:700;color:'+col+'">'+gs(a.mo)+'</span><span class="chip cm" style="font-size:9px">'+a.tp+'</span><button class="delbtn" onclick="delAdel(\''+a.id+'\','+a.i+')">🗑</button></div>';});
+  c.innerHTML=h;
+}
+
+// ══════════════════════════════════════════════════════
+//  DEMO
+// ══════════════════════════════════════════════════════
+function demo(){
+  var rows=[[],[],[],['Transacciones'],['Hora de exportación: 2026-03-07 08:26'],['Operador: admin'],['Periodo: 2026-02-28 - 2026-03-06'],
+    ['Nombre','Apellido','ID','Fecha','Semana','Hora de registro de entrada'],
+    ['IRENE','VARGAS','6982681','2026-03-06','Viernes','17:06'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','17:06'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','13:32'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','13:32'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','12:38'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','12:38'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','06:55'],['IRENE','VARGAS','6982681','2026-03-06','Viernes','06:55'],
+    ['IRENE','VARGAS','6982681','2026-03-05','Jueves','17:15'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','17:15'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','13:30'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','13:30'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','12:33'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','12:33'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','06:48'],['IRENE','VARGAS','6982681','2026-03-05','Jueves','06:48'],
+    ['IRENE','VARGAS','6982681','2026-03-04','Miércoles','17:41'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','17:41'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','13:27'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','13:26'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','12:33'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','12:33'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','06:49'],['IRENE','VARGAS','6982681','2026-03-04','Miércoles','06:49'],
+    ['IRENE','VARGAS','6982681','2026-03-03','Martes','17:01'],['IRENE','VARGAS','6982681','2026-03-03','Martes','17:01'],['IRENE','VARGAS','6982681','2026-03-03','Martes','13:25'],['IRENE','VARGAS','6982681','2026-03-03','Martes','13:25'],['IRENE','VARGAS','6982681','2026-03-03','Martes','12:34'],['IRENE','VARGAS','6982681','2026-03-03','Martes','12:34'],['IRENE','VARGAS','6982681','2026-03-03','Martes','06:56'],['IRENE','VARGAS','6982681','2026-03-03','Martes','06:56'],
+    ['IRENE','VARGAS','6982681','2026-02-28','Sábado','12:04'],['IRENE','VARGAS','6982681','2026-02-28','Sábado','12:04'],['IRENE','VARGAS','6982681','2026-02-28','Sábado','06:51'],['IRENE','VARGAS','6982681','2026-02-28','Sábado','06:51'],
+    ['Nestor','Franco','6042803216','2026-03-06','Viernes','17:01'],['Nestor','Franco','6042803216','2026-03-06','Viernes','17:01'],['Nestor','Franco','6042803216','2026-03-06','Viernes','12:58'],['Nestor','Franco','6042803216','2026-03-06','Viernes','12:00'],['Nestor','Franco','6042803216','2026-03-06','Viernes','06:57'],['Nestor','Franco','6042803216','2026-03-06','Viernes','06:57'],
+    ['Nestor','Franco','6042803216','2026-03-05','Jueves','17:01'],['Nestor','Franco','6042803216','2026-03-05','Jueves','17:01'],['Nestor','Franco','6042803216','2026-03-05','Jueves','12:56'],['Nestor','Franco','6042803216','2026-03-05','Jueves','12:01'],['Nestor','Franco','6042803216','2026-03-05','Jueves','06:55'],['Nestor','Franco','6042803216','2026-03-05','Jueves','06:55'],
+    ['Nestor','Franco','6042803216','2026-03-04','Miércoles','17:02'],['Nestor','Franco','6042803216','2026-03-04','Miércoles','17:02'],['Nestor','Franco','6042803216','2026-03-04','Miércoles','12:47'],['Nestor','Franco','6042803216','2026-03-04','Miércoles','12:00'],['Nestor','Franco','6042803216','2026-03-04','Miércoles','06:45'],['Nestor','Franco','6042803216','2026-03-04','Miércoles','06:45'],
+    ['Nestor','Franco','6042803216','2026-03-03','Martes','17:01'],['Nestor','Franco','6042803216','2026-03-03','Martes','17:01'],['Nestor','Franco','6042803216','2026-03-03','Martes','12:55'],['Nestor','Franco','6042803216','2026-03-03','Martes','12:01'],['Nestor','Franco','6042803216','2026-03-03','Martes','06:59'],['Nestor','Franco','6042803216','2026-03-03','Martes','06:59'],
+    ['Nestor','Franco','6042803216','2026-02-28','Sábado','12:08'],['Nestor','Franco','6042803216','2026-02-28','Sábado','12:08'],['Nestor','Franco','6042803216','2026-02-28','Sábado','06:52'],['Nestor','Franco','6042803216','2026-02-28','Sábado','06:52'],
+    ['Javier','Noguera','4683576','2026-03-06','Viernes','17:01'],['Javier','Noguera','4683576','2026-03-06','Viernes','17:01'],['Javier','Noguera','4683576','2026-03-06','Viernes','13:03'],['Javier','Noguera','4683576','2026-03-06','Viernes','13:03'],['Javier','Noguera','4683576','2026-03-06','Viernes','12:00'],['Javier','Noguera','4683576','2026-03-06','Viernes','12:00'],['Javier','Noguera','4683576','2026-03-06','Viernes','07:16'],['Javier','Noguera','4683576','2026-03-06','Viernes','07:16'],
+    ['Javier','Noguera','4683576','2026-03-05','Jueves','17:02'],['Javier','Noguera','4683576','2026-03-05','Jueves','17:02'],['Javier','Noguera','4683576','2026-03-05','Jueves','13:08'],['Javier','Noguera','4683576','2026-03-05','Jueves','13:08'],['Javier','Noguera','4683576','2026-03-05','Jueves','11:59'],['Javier','Noguera','4683576','2026-03-05','Jueves','11:59'],['Javier','Noguera','4683576','2026-03-05','Jueves','07:32'],['Javier','Noguera','4683576','2026-03-05','Jueves','07:32'],
+    ['Javier','Noguera','4683576','2026-03-04','Miércoles','17:03'],['Javier','Noguera','4683576','2026-03-04','Miércoles','17:03'],['Javier','Noguera','4683576','2026-03-04','Miércoles','13:11'],['Javier','Noguera','4683576','2026-03-04','Miércoles','13:11'],['Javier','Noguera','4683576','2026-03-04','Miércoles','12:00'],['Javier','Noguera','4683576','2026-03-04','Miércoles','12:00'],['Javier','Noguera','4683576','2026-03-04','Miércoles','07:17'],['Javier','Noguera','4683576','2026-03-04','Miércoles','07:17'],
+    ['Javier','Noguera','4683576','2026-03-03','Martes','17:05'],['Javier','Noguera','4683576','2026-03-03','Martes','17:05'],['Javier','Noguera','4683576','2026-03-03','Martes','13:02'],['Javier','Noguera','4683576','2026-03-03','Martes','13:02'],['Javier','Noguera','4683576','2026-03-03','Martes','12:15'],['Javier','Noguera','4683576','2026-03-03','Martes','12:15'],['Javier','Noguera','4683576','2026-03-03','Martes','07:21'],['Javier','Noguera','4683576','2026-03-03','Martes','07:21'],
+    ['Javier','Noguera','4683576','2026-02-28','Sábado','12:12'],['Javier','Noguera','4683576','2026-02-28','Sábado','12:12'],['Javier','Noguera','4683576','2026-02-28','Sábado','07:13'],['Javier','Noguera','4683576','2026-02-28','Sábado','07:13'],
+    ['Zunilda','Cuenca','4501472','2026-02-28','Sábado','14:39'],['Zunilda','Cuenca','4501472','2026-02-28','Sábado','14:39'],['Zunilda','Cuenca','4501472','2026-02-28','Sábado','07:11'],['Zunilda','Cuenca','4501472','2026-02-28','Sábado','07:11'],
+    ['JOSE','MARTINEZ','3998285','2026-03-06','Viernes','18:44'],['JOSE','MARTINEZ','3998285','2026-03-06','Viernes','18:44'],['JOSE','MARTINEZ','3998285','2026-03-06','Viernes','13:09'],['JOSE','MARTINEZ','3998285','2026-03-06','Viernes','13:09'],['JOSE','MARTINEZ','3998285','2026-03-05','Jueves','18:43'],['JOSE','MARTINEZ','3998285','2026-03-05','Jueves','18:43'],['JOSE','MARTINEZ','3998285','2026-03-05','Jueves','13:06'],['JOSE','MARTINEZ','3998285','2026-03-05','Jueves','13:06'],['JOSE','MARTINEZ','3998285','2026-03-04','Miércoles','18:59'],['JOSE','MARTINEZ','3998285','2026-03-04','Miércoles','18:59'],['JOSE','MARTINEZ','3998285','2026-03-04','Miércoles','13:07'],['JOSE','MARTINEZ','3998285','2026-03-04','Miércoles','13:07'],['JOSE','MARTINEZ','3998285','2026-03-03','Martes','17:39'],['JOSE','MARTINEZ','3998285','2026-03-03','Martes','17:39'],['JOSE','MARTINEZ','3998285','2026-03-03','Martes','13:08'],['JOSE','MARTINEZ','3998285','2026-03-03','Martes','13:08'],['JOSE','MARTINEZ','3998285','2026-02-28','Sábado','16:32'],['JOSE','MARTINEZ','3998285','2026-02-28','Sábado','16:32'],['JOSE','MARTINEZ','3998285','2026-02-28','Sábado','13:04'],['JOSE','MARTINEZ','3998285','2026-02-28','Sábado','13:04'],
+    ['Liduvina','Franco','2172278','2026-03-06','Viernes','17:01'],['Liduvina','Franco','2172278','2026-03-06','Viernes','17:01'],['Liduvina','Franco','2172278','2026-03-06','Viernes','13:02'],['Liduvina','Franco','2172278','2026-03-06','Viernes','13:02'],['Liduvina','Franco','2172278','2026-03-06','Viernes','12:01'],['Liduvina','Franco','2172278','2026-03-06','Viernes','12:01'],['Liduvina','Franco','2172278','2026-03-06','Viernes','07:02'],['Liduvina','Franco','2172278','2026-03-06','Viernes','07:02'],
+    ['Liduvina','Franco','2172278','2026-03-05','Jueves','17:03'],['Liduvina','Franco','2172278','2026-03-05','Jueves','17:03'],['Liduvina','Franco','2172278','2026-03-05','Jueves','13:00'],['Liduvina','Franco','2172278','2026-03-05','Jueves','13:00'],['Liduvina','Franco','2172278','2026-03-05','Jueves','12:02'],['Liduvina','Franco','2172278','2026-03-05','Jueves','12:02'],['Liduvina','Franco','2172278','2026-03-05','Jueves','07:05'],['Liduvina','Franco','2172278','2026-03-05','Jueves','07:05'],
+    ['Liduvina','Franco','2172278','2026-03-04','Miércoles','16:30'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','16:30'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','13:04'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','13:04'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','12:01'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','12:01'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','07:01'],['Liduvina','Franco','2172278','2026-03-04','Miércoles','07:01'],
+    ['Liduvina','Franco','2172278','2026-03-03','Martes','17:01'],['Liduvina','Franco','2172278','2026-03-03','Martes','17:01'],['Liduvina','Franco','2172278','2026-03-03','Martes','13:01'],['Liduvina','Franco','2172278','2026-03-03','Martes','13:01'],['Liduvina','Franco','2172278','2026-03-03','Martes','12:01'],['Liduvina','Franco','2172278','2026-03-03','Martes','12:01'],['Liduvina','Franco','2172278','2026-03-03','Martes','07:03'],['Liduvina','Franco','2172278','2026-03-03','Martes','07:03'],
+    ['Eduardo','Portillo','1282575','2026-03-06','Viernes','18:27'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','18:27'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','12:34'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','12:34'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','12:03'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','12:03'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','06:02'],['Eduardo','Portillo','1282575','2026-03-06','Viernes','06:02'],
+    ['Eduardo','Portillo','1282575','2026-03-05','Jueves','18:01'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','18:01'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','12:34'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','12:34'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','12:03'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','12:03'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','06:16'],['Eduardo','Portillo','1282575','2026-03-05','Jueves','06:16'],
+    ['Eduardo','Portillo','1282575','2026-03-04','Miércoles','19:21'],['Eduardo','Portillo','1282575','2026-03-04','Miércoles','19:21'],['Eduardo','Portillo','1282575','2026-03-04','Miércoles','12:01'],['Eduardo','Portillo','1282575','2026-03-04','Miércoles','12:01'],
+    ['Eduardo','Portillo','1282575','2026-03-03','Martes','16:49'],['Eduardo','Portillo','1282575','2026-03-03','Martes','16:49'],['Eduardo','Portillo','1282575','2026-03-03','Martes','12:34'],['Eduardo','Portillo','1282575','2026-03-03','Martes','12:34'],['Eduardo','Portillo','1282575','2026-03-03','Martes','12:01'],['Eduardo','Portillo','1282575','2026-03-03','Martes','12:01'],['Eduardo','Portillo','1282575','2026-03-03','Martes','06:42'],['Eduardo','Portillo','1282575','2026-03-03','Martes','06:42'],
+    ['Eduardo','Portillo','1282575','2026-02-28','Sábado','11:55'],['Eduardo','Portillo','1282575','2026-02-28','Sábado','11:55'],['Eduardo','Portillo','1282575','2026-02-28','Sábado','06:45'],['Eduardo','Portillo','1282575','2026-02-28','Sábado','06:45']];
+  parse(rows);aplicar('Demo_2026-02-28_2026-03-06.xlsx');
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+function initData(){
+  fbDot('sync');
+  fbRead('config_empleados',function(d){if(d&&Object.keys(d).length){CFG=d;renderCfgGrid();}});
+  fbRead('feriados',function(d){if(d){FERIADOS=d;renderFeriados();}});
+  fbRead('adelantos',function(d){if(d)ADELS=d;});
+  fbListen('historial',function(d){
+    if(!d)return;
+    HIST=Object.values(d).sort(function(a,b){return (a.ini||'').localeCompare(b.ini||'');});
+    lsSet('hist',HIST);pobFilt();
+    // No ocultar el banner desde Firebase — el usuario tiene que importar un Excel
+    if(GTAB==='resumen')renderRes();
+    if(GTAB==='historial')renderHist();
+  });
+}
+
+// Startup handled by window.onload above
+</script>
+</body>
+</html>
