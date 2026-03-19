@@ -682,6 +682,11 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
         <input class="form-input" id="f-ancho" type="number" step="0.01" min="0.5" max="3" placeholder="1.80" oninput="calcFormAuto()">
       </div>
       <div class="form-group">
+        <label class="form-label">Consumo por remera (m)</label>
+        <input class="form-input" id="f-consumo" type="number" step="0.001" min="0.1" max="5" placeholder="Auto según ancho" oninput="recalcFormRem()">
+        <span class="form-hint">Metros lineales para 1 remera talle M. Se calcula auto si dejás vacío.</span>
+      </div>
+      <div class="form-group">
         <label class="form-label">Precio x kg (Gs.)</label>
         <input class="form-input" id="f-precio-kg" type="number" min="0" placeholder="50000" oninput="calcFormAuto()">
       </div>
@@ -698,13 +703,14 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="form-group">
         <label class="form-label">Precio aprox x remera (Gs.)</label>
         <input class="form-input" id="f-precio-rem" type="number" min="0" placeholder="Calculado automáticamente">
-        <span class="form-hint">= P/metro × Ancho × 0.71 (factor remera estándar)</span>
+        <span class="form-hint" id="f-rem-hint">= P/metro × consumo en metros</span>
       </div>
     </div>
     <div style="margin-top:6px; padding:12px 14px; background:var(--surface2); border-radius:8px; border:1px solid var(--border); font-size:12px; color:var(--text2);">
-      <strong>¿Cómo se calcula el precio por remera?</strong><br>
-      El factor 0.71 representa el consumo promedio de tela para una remera talle M/L en ancho 1.80m (≈0.71m²). 
-      <br>Fórmula: <code>Precio/metro × Ancho × 0.71</code>. Podés ajustarlo en la calculadora de consumo.
+      <strong>¿Cómo se calcula el consumo?</strong><br>
+      Si dejás el campo <em>Consumo</em> vacío, se calcula automáticamente: <code>1.28 m² ÷ ancho</code>.<br>
+      Ej: ancho 1.80m → 0.711m · ancho 1.60m → 0.800m · ancho 1.50m → 0.853m.<br>
+      Podés escribir tu propio valor si sabés el consumo exacto de esa tela.
     </div>
       <div class="form-group full">
         <label class="form-label">Colores disponibles</label>
@@ -966,7 +972,12 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       </div>
       <div class="form-group">
         <label class="form-label">Precio x metro</label>
-        <input class="form-input" id="m-precio-metro" type="number">
+        <input class="form-input" id="m-precio-metro" type="number" oninput="recalcModalRem()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Consumo por remera (m)</label>
+        <input class="form-input" id="m-consumo" type="number" step="0.001" min="0.1" max="5" placeholder="Auto según ancho" oninput="recalcModalRem()">
+        <span class="form-hint">Metros lineales para 1 remera. Vacío = auto.</span>
       </div>
       <div class="form-group">
         <label class="form-label">Precio x remera</label>
@@ -1084,7 +1095,7 @@ function uploadFoto(input, prefix) {
 
   img.onload = function() {
     // Comprimir a max 400x400px, calidad 0.65
-    const MAX = 600; // px máx — buena resolución para ver textura de telas
+    const MAX = 900; // px máx — alta resolución para ver textura de telas
     let w = img.width, h = img.height;
     if(w > h) { if(w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
     else       { if(h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
@@ -1093,7 +1104,7 @@ function uploadFoto(input, prefix) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, w, h);
-    const base64 = canvas.toDataURL('image/jpeg', 0.80); // 80% calidad = buena textura visible
+    const base64 = canvas.toDataURL('image/jpeg', 0.88); // 88% calidad — textura bien visible
 
     // Mostrar preview
     prev.src = base64;
@@ -1184,6 +1195,15 @@ const save = () => { fbSave(); };
 const gs = v => (v != null && v > 0) ? 'Gs. ' + Math.round(v).toLocaleString('es-PY') : '—';
 const makeId = t => t.proveedor + '||' + t.tipo;
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+// ── Factor de consumo por ancho de tela ──
+// Fórmula: consumo_m² ÷ ancho = metros lineales
+// Un talle M/L estándar usa ~1.28 m² de tela
+const CONSUMO_M2_REMERA = 1.28; // m² promedio talle M/L — se puede ajustar
+function calcConsumo(anchoM) {
+  if(!anchoM || anchoM <= 0) return 0.71; // fallback si no hay ancho
+  return Math.round((CONSUMO_M2_REMERA / anchoM) * 1000) / 1000; // redondear a 3 decimales
+}
 
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
@@ -1314,6 +1334,7 @@ function openEdit(idx) {
   document.getElementById('m-rendim').value = t.rendim||'';
   document.getElementById('m-precio-metro').value = t.precio_metro||'';
   document.getElementById('m-precio-rem').value = t.precio_rem||'';
+  document.getElementById('m-consumo').value = t.consumo_rem||'';
   document.getElementById('m-colores').value = t.colores||'';
   document.getElementById('m-notas').value = t.notas||'';
   const prevEl = document.getElementById('m-foto-preview');
@@ -1335,8 +1356,18 @@ function calcModalAuto() {
   if(kg&&rend) {
     const pm = kg/rend;
     document.getElementById('m-precio-metro').value = Math.round(pm);
-    if(ancho) document.getElementById('m-precio-rem').value = Math.round(pm*ancho*0.71);
+    recalcModalRem(pm, ancho);
   }
+}
+function recalcModalRem(pm, ancho) {
+  if(!pm) pm = parseFloat(document.getElementById('m-precio-metro').value)||0;
+  if(!ancho) ancho = parseFloat(document.getElementById('m-ancho').value)||0;
+  if(!pm) return;
+  const consumo = parseFloat(document.getElementById('m-consumo').value) || calcConsumo(ancho);
+  // Actualizar el campo consumo con el calculado si está vacío
+  const consumoInput = document.getElementById('m-consumo');
+  if(!consumoInput.value && ancho) consumoInput.value = calcConsumo(ancho);
+  if(consumo > 0) document.getElementById('m-precio-rem').value = Math.round(pm * consumo);
 }
 function saveEdit() {
   const idx = parseInt(document.getElementById('m-idx').value);
@@ -1352,6 +1383,7 @@ function saveEdit() {
     rendim: parseFloat(document.getElementById('m-rendim').value)||null,
     precio_metro: parseFloat(document.getElementById('m-precio-metro').value)||null,
     precio_rem: parseFloat(document.getElementById('m-precio-rem').value)||null,
+    consumo_rem: parseFloat(document.getElementById('m-consumo').value)||null,
     colores: document.getElementById('m-colores').value.trim()||null,
     notas: document.getElementById('m-notas').value.trim()||null,
     foto: window._editFotoUrl||null,
@@ -1408,13 +1440,23 @@ function calcFormAuto() {
   if(kg&&rend) {
     const pm = kg/rend;
     document.getElementById('f-precio-metro').value = Math.round(pm);
-    if(ancho) document.getElementById('f-precio-rem').value = Math.round(pm*ancho*0.71);
+    recalcFormRem(pm, ancho);
   }
+}
+function recalcFormRem(pm, ancho) {
+  if(!pm) pm = parseFloat(document.getElementById('f-precio-metro').value)||0;
+  if(!ancho) ancho = parseFloat(document.getElementById('f-ancho').value)||0;
+  if(!pm) return;
+  const consumo = parseFloat(document.getElementById('f-consumo').value) || calcConsumo(ancho);
+  // Sugerir el consumo calculado si el campo está vacío y hay ancho
+  const consumoInput = document.getElementById('f-consumo');
+  if(!consumoInput.value && ancho) consumoInput.value = calcConsumo(ancho);
+  if(consumo > 0) document.getElementById('f-precio-rem').value = Math.round(pm * consumo);
 }
 function calcRemFromMetro() {
   const pm = parseFloat(document.getElementById('f-precio-metro').value);
   const ancho = parseFloat(document.getElementById('f-ancho').value);
-  if(pm&&ancho) document.getElementById('f-precio-rem').value = Math.round(pm*ancho*0.71);
+  recalcFormRem(pm, ancho);
 }
 function guardarTejido() {
   const prov = document.getElementById('f-proveedor').value.trim();
@@ -1428,6 +1470,7 @@ function guardarTejido() {
     rendim: parseFloat(document.getElementById('f-rendim').value)||null,
     precio_metro: parseFloat(document.getElementById('f-precio-metro').value)||null,
     precio_rem: parseFloat(document.getElementById('f-precio-rem').value)||null,
+    consumo_rem: parseFloat(document.getElementById('f-consumo').value)||null,
     colores: document.getElementById('f-colores').value.trim()||null,
     notas: document.getElementById('f-notas').value.trim()||null,
     foto: window._newFotoUrl||null,
@@ -1435,7 +1478,7 @@ function guardarTejido() {
   fbSaveTejido(tejidos.length - 1);
   db.ref(FB_CONSUMOS).set(consumos).catch(e=>{});
   renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
-  ['f-proveedor','f-tipo','f-codigo','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem','f-colores'].forEach(id=>document.getElementById(id).value='');
+  ['f-proveedor','f-tipo','f-codigo','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem','f-colores','f-consumo'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-foto-preview').style.display='none';
   document.getElementById('f-upload-btn').textContent='📷 Subir foto';
   window._newFotoUrl = null;
@@ -1809,6 +1852,7 @@ function openDetail(idx) {
     <div class="detail-metric"><div class="detail-metric-label">Ancho</div><div class="detail-metric-val">${t.ancho ? t.ancho+' m' : '—'}</div></div>
     <div class="detail-metric"><div class="detail-metric-label">Rendimiento</div><div class="detail-metric-val good">${t.rendim ? t.rendim+' m/kg' : '—'}</div></div>
     ${t.precio_kg ? `<div class="detail-metric"><div class="detail-metric-label">Precio x kg</div><div class="detail-metric-val">${gs(t.precio_kg)}</div></div>` : ''}
+    ${t.ancho ? (() => { const c = t.consumo_rem || calcConsumo(t.ancho); return `<div class="detail-metric"><div class="detail-metric-label">Consumo/remera</div><div class="detail-metric-val">${c} m</div></div>`; })() : ''}
   `;
 
   // Colores
