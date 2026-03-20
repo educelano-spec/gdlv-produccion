@@ -271,8 +271,33 @@ td.neu{text-align:right;font-family:'JetBrains Mono',monospace;color:var(--ink2)
 td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;} .tscroll table td, .tscroll table th { vertical-align:middle; }
 </style>
   <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <!-- Firebase SDK — primary: jsDelivr, fallback: unpkg, last resort: gstatic -->
+  <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.2/firebase-app-compat.js"
+          onerror="loadFBFallback1()"></script>
+  <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.2/firebase-database-compat.js"
+          onerror="loadFBFallback2()"></script>
+  <script>
+    function loadFBFallback1() {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/firebase@9.22.2/firebase-app-compat.js';
+      s.onerror = function() {
+        var s2 = document.createElement('script');
+        s2.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js';
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+    }
+    function loadFBFallback2() {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/firebase@9.22.2/firebase-database-compat.js';
+      s.onerror = function() {
+        var s2 = document.createElement('script');
+        s2.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js';
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+    }
+  </script>
 </head>
 <body>
 <div class="topbar">
@@ -330,6 +355,8 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="nav-item" onclick="showView('calendario')"><span class="nav-ico">📅</span>Calendario</div>
     <div class="nav-item" onclick="showView('proyecciones')"><span class="nav-ico">🔭</span>Proyecciones</div>
     <div class="nav-item" onclick="showView('simulador')"><span class="nav-ico">🧮</span>Planificador de Pagos</div>
+    <div class="nav-item" onclick="showView('deseos')"><span class="nav-ico">🎯</span>Lista de Deseos</div>
+    <div class="nav-item" onclick="showView('backups');renderBackups()"><span class="nav-ico">🔒</span>Backups</div>
     <div class="nav-item" onclick="showView('reportes')"><span class="nav-ico">📋</span>Informes &amp; Reportes</div>
   </div>
   <div class="nav-div"></div>
@@ -588,8 +615,125 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
   <div id="sim-resultado"></div>
 </div>
 
+
+<div id="view-backups" class="view">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Backups de <span style="color:var(--acc)">Datos</span></div>
+      <div class="ph-sub">Respaldo automático diario · Últimos 30 días en Firebase · 5 copias locales</div>
+    </div>
+    <button class="btn btn-a" onclick="manualBackup()">&#128190; Backup Manual Ahora</button>
+  </div>
+  <div style="padding:20px;max-width:800px">
+    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px">
+      <div style="font-weight:700;margin-bottom:8px">&#128274; Cómo funciona el backup automático</div>
+      <div style="color:var(--ink2);line-height:1.7">
+        &#128197; <b>Diario automático:</b> Cada vez que guardás datos, el sistema verifica si ya se hizo el backup del día. Si no, lo guarda automáticamente en Firebase.<br>
+        &#128272; <b>30 días en Firebase:</b> Se mantienen los últimos 30 días de backups en la nube. Los más antiguos se eliminan solos.<br>
+        &#128190; <b>5 copias locales:</b> También se guardan las últimas 5 copias en el navegador (localStorage) como respaldo offline.<br>
+        &#11015; <b>Descarga automática:</b> Cada día al primer guardado, se descarga automáticamente un archivo JSON a tu computadora. También podés descargar cualquier backup manualmente.<br>
+        &#8617; <b>Restaurar:</b> Podés restaurar cualquier backup. El sistema guarda automáticamente el estado actual antes de restaurar.
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">Backups disponibles</div>
+    <div id="backups-lista">
+      <div style="padding:20px;color:var(--ink3);text-align:center">Hacé clic en "Backups" para cargar la lista</div>
+    </div>
+  </div>
+</div>
 <!-- CAJA CHICA -->
-<div id="view-cajachica" class="view">
+<div
+<div id="view-deseos" class="view">
+  <div class="ph">
+    <div><div class="ph-title">Lista de <span style="color:var(--acc)">Deseos</span></div>
+    <div class="ph-sub">Necesidades y compras pendientes · El sistema recomienda el momento óptimo de pago</div></div>
+    <button class="btn btn-a" onclick="openModal('m-deseo','')">+ Nueva Necesidad</button>
+  </div>
+  <div class="liqbar" id="deseos-kpi" style="padding:10px 20px;display:flex;gap:24px;flex-wrap:wrap;height:auto;align-items:center;background:var(--sur2);border-bottom:1px solid var(--bdr)">
+    <div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Urgentes</div>
+      <div id="dk-urgente" style="font-size:16px;font-weight:700;color:var(--red);font-family:JetBrains Mono,monospace">Gs 0</div></div>
+    <div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Medios</div>
+      <div id="dk-medio" style="font-size:16px;font-weight:700;color:var(--amb);font-family:JetBrains Mono,monospace">Gs 0</div></div>
+    <div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Bajos</div>
+      <div id="dk-bajo" style="font-size:16px;font-weight:700;color:var(--grn);font-family:JetBrains Mono,monospace">Gs 0</div></div>
+    <div><div style="font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase">Total</div>
+      <div id="dk-total" style="font-size:16px;font-weight:700;font-family:JetBrains Mono,monospace">Gs 0</div></div>
+    <div style="margin-left:auto">
+      <button class="btn btn-a" onclick="analizarDeseos()" style="font-size:13px">&#9889; Analizar y recomendar</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1.5fr;height:calc(100vh - 210px);overflow:hidden">
+    <div style="overflow-y:auto;border-right:1px solid var(--bdr);padding:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">Necesidades cargadas</div>
+      <div id="deseos-lista"></div>
+    </div>
+    <div style="overflow-y:auto;padding:16px;background:var(--sur2)">
+      <div id="deseos-recom">
+        <div style="text-align:center;padding:40px 20px;color:var(--ink3)">
+          <div style="font-size:32px;margin-bottom:12px">&#9889;</div>
+          <div style="font-size:14px;font-weight:600">Presioná "Analizar y recomendar"</div>
+          <div style="font-size:12px;margin-top:6px">El sistema analizará el balance proyectado y recomendará el mejor momento para cada compra o pago</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="m-deseo" class="modal-ov">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="m-deseo-title">Nueva Necesidad</div>
+      <div class="modal-x" onclick="closeModal('m-deseo')">&#x2715;</div>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <div class="fgrp full"><label>Descripcion</label>
+          <input type="text" id="dw-desc" class="fc" placeholder="Ej: Maquina de coser industrial"></div>
+        <div class="fgrp"><label>Monto Total (Gs)</label>
+          <input type="text" inputmode="numeric" id="dw-monto" class="fc" placeholder="0" oninput="fmtMoney(this)"></div>
+        <div class="fgrp"><label>Urgencia</label>
+          <select id="dw-urgencia" class="fc">
+            <option value="alta">Alta - necesario pronto</option>
+            <option value="media" selected>Media - importante pero puede esperar</option>
+            <option value="baja">Baja - deseable sin apuro</option>
+          </select></div>
+        <div class="fgrp"><label>Tipo</label>
+          <select id="dw-tipo" class="fc">
+            <option>Insumos/Materiales</option>
+            <option>Pago a Proveedor</option>
+            <option>Equipo/Maquinaria</option>
+            <option>Gasto Operativo</option>
+            <option>Construccion/Ampliacion</option>
+            <option>Vehiculo</option>
+            <option>Otros</option>
+          </select></div>
+        <div class="fgrp"><label>Forma de pago</label>
+          <select id="dw-forma" class="fc">
+            <option value="transferencia">Transferencia</option>
+            <option value="cheque">Cheque</option>
+            <option value="cualquiera">Cualquiera</option>
+          </select></div>
+        <div class="fgrp"><label>Cuotas maximas</label>
+          <select id="dw-cuotas" class="fc">
+            <option value="1">1 - pago unico</option>
+            <option value="2">2 cuotas</option>
+            <option value="3">3 cuotas</option>
+            <option value="6">6 cuotas</option>
+            <option value="12">12 cuotas</option>
+          </select></div>
+        <div class="fgrp"><label>Fecha limite (opcional)</label>
+          <input type="date" id="dw-limite" class="fc"></div>
+        <div class="fgrp full"><label>Observaciones</label>
+          <input type="text" id="dw-obs" class="fc" placeholder="Opcional"></div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-g" onclick="closeModal('m-deseo')">Cancelar</button>
+      <button class="btn btn-a" onclick="guardarDeseo()">Guardar</button>
+    </div>
+  </div>
+</div>
+ id="view-cajachica" class="view">
   <div class="ph">
     <div><div class="ph-title">Caja <em>Chica</em></div><div class="ph-sub">Lista de gastos con total diario</div></div>
     <div class="ph-actions"><button class="btn btn-xl btn-sm" onclick="exportar('cajachica')">⬇ Excel</button><button class="btn btn-p" onclick="openModal('m-caja','')">+ Registrar Gasto</button></div>
@@ -2563,7 +2707,6 @@ var FB_SAVE_TIMEOUT = null;
 function initFirebase() {
   try {
     if (typeof firebase === 'undefined') throw new Error('SDK not loaded');
-    // Avoid re-initializing if already done
     if (!firebase.apps || firebase.apps.length === 0) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -2577,8 +2720,89 @@ function initFirebase() {
   }
 }
 
+function initFirebaseWithRetry(maxAttempts, delayMs) {
+  // Retry until Firebase SDK is loaded (CDN may be slow)
+  var attempt = 0;
+  function tryInit() {
+    attempt++;
+    if (typeof firebase !== 'undefined') {
+      try {
+        if (!firebase.apps || firebase.apps.length === 0) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        FBDB = firebase.database();
+        console.log('Firebase initialized OK (attempt ' + attempt + ')');
+        // Re-trigger the Firebase load sequence
+        initDBFromFirebase();
+        return;
+      } catch(e) {
+        console.warn('Firebase init error:', e.message);
+      }
+    }
+    if (attempt < maxAttempts) {
+      console.log('Firebase SDK not ready, retrying in ' + delayMs + 'ms... (attempt ' + attempt + ')');
+      setTimeout(tryInit, delayMs);
+    } else {
+      console.warn('Firebase SDK failed to load after ' + maxAttempts + ' attempts. Using localStorage.');
+      updateOnlineIndicator(false);
+    }
+  }
+  tryInit();
+}
+
 
 let DB = {};
+
+function initDBFromFirebase() {
+  // Called after Firebase SDK confirmed loaded (may be on retry)
+  if(!FBDB) return;
+  var loader = document.getElementById('fb-loader');
+  FBDB.ref(FB_PATH).once('value').then(function(snap) {
+    FB_CONNECTED = true;
+    updateOnlineIndicator(true);
+    setTimeout(autoBackup, 5000);
+    var extra = snap.val();
+    if(extra) {
+      applyExtra(extra);
+    } else {
+      try {
+        var ls = localStorage.getItem(LS_KEY);
+        if(ls) { var lsData=JSON.parse(ls); applyExtra(lsData); FBDB.ref(FB_PATH).set(lsData); }
+      } catch(e) {}
+    }
+    if(loader) loader.style.display='none';
+    renderDashboard();
+    updateBadges();
+    // Real-time listener
+    var _firstLoad = true;
+    FBDB.ref(FB_PATH).on('value', function(snap) {
+      if(_firstLoad) { _firstLoad=false; return; }
+      var extra = snap.val();
+      DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      if(!DB.cajachica) DB.cajachica=[];
+      if(!DB.deseos) DB.deseos=[];
+      if(!DB.chequesCobrados) DB.chequesCobrados=[];
+      if(!DB.prestamosPagados) DB.prestamosPagados=[];
+      if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas=[];
+      if(!DB.efectivo) DB.efectivo=[];
+      if(!DB.realizados) DB.realizados=DB.transferenciasRealizadas;
+      if(extra) applyExtra(extra);
+      updateBadges();
+      var activeView = document.querySelector('.view.active');
+      if(activeView) renderView(activeView.id.replace('view-',''));
+      showSyncToast();
+    });
+  }).catch(function(err) {
+    console.warn('Firebase load error:', err);
+    FB_CONNECTED = false;
+    updateOnlineIndicator(false);
+    try { var ls=localStorage.getItem(LS_KEY); if(ls) applyExtra(JSON.parse(ls)); } catch(e) {}
+    var loader = document.getElementById('fb-loader');
+    if(loader) loader.style.display='none';
+    renderDashboard();
+    updateBadges();
+  });
+}
 
 function initDB() {
   initFirebase();
@@ -2586,6 +2810,7 @@ function initDB() {
   DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
   // Safety defaults
   if(!DB.cajachica) DB.cajachica=[];
+  if(!DB.deseos) DB.deseos=[];
   if(!DB.chequesCobrados) DB.chequesCobrados=[];
   if(!DB.prestamosPagados) DB.prestamosPagados=[];
   if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas=[];
@@ -2598,74 +2823,17 @@ function initDB() {
 
   // Load from Firebase first, fallback to localStorage
   if(!FBDB) {
-    // No Firebase - use localStorage only
-    try {
-      var ls = localStorage.getItem(LS_KEY);
-      if(ls) applyExtra(JSON.parse(ls));
-    } catch(e) {}
+    // Firebase SDK may still be loading — start retry
+    initFirebaseWithRetry(15, 800); // retry up to 15x, 800ms apart (CDN fallback needs time)
+    // Meanwhile use localStorage
+    try { var ls=localStorage.getItem(LS_KEY); if(ls) applyExtra(JSON.parse(ls)); } catch(e) {}
     updateOnlineIndicator(false);
+    if(loader) loader.style.display='none';
     renderDashboard();
     updateBadges();
     return;
   }
-  FBDB.ref(FB_PATH).once('value').then(function(snap) {
-    FB_CONNECTED = true;
-    updateOnlineIndicator(true);
-    var extra = snap.val();
-    if(extra) {
-      applyExtra(extra);
-    } else {
-      // No Firebase data yet — try localStorage migration
-      try {
-        var ls = localStorage.getItem(LS_KEY);
-        if(ls) {
-          var lsData = JSON.parse(ls);
-          applyExtra(lsData);
-          // Migrate localStorage to Firebase
-          FBDB.ref(FB_PATH).set(lsData);
-        }
-      } catch(e) {}
-    }
-    if(loader) loader.style.display='none';
-    renderDashboard();
-    updateBadges();
-
-    // Set up real-time listener for changes from other users
-    var _firstLoad = true;
-    if(FBDB) FBDB.ref(FB_PATH).on('value', function(snap) {
-      if(_firstLoad) { _firstLoad = false; return; } // skip initial load (already applied above)
-      var extra = snap.val();
-      DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
-      if(!DB.cajachica) DB.cajachica=[];
-      if(!DB.chequesCobrados) DB.chequesCobrados=[];
-      if(!DB.prestamosPagados) DB.prestamosPagados=[];
-      if(!DB.transferenciasRealizadas) DB.transferenciasRealizadas=[];
-      if(!DB.efectivo) DB.efectivo=[];
-      if(!DB.realizados) DB.realizados=DB.transferenciasRealizadas;
-      if(extra) applyExtra(extra);
-      updateBadges();
-      // Re-render current active view
-      var activeView = document.querySelector('.view.active');
-      if(activeView) {
-        var vname = activeView.id.replace('view-','');
-        renderView(vname);
-      }
-      // Show sync notification
-      showSyncToast();
-    });
-
-  }).catch(function(err) {
-    console.warn('Firebase no disponible, usando localStorage:', err);
-    FB_CONNECTED = false;
-    updateOnlineIndicator(false);
-    try {
-      var ls = localStorage.getItem(LS_KEY);
-      if(ls) applyExtra(JSON.parse(ls));
-    } catch(e) {}
-    if(loader) loader.style.display='none';
-    renderDashboard();
-    updateBadges();
-  });
+  initDBFromFirebase();
 }
 
 function applyExtra(extra) {
@@ -2743,6 +2911,11 @@ function applyExtra(extra) {
       if(arr&&arr[s.idx]) arr[s.idx].estado=s.estado;
     });
   }
+  // Deseos list
+  if(DB.deseos&&DB.deseos.length) extra.deseos = DB.deseos;
+
+  if(extra.deseos) DB.deseos = extra.deseos;
+
   if(extra.prestamos_pagadas) {
     extra.prestamos_pagadas.forEach(function(p){
       var pr=DB.prestamos.find(function(x){return x.id===p.id;});
@@ -2758,6 +2931,7 @@ function saveExtra() {
 }
 
 function guardarEstado() {
+  autoBackup(); // trigger daily backup if needed
   var extra = buildExtra();
   // Save to Firebase (debounced 800ms)
   if(FB_CONNECTED && FBDB) {
@@ -3079,6 +3253,8 @@ function renderView(name) {
     'cobros': function() { renderTabla('cobros'); },
     'cobros-recibidos': renderCobrosRecibidos,
     'disponible': renderDisponible,
+    'deseos': renderDeseos,
+    'backups': function(){ renderBackups(); },
     'historial': function() { renderHistorial(''); }
   };
   if (map[name]) map[name]();
@@ -4735,7 +4911,6 @@ function openModal(id, tipo) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
-  // Reset m-pago button if it was changed by editarTransferencia
   if(id === 'm-pago') {
     window._editTraIdx = null;
     var titleEl = document.getElementById('m-pago-title');
@@ -4745,6 +4920,11 @@ function closeModal(id) {
       btnEl.textContent = 'Guardar';
       btnEl.setAttribute('onclick', 'guardarPago()');
     }
+  }
+  if(id === 'm-deseo') {
+    window._editDeseoIdx = null;
+    var titleEl = document.getElementById('m-deseo-title');
+    if(titleEl) titleEl.textContent = 'Nueva Necesidad';
   }
 }
 
@@ -6278,6 +6458,644 @@ initDB(); // Firebase async — renders dashboard after load
     }
   }, 60000); // chequear cada 60 segundos
 })();
+
+// ══════════════════════════════════════════════
+// LISTA DE DESEOS — JS
+// ══════════════════════════════════════════════
+
+function renderDeseos() {
+  if(!DB.deseos) DB.deseos = [];
+  var lista = document.getElementById('deseos-lista');
+  if(!lista) return;
+
+  var urgColors = {alta:'var(--red)', media:'var(--amb)', baja:'var(--grn)'};
+  var urgLabels = {alta:'Alta', media:'Media', baja:'Baja'};
+
+  // Sort: alta first, then media, then baja, within same urgency by monto desc
+  var sorted = DB.deseos.slice().sort(function(a,b){
+    var o = {alta:0, media:1, baja:2};
+    if(o[a.urgencia] !== o[b.urgencia]) return o[a.urgencia]-o[b.urgencia];
+    return (parseFloat(b.monto)||0)-(parseFloat(a.monto)||0);
+  });
+
+  var html = '';
+  if(!sorted.length) {
+    html = '<div style="text-align:center;padding:30px;color:var(--ink3);font-size:13px">No hay necesidades cargadas.<br>Presioná "+ Nueva Necesidad" para empezar.</div>';
+  }
+  sorted.forEach(function(d, si) {
+    var realIdx = DB.deseos.indexOf(d);
+    var color = urgColors[d.urgencia]||'var(--ink2)';
+    var monto = parseFloat(d.monto)||0;
+    var cuotas = parseInt(d.cuotas)||1;
+    var cuotaAmt = monto/cuotas;
+    html += '<div style="border:1.5px solid var(--bdr);border-left:4px solid '+color+';border-radius:8px;padding:12px;margin-bottom:10px;background:var(--sur)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-weight:700;font-size:14px;margin-bottom:3px">'+d.desc+'</div>';
+    html += '<div style="font-size:11px;color:var(--ink3)">'+d.tipo+' · '+d.forma+'</div>';
+    if(d.obs) html += '<div style="font-size:11px;color:var(--ink3);margin-top:2px">'+d.obs+'</div>';
+    if(d.limite) html += '<div style="font-size:11px;color:var(--amb);margin-top:2px">&#128197; Límite: '+d.limite+'</div>';
+    html += '</div>';
+    html += '<div style="text-align:right;flex-shrink:0">';
+    html += '<div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:'+color+'">'+fGs(monto)+'</div>';
+    if(cuotas>1) html += '<div style="font-size:10px;color:var(--ink3)">'+cuotas+' cuotas de '+fGs(cuotaAmt)+'</div>';
+    html += '<div style="margin-top:6px;font-size:11px;font-weight:700;color:'+color+'">'+urgLabels[d.urgencia]+'</div>';
+    html += '</div></div>';
+    html += '<div style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr)">';
+    html += '<button class="btn btn-sm" style="font-size:11px" onclick="editarDeseo('+realIdx+')">&#9998; Editar</button>';
+    html += '<button class="btn btn-sm btn-ok" style="font-size:11px" onclick="aprobarDeseo('+realIdx+')" title="Agregar a planificación">&#10003; Aprobar y planificar</button>';
+    html += '<button class="btn btn-sm btn-er" style="font-size:11px;margin-left:auto" onclick="eliminarDeseo('+realIdx+')">&#10005;</button>';
+    html += '</div></div>';
+  });
+  lista.innerHTML = html;
+
+  // Update KPIs
+  var tots = {alta:0, media:0, baja:0, total:0};
+  DB.deseos.forEach(function(d){
+    var m = parseFloat(d.monto)||0;
+    tots[d.urgencia] = (tots[d.urgencia]||0)+m;
+    tots.total += m;
+  });
+  ['urgente','medio','bajo','total'].forEach(function(k,i){
+    var key = ['alta','media','baja','total'][i];
+    var el = document.getElementById('dk-'+k);
+    if(el) el.textContent = fGs(tots[key]||0);
+  });
+}
+
+function guardarDeseo() {
+  var desc = document.getElementById('dw-desc').value.trim();
+  var monto = getMoneyVal('dw-monto');
+  if(!desc||!monto){ alert('Ingresá descripción y monto'); return; }
+  var idx = window._editDeseoIdx;
+  var row = {
+    desc: desc,
+    monto: String(monto),
+    urgencia: document.getElementById('dw-urgencia').value,
+    tipo: document.getElementById('dw-tipo').value,
+    forma: document.getElementById('dw-forma').value,
+    cuotas: document.getElementById('dw-cuotas').value,
+    limite: document.getElementById('dw-limite').value,
+    obs: document.getElementById('dw-obs').value,
+    id: idx !== null && idx !== undefined ? DB.deseos[idx].id : 'd'+Date.now()
+  };
+  if(!DB.deseos) DB.deseos=[];
+  if(idx !== null && idx !== undefined) {
+    DB.deseos[idx] = row;
+  } else {
+    DB.deseos.push(row);
+  }
+  window._editDeseoIdx = null;
+  guardarEstado();
+  closeModal('m-deseo');
+  renderDeseos();
+}
+
+function editarDeseo(idx) {
+  var d = DB.deseos[idx]; if(!d) return;
+  window._editDeseoIdx = idx;
+  document.getElementById('m-deseo-title').textContent = 'Editar Necesidad';
+  document.getElementById('dw-desc').value = d.desc||'';
+  document.getElementById('dw-monto').value = d.monto ? fmtMoneyStr(parseFloat(d.monto)) : '';
+  document.getElementById('dw-urgencia').value = d.urgencia||'media';
+  document.getElementById('dw-tipo').value = d.tipo||'Otros';
+  document.getElementById('dw-forma').value = d.forma||'transferencia';
+  document.getElementById('dw-cuotas').value = d.cuotas||'1';
+  document.getElementById('dw-limite').value = d.limite||'';
+  document.getElementById('dw-obs').value = d.obs||'';
+  openModal('m-deseo','');
+}
+
+function fmtMoneyStr(n) {
+  return Math.round(n).toLocaleString('es-PY',{maximumFractionDigits:0}).replace(/,/g,'.');
+}
+
+function eliminarDeseo(idx) {
+  if(!confirm('Eliminar esta necesidad?')) return;
+  DB.deseos.splice(idx,1);
+  guardarEstado();
+  renderDeseos();
+}
+
+function analizarDeseos() {
+  if(!DB.deseos||!DB.deseos.length){
+    document.getElementById('deseos-recom').innerHTML='<div style="padding:30px;color:var(--ink3);text-align:center">No hay necesidades cargadas.</div>';
+    return;
+  }
+
+  var hoyXl = todayXl();
+  var SALDO_MINIMO = 20000000; // Gs 20M floor - don't go below this
+
+  // ── Build projected balance by date (next 365 days) ──
+  var saldoInicial = 0;
+  if(DB.disponible&&DB.disponible.length){
+    var sd=DB.disponible.slice().sort(function(a,b){return (parseFloat(b.fecha)||0)-(parseFloat(a.fecha)||0);});
+    saldoInicial=parseFloat(sd[0].total||sd[0].conti||0);
+  }
+
+  // Build daily flow map (egresos/ingresos programados)
+  var flowMap = {}; // xl → {egr, ing}
+  function addF(xl,amt,tipo){
+    var x=Math.round(parseFloat(xl)||0); if(x<hoyXl) x=hoyXl; if(!x) return;
+    if(!flowMap[x]) flowMap[x]={egr:0,ing:0};
+    if(tipo==='egr') flowMap[x].egr+=amt; else flowMap[x].ing+=amt;
+  }
+  (DB.cheques||[]).forEach(function(r){ if(r.estado!=='COBRADO') addF(r.vto||r.fecha,parseFloat(r.monto)||0,'egr'); });
+  (DB.transferencias||[]).forEach(function(r){ if(r.estado!=='COBRADO'&&r.estado!=='PAGADO') addF(r.fecha,parseFloat(r.monto)||0,'egr'); });
+  (DB.prestamos||[]).forEach(function(p){
+    var ini=new Date(p.inicio);
+    for(var q=1;q<=p.nCuotas;q++){
+      if(q<=(p.pagadas||0)) continue;
+      var mo=ini.getMonth()+(q-1);
+      var yr=ini.getFullYear()+Math.floor(mo/12);
+      var xl=Math.round((Date.UTC(yr,mo%12,p.dia)-Date.UTC(1899,11,30))/86400000);
+      addF(xl,parseFloat(p.cuota)||0,'egr');
+    }
+  });
+  (DB.cobros||[]).forEach(function(c){ if(c.estado!=='RECIBIDO'){ var fc=c.fechaCobro||c.fecha; if(parseFloat(fc)>40000) addF(fc,parseFloat(c.monto)||0,'ing'); } });
+
+  // Calculate running balance for each day (next 365 days)
+  var saldo = saldoInicial;
+  var saldoByXl = {};
+  for(var d=hoyXl; d<=hoyXl+365; d++){
+    var f=flowMap[d]||{egr:0,ing:0};
+    saldo += f.ing - f.egr;
+    saldoByXl[d] = saldo;
+  }
+
+  // ── For each deseo, find best payment window ──
+  var BLOCKED_DOMS = [4,5,6]; // salary days
+
+  function bestDateForAmount(minXl, maxXl, requiredAmount) {
+    // Find day with highest projected saldo that still leaves >= SALDO_MINIMO after payment
+    var best = null, bestSaldo = -9e15;
+    for(var xl=minXl; xl<=maxXl; xl++){
+      var proj = saldoByXl[xl]||0;
+      if(proj - requiredAmount < SALDO_MINIMO) continue; // can't afford
+      var pyDate = new Date((xl-25569)*86400000);
+      var dom = pyDate.getUTCDate();
+      var dow = pyDate.getUTCDay();
+      if(BLOCKED_DOMS.indexOf(dom)>=0) continue;
+      if(dow===0||dow===6) continue;
+      if(proj > bestSaldo){ bestSaldo=proj; best=xl; }
+    }
+    return best; // null if can't afford in window
+  }
+
+  function xlToDateStr(xl) {
+    var d=new Date((xl-25569)*86400000);
+    return ('0'+d.getUTCDate()).slice(-2)+'/'
+      +('0'+(d.getUTCMonth()+1)).slice(-2)+'/'+d.getUTCFullYear();
+  }
+  function xlToInputDate(xl){
+    var d=new Date((xl-25569)*86400000);
+    return d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2)+'-'+('0'+d.getUTCDate()).slice(-2);
+  }
+
+  // Sort deseos: alta first, then by monto desc within same urgency
+  var urgOrder = {alta:0, media:1, baja:2};
+  var sorted = DB.deseos.slice().map(function(d,i){return {d:d,i:i};})
+    .sort(function(a,b){
+      if(urgOrder[a.d.urgencia]!==urgOrder[b.d.urgencia]) return urgOrder[a.d.urgencia]-urgOrder[b.d.urgencia];
+      return (parseFloat(b.d.monto)||0)-(parseFloat(a.d.monto)||0);
+    });
+
+  var urgColors={alta:'var(--red)',media:'var(--amb)',baja:'var(--grn)'};
+  var urgLabels={alta:'URGENTE',media:'MEDIO',baja:'BAJO'};
+  var urgBg={alta:'#fff5f5',media:'#fffde7',baja:'#f1f8e9'};
+  var urgBorder={alta:'#ffcdd2',media:'#fff9c4',baja:'#c8e6c9'};
+
+  var html='<div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px">Plan recomendado — saldo mínimo Gs '+fGs(SALDO_MINIMO)+'</div>';
+
+  // Track which items can't fit this month
+  var canThisMonth=[], cantAfford=[], scheduled=[];
+  var searchFrom = hoyXl+7; // start looking from 1 week out
+
+  sorted.forEach(function(item){
+    var d = item.d;
+    var realIdx = item.i;
+    var monto = parseFloat(d.monto)||0;
+    var cuotas = parseInt(d.cuotas)||1;
+
+    // Try to fit in cuotas if single payment can't fit
+    var bestCuotas = 1;
+    var cuotaAmt = monto;
+    var bestXl = null;
+
+    // Try 1 cuota first, then more
+    for(var nc=1; nc<=cuotas; nc++){
+      cuotaAmt = monto/nc;
+      // Search next 4 months
+      bestXl = bestDateForAmount(searchFrom, hoyXl+120, cuotaAmt);
+      if(bestXl!==null){ bestCuotas=nc; break; }
+    }
+
+    // Check if fits this month (next 30 days)
+    var fitsThisMonth = bestXl!==null && bestXl <= hoyXl+30;
+
+    var urgColor = urgColors[d.urgencia]||'var(--ink2)';
+    var label = urgLabels[d.urgencia]||'';
+    var bg = urgBg[d.urgencia]||'#f5f5f5';
+    var border = urgBorder[d.urgencia]||'#ddd';
+
+    html += '<div style="border:1.5px solid '+border+';border-left:5px solid '+urgColor+';border-radius:10px;padding:14px;margin-bottom:14px;background:'+bg+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px">';
+    html += '<div><div style="font-weight:700;font-size:14px">'+d.desc+'</div>';
+    html += '<div style="font-size:11px;color:var(--ink3);margin-top:2px">'+d.tipo+' · '+urgColor+'<b style="color:'+urgColor+'"> '+label+'</b></div></div>';
+    html += '<div style="text-align:right"><div style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:'+urgColor+'">'+fGs(monto)+'</div>';
+    if(bestCuotas>1) html+='<div style="font-size:11px;color:var(--ink3)">'+bestCuotas+' cuotas de '+fGs(cuotaAmt)+'</div>';
+    html += '</div></div>';
+
+    if(bestXl===null){
+      // Can't afford even in cuotas in next 4 months
+      html += '<div style="background:rgba(244,67,54,.1);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--red)">';
+      html += '&#128683; No se puede financiar en los próximos 4 meses con el disponible proyectado. Considerá reducir cuotas o postergar.';
+      html += '</div>';
+    } else {
+      var saldoDia = saldoByXl[bestXl]||0;
+      var saldoPost = saldoDia - cuotaAmt;
+      html += '<div style="background:rgba(255,255,255,.6);border-radius:8px;padding:10px 12px">';
+      html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">';
+      html += '<div><div style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase">Fecha sugerida</div>';
+      html += '<div style="font-weight:700;font-size:14px">&#128197; '+xlToDateStr(bestXl)+'</div></div>';
+      html += '<div><div style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase">Saldo ese día</div>';
+      html += '<div style="font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;color:var(--grn)">'+fGs(saldoDia)+'</div></div>';
+      html += '<div><div style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase">Saldo post-pago</div>';
+      html += '<div style="font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;color:'+(saldoPost<SALDO_MINIMO?'var(--red)':'var(--grn)')+'">'+fGs(saldoPost)+'</div></div>';
+      if(fitsThisMonth) html += '<div style="background:#e8f5e9;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#2e7d32;align-self:center">&#10003; Este mes</div>';
+      html += '</div>';
+      // Date picker to change date + approve button
+      html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+      html += '<input type="date" value="'+xlToInputDate(bestXl)+'" id="dfrecom_'+realIdx+'" style="font-size:13px;border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;background:var(--sur)">';
+      html += '<select id="dfcuotas_'+realIdx+'" style="font-size:13px;border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;background:var(--sur)">';
+      for(var nc=1;nc<=parseInt(d.cuotas||1);nc++){
+        html+='<option value="'+nc+'"'+(nc===bestCuotas?' selected':'')+'>'+nc+(nc===1?' cuota':' cuotas')+'</option>';
+      }
+      html += '</select>';
+      html += '<select id="dfforma_'+realIdx+'" style="font-size:13px;border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;background:var(--sur)">';
+      html += '<option value="transferencia"'+(d.forma==='transferencia'?' selected':'')+'>Transferencia</option>';
+      html += '<option value="cheque"'+(d.forma==='cheque'?' selected':'')+'>Cheque</option>';
+      html += '</select>';
+      html += '<button class="btn btn-ok" style="font-size:12px" onclick="aprobarDeseoRecom('+realIdx+')">&#10003; Aprobar y agregar</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+
+  html += '<div style="margin-top:16px;padding:12px;background:var(--sur);border-radius:8px;font-size:12px;color:var(--ink3)">';
+  html += '<b>Nota:</b> El saldo mínimo garantizado es Gs '+fGs(SALDO_MINIMO)+'. Las fechas son sugerencias — podés editarlas antes de aprobar.';
+  html += '</div>';
+
+  document.getElementById('deseos-recom').innerHTML = html;
+}
+
+function aprobarDeseoRecom(idx) {
+  var d = DB.deseos[idx]; if(!d) return;
+  var dateEl = document.getElementById('dfrecom_'+idx);
+  var cuotasEl = document.getElementById('dfcuotas_'+idx);
+  var formaEl = document.getElementById('dfforma_'+idx);
+  if(!dateEl||!dateEl.value){ alert('Seleccioná una fecha'); return; }
+
+  var nCuotas = parseInt(cuotasEl?cuotasEl.value:1)||1;
+  var forma = formaEl?formaEl.value:'transferencia';
+  var monto = parseFloat(d.monto)||0;
+  var cuotaAmt = Math.round(monto/nCuotas);
+  var p = dateEl.value.split('-');
+  var baseXl = Math.round((Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/86400000);
+
+  // Add nCuotas payments spaced ~30 days apart
+  for(var qi=0; qi<nCuotas; qi++){
+    var xl = String(baseXl + qi*30);
+    var concepto = d.desc + (nCuotas>1?' ('+(qi+1)+'/'+nCuotas+')':'');
+    if(forma==='cheque'){
+      DB.cheques.unshift({fecha:xl,vto:xl,cheque:'a emitir',beneficiario:d.desc,
+        concepto:concepto,monto:String(cuotaAmt),tipo:d.tipo,estado:'',mesCobro:''});
+      DB.cheques.sort(function(a,b){return (parseFloat(a.vto||a.fecha)||0)-(parseFloat(b.vto||b.fecha)||0);});
+    } else {
+      DB.transferencias.unshift({fecha:xl,beneficiario:d.desc,concepto:concepto,
+        monto:String(cuotaAmt),tipo:d.tipo,estado:'PENDIENTE',nroTrans:''});
+      DB.transferencias.sort(function(a,b){return (parseFloat(a.fecha)||0)-(parseFloat(b.fecha)||0);});
+    }
+  }
+
+  // Mark deseo as approved
+  d.aprobado = true;
+  d.fechaAprobado = String(todayXl());
+  guardarEstado();
+  updateBadges();
+  alert('Agregado a '+(forma==='cheque'?'Cheques':'Transferencias')+' correctamente.');
+  analizarDeseos(); // re-analyze
+}
+
+function aprobarDeseo(idx) {
+  var d = DB.deseos[idx]; if(!d) return;
+  // Quick approve from the list panel
+  analizarDeseos();
+  // Scroll to recommendations
+  var recom = document.getElementById('deseos-recom');
+  if(recom) recom.scrollIntoView({behavior:'smooth'});
+}
+
+
+// ══════════════════════════════════════════════
+// BACKUP AUTOMÁTICO DE DATOS
+// ══════════════════════════════════════════════
+
+var BACKUP_PATH = 'tesoreria/gdv_v4d_backups';
+var _lastBackupDay = null;
+
+function getBackupDayKey() {
+  // Returns YYYY-MM-DD in Paraguay time
+  var pyMs = new Date().getTime() - (4 * 3600000);
+  var py = new Date(pyMs);
+  return py.getUTCFullYear()+'-'
+    +('0'+(py.getUTCMonth()+1)).slice(-2)+'-'
+    +('0'+py.getUTCDate()).slice(-2);
+}
+
+function autoBackup() {
+  // Run once per day - saves full state to Firebase backup path
+  if(!FB_CONNECTED || !FBDB) return;
+  var dayKey = getBackupDayKey();
+  if(_lastBackupDay === dayKey) return; // already backed up today
+  _lastBackupDay = dayKey;
+
+  var extra = buildExtra();
+  // Add metadata
+  extra._backup_ts = new Date().toISOString();
+  extra._backup_day = dayKey;
+  extra._record_counts = {
+    cheques: (DB.cheques||[]).length,
+    transferencias: (DB.transferencias||[]).length,
+    cobros: (DB.cobros||[]).length,
+    prestamos: (DB.prestamos||[]).length
+  };
+
+  FBDB.ref(BACKUP_PATH+'/'+dayKey).set(extra)
+    .then(function(){
+      console.log('Backup automático guardado:', dayKey);
+      pruneOldBackups();
+    })
+    .catch(function(e){ console.warn('Backup error:', e); });
+
+  // Save to localStorage
+  saveLocalSnapshot(dayKey, extra);
+  // Auto-download on first backup of the day (silent)
+  downloadBackupFile(extra, 'GDV_Tesoreria_autobackup_'+dayKey+'.json');
+}
+
+function saveLocalSnapshot(dayKey, extra) {
+  try {
+    var snaps = JSON.parse(localStorage.getItem('gdv_backups_index')||'[]');
+    localStorage.setItem('gdv_backup_'+dayKey, JSON.stringify(extra));
+    if(snaps.indexOf(dayKey) === -1) snaps.push(dayKey);
+    snaps.sort().reverse(); // newest first
+    // Keep only last 5
+    while(snaps.length > 5) {
+      var old = snaps.pop();
+      localStorage.removeItem('gdv_backup_'+old);
+    }
+    localStorage.setItem('gdv_backups_index', JSON.stringify(snaps));
+  } catch(e) { console.warn('Local snapshot error:', e); }
+}
+
+function pruneOldBackups() {
+  // Remove backups older than 30 days from Firebase
+  if(!FB_CONNECTED || !FBDB) return;
+  var pyMs = new Date().getTime() - (4 * 3600000);
+  var cutoff = new Date(pyMs - 30*86400000);
+  var cutoffKey = cutoff.getUTCFullYear()+'-'
+    +('0'+(cutoff.getUTCMonth()+1)).slice(-2)+'-'
+    +('0'+cutoff.getUTCDate()).slice(-2);
+
+  FBDB.ref(BACKUP_PATH).orderByKey().endAt(cutoffKey).once('value', function(snap){
+    if(!snap.exists()) return;
+    var updates = {};
+    snap.forEach(function(child){ updates[child.key] = null; });
+    if(Object.keys(updates).length > 0) {
+      FBDB.ref(BACKUP_PATH).update(updates)
+        .then(function(){ console.log('Backups antiguos eliminados:', Object.keys(updates).length); });
+    }
+  });
+}
+
+function downloadBackupFile(data, filename) {
+  // Build a complete snapshot including DEFAULT_DATA + Firebase extras
+  var fullSnapshot = {
+    _meta: {
+      version: 'GDV_Tesoreria_v4',
+      exported: new Date().toISOString(),
+      day_paraguay: getBackupDayKey(),
+      record_counts: {
+        cheques: (DB.cheques||[]).length,
+        transferencias: (DB.transferencias||[]).length,
+        cobros: (DB.cobros||[]).length,
+        cobrosRecibidos: (DB.cobrosRecibidos||[]).length,
+        chequesCobrados: (DB.chequesCobrados||[]).length,
+        transferenciasRealizadas: (DB.transferenciasRealizadas||[]).length,
+        prestamos: (DB.prestamos||[]).length,
+        cajachica: (DB.cajachica||[]).length,
+        disponible: (DB.disponible||[]).length,
+        deseos: (DB.deseos||[]).length
+      }
+    },
+    // Firebase extra (user changes on top of DEFAULT)
+    firebase_extra: data,
+    // Full in-memory DB state at time of backup
+    db_snapshot: {
+      cheques: DB.cheques||[],
+      transferencias: DB.transferencias||[],
+      cobros: DB.cobros||[],
+      cobrosRecibidos: DB.cobrosRecibidos||[],
+      chequesCobrados: DB.chequesCobrados||[],
+      transferenciasRealizadas: DB.transferenciasRealizadas||[],
+      prestamos: DB.prestamos||[],
+      cajachica: DB.cajachica||[],
+      disponible: DB.disponible||[],
+      deseos: DB.deseos||[]
+    }
+  };
+  var json = JSON.stringify(fullSnapshot, null, 2);
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
+function manualBackup() {
+  var dayKey = getBackupDayKey();
+  var extra = buildExtra();
+  extra._backup_ts = new Date().toISOString();
+  extra._backup_day = dayKey;
+  extra._backup_manual = true;
+  extra._record_counts = {
+    cheques: (DB.cheques||[]).length,
+    transferencias: (DB.transferencias||[]).length,
+    cobros: (DB.cobros||[]).length,
+    prestamos: (DB.prestamos||[]).length
+  };
+
+  var filename = 'GDV_Tesoreria_backup_'+dayKey+'.json';
+
+  // 1. Download file to computer always
+  downloadBackupFile(extra, filename);
+
+  // 2. Save to Firebase if connected
+  if(FB_CONNECTED && FBDB) {
+    FBDB.ref(BACKUP_PATH+'/'+dayKey).set(extra)
+      .then(function(){
+        saveLocalSnapshot(dayKey, extra);
+        renderBackups();
+        showSaveIndicator();
+      })
+      .catch(function(e){ console.warn('Firebase backup error:', e); });
+  }
+
+  // 3. Always save to localStorage
+  saveLocalSnapshot(dayKey, extra);
+}
+
+function renderBackups() {
+  var container = document.getElementById('backups-lista');
+  if(!container) return;
+  container.innerHTML = '<div style="padding:12px;color:var(--ink3)">Cargando backups...</div>';
+
+  // Load from Firebase
+  if(FB_CONNECTED && FBDB) {
+    FBDB.ref(BACKUP_PATH).orderByKey().limitToLast(30).once('value', function(snap){
+      var backups = [];
+      if(snap.exists()){
+        snap.forEach(function(child){
+          var v = child.val();
+          backups.unshift({key: child.key, data: v}); // newest first
+        });
+      }
+      renderBackupsList(container, backups);
+    }).catch(function(){ renderBackupsList(container, []); });
+  } else {
+    // Show local backups
+    var snaps = JSON.parse(localStorage.getItem('gdv_backups_index')||'[]');
+    var backups = snaps.map(function(k){
+      try {
+        var d = JSON.parse(localStorage.getItem('gdv_backup_'+k)||'null');
+        return {key:k, data:d, local:true};
+      } catch(e){ return null; }
+    }).filter(Boolean);
+    renderBackupsList(container, backups);
+  }
+}
+
+function renderBackupsList(container, backups) {
+  if(!backups.length){
+    container.innerHTML = '<div style="padding:20px;color:var(--ink3);text-align:center">No hay backups disponibles todavía.<br>El sistema guarda uno automáticamente cada día.</div>';
+    return;
+  }
+  var html = '';
+  backups.forEach(function(b){
+    var meta = b.data || {};
+    var counts = meta._record_counts || {};
+    var ts = meta._backup_ts ? new Date(meta._backup_ts).toLocaleString('es-PY') : b.key;
+    var isManual = meta._backup_manual;
+    html += '<div style="border:1px solid var(--bdr);border-radius:8px;padding:12px 16px;margin-bottom:10px;background:var(--sur);display:flex;justify-content:space-between;align-items:center;gap:12px">';
+    html += '<div>';
+    html += '<div style="font-weight:700;font-size:14px">'+b.key+(isManual?' <span style="font-size:10px;background:var(--acc);color:#fff;border-radius:4px;padding:1px 6px">Manual</span>':'')+'</div>';
+    html += '<div style="font-size:11px;color:var(--ink3);margin-top:3px">'+ts+(b.local?' · <span style="color:var(--amb)">Local</span>':'')+'</div>';
+    if(counts.cheques !== undefined) {
+      html += '<div style="font-size:11px;color:var(--ink3);margin-top:3px">';
+      html += '📋 '+counts.cheques+' cheques · ';
+      html += '↔ '+counts.transferencias+' transferencias · ';
+      html += '💰 '+counts.cobros+' cobros · ';
+      html += '🏦 '+counts.prestamos+' préstamos';
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn btn-sm" onclick="previewBackup(\''+b.key+'\')" style="font-size:11px">👁 Ver</button>';
+    html += '<button class="btn btn-sm" onclick="downloadBackupEntry(\''+b.key+'\')" style="font-size:11px">⬇ Descargar</button>';
+    html += '<button class="btn btn-sm btn-er" onclick="restoreBackup(\''+b.key+'\')" style="font-size:11px">↩ Restaurar</button>';
+    html += '</div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function downloadBackupEntry(key) {
+  // Download a specific backup entry from Firebase or localStorage
+  function doDownload(data) {
+    if(!data) { alert('No se pudo leer el backup '+key); return; }
+    downloadBackupFile(data, 'GDV_Tesoreria_backup_'+key+'.json');
+  }
+  if(FB_CONNECTED && FBDB) {
+    FBDB.ref(BACKUP_PATH+'/'+key).once('value', function(snap){ doDownload(snap.val()); });
+  } else {
+    try { doDownload(JSON.parse(localStorage.getItem('gdv_backup_'+key)||'null')); }
+    catch(e){ alert('Error al leer backup local.'); }
+  }
+}
+
+function previewBackup(key) {
+  // Load and show summary
+  function showPreview(data) {
+    if(!data) { alert('No se pudo cargar el backup.'); return; }
+    var counts = data._record_counts || {};
+    var msg = 'Backup: ' + key + '\n\n';
+    msg += 'Cheques: ' + (counts.cheques||'?') + '\n';
+    msg += 'Transferencias: ' + (counts.transferencias||'?') + '\n';
+    msg += 'Cobros: ' + (counts.cobros||'?') + '\n';
+    msg += 'Préstamos: ' + (counts.prestamos||'?') + '\n\n';
+    msg += '¿Restaurar este backup?';
+    if(confirm(msg)) restoreBackup(key);
+  }
+
+  if(FB_CONNECTED && FBDB) {
+    FBDB.ref(BACKUP_PATH+'/'+key).once('value', function(snap){
+      showPreview(snap.val());
+    });
+  } else {
+    try {
+      var d = JSON.parse(localStorage.getItem('gdv_backup_'+key)||'null');
+      showPreview(d);
+    } catch(e){ alert('Error al leer backup local.'); }
+  }
+}
+
+function restoreBackup(key) {
+  if(!confirm('ATENCIÓN: Restaurar el backup del '+key+'\n\nEsto reemplazará los datos actuales.\n¿Estás seguro?')) return;
+
+  function doRestore(data) {
+    if(!data) { alert('No se pudo leer el backup.'); return; }
+    // First save current state as a "before restore" backup
+    var safeKey = getBackupDayKey()+'_pre_restore';
+    if(FB_CONNECTED && FBDB) {
+      FBDB.ref(BACKUP_PATH+'/'+safeKey).set(buildExtra());
+    }
+    // Apply the backup
+    applyExtra(data);
+    // Save restored state as current
+    guardarEstado();
+    alert('Backup restaurado correctamente.\nSe guardó una copia de seguridad del estado anterior.');
+    // Reload current view
+    renderView('dashboard');
+    updateBadges();
+  }
+
+  if(FB_CONNECTED && FBDB) {
+    FBDB.ref(BACKUP_PATH+'/'+key).once('value', function(snap){
+      doRestore(snap.val());
+    });
+  } else {
+    try {
+      var d = JSON.parse(localStorage.getItem('gdv_backup_'+key)||'null');
+      doRestore(d);
+    } catch(e){ alert('Error al restaurar backup local.'); }
+  }
+}
+
 </script>
 </body>
 </html>
