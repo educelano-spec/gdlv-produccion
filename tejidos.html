@@ -951,7 +951,7 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
           <div><div class="cr-label">Metros necesarios</div><div class="cr-val" id="lr-metros">—</div></div>
           <div><div class="cr-label">Costo total tela</div><div class="cr-val" id="lr-costo">—</div></div>
           <div><div class="cr-label">Costo tela/prenda</div><div class="cr-val" id="lr-unit">—</div></div>
-          <div><div class="cr-label">+ 10% desperdicio</div><div class="cr-val" id="lr-total">—</div></div>
+          <div><div class="cr-label">+ 3% merma</div><div class="cr-val" id="lr-total">—</div></div>
         </div>
       </div>
     </div>
@@ -1139,11 +1139,9 @@ let tejidos = JSON.parse(JSON.stringify(DATA_INICIAL));
 let selected = new Set();
 let activeProv = null;
 let consumos = [
-  {nombre:'Remera manga corta', metros:0.85, ancho:1.80, talle:'M', notas:'sin mangas'},
-  {nombre:'Remera manga larga', metros:1.10, ancho:1.80, talle:'M', notas:''},
-  {nombre:'Short deportivo', metros:0.55, ancho:1.80, talle:'M', notas:''},
-  {nombre:'Camiseta fútbol', metros:0.80, ancho:1.80, talle:'M', notas:'sin mangas largas'},
-  {nombre:'Buzo sin capucha', metros:1.40, ancho:1.80, talle:'M', notas:''},
+  {nombre:'Remera básica', metros:0.742, ancho:1.80, talle:'Promedio', notas:'promedio talles P a XG, moldería Basica2023'},
+  {nombre:'Short deportivo', metros:0.55, ancho:1.80, talle:'M', notas:'estimado'},
+  {nombre:'Buzo sin capucha', metros:1.40, ancho:1.80, talle:'M', notas:'estimado'},
 ];
 let _fbLoaded = false;
 
@@ -1818,7 +1816,7 @@ function calcLote() {
   const totalM = c.metros * cant;
   const costoTotal = precio ? totalM * precio : null;
   const costoUnit = precio ? c.metros * precio : null;
-  const totalMas10 = precio ? totalM * 1.10 * precio : null;
+  const totalMas10 = precio ? totalM * 1.03 * precio : null;
   document.getElementById('lr-metros').textContent = totalM.toFixed(2)+' m';
   document.getElementById('lr-costo').textContent = costoTotal?gs(costoTotal):'Ingresá precio';
   document.getElementById('lr-unit').textContent = costoUnit?gs(costoUnit):'—';
