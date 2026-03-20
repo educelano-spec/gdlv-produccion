@@ -477,6 +477,7 @@ datalist{}
     <div style='display:flex;gap:10px;flex-wrap:wrap;align-items:center'>
       <button class='btn btn-prim' onclick='exportarJSON()'>📤 EXPORTAR DATOS</button>
       <button class='btn btn-sec' onclick='importarJSON()'>📥 IMPORTAR DATOS</button>
+      <button class='btn btn-sec' onclick='abrirModalBackups()' style='border-color:#2563a8;color:#2563a8'>💾 BACKUPS</button>
       <button class='btn btn-prim' onclick="document.getElementById('modal-pegar').style.display='flex'" style='background:var(--gr);border-color:var(--gr);'>📋 PEGAR PEDIDO VENDEDOR</button>
       <span style='font-family:DM Mono,monospace;font-size:10px;color:var(--m)'>El archivo incluye pedidos, producción real, áreas, pesos y feriados.</span>
     </div>
@@ -1426,6 +1427,196 @@ function guardarEstado(){
       updatedAt:     new Date().toISOString(),
       updatedBy:     AUTH_ROL || 'unknown'
     }).catch(e => console.warn('Firebase write error:', e));
+  }
+  // Backup automático local (cada vez que se guarda)
+  backupAutomatico();
+}
+
+// ── SISTEMA DE BACKUP AUTOMÁTICO ─────────────────────────
+// Mantiene los últimos 10 backups diarios en localStorage
+// y guarda en Firebase como snapshot de seguridad cada 6 horas
+function backupAutomatico(){
+  try {
+    const ahora = new Date();
+    const fechaHoy = ahora.toISOString().slice(0,10);
+    const horaActual = ahora.getHours();
+    
+    // ── Backup local: 1 por día (sobrescribe si ya hay uno de hoy) ──
+    const snapshot = {
+      fecha: ahora.toISOString(),
+      pedidos: JSON.parse(JSON.stringify(pedidos)),
+      historial: JSON.parse(JSON.stringify(historial)),
+      areas: JSON.parse(JSON.stringify(AREAS)),
+      pesos: JSON.parse(JSON.stringify(PESOS)),
+    };
+    
+    // Leer backups existentes
+    let backups = [];
+    try { backups = JSON.parse(localStorage.getItem('pp_backups') || '[]'); } catch(e){}
+    
+    // Reemplazar backup de hoy si existe, o agregar nuevo
+    const idxHoy = backups.findIndex(b => b.fecha && b.fecha.slice(0,10) === fechaHoy);
+    if(idxHoy >= 0) backups[idxHoy] = snapshot;
+    else backups.unshift(snapshot);
+    
+    // Mantener solo los últimos 10 días
+    backups = backups.slice(0, 10);
+    localStorage.setItem('pp_backups', JSON.stringify(backups));
+    
+    // ── Backup Firebase: snapshot cada 6 horas ──
+    if(window.fbDB){
+      const ultimoBackupFB = localStorage.getItem('pp_ultimo_backup_fb') || '';
+      const slotActual = fechaHoy + '_' + Math.floor(horaActual / 6);
+      if(ultimoBackupFB !== slotActual){
+        const backupKey = fechaHoy.replace(/-/g,'') + '_' + String(Math.floor(horaActual/6)*6).padStart(2,'0') + 'hs';
+        window.fbDB.ref('backups/' + backupKey).set(snapshot)
+          .then(() => {
+            localStorage.setItem('pp_ultimo_backup_fb', slotActual);
+            // Limpiar backups viejos en Firebase (más de 7 días)
+            limpiarBackupsViejosFB();
+          })
+          .catch(e => console.warn('Backup Firebase error:', e));
+      }
+    }
+  } catch(e) {
+    console.warn('Error en backup automático:', e);
+  }
+}
+
+function limpiarBackupsViejosFB(){
+  if(!window.fbDB) return;
+  const limite = new Date();
+  limite.setDate(limite.getDate() - 7);
+  const limiteStr = limite.toISOString().slice(0,10).replace(/-/g,'');
+  window.fbDB.ref('backups').once('value', snap => {
+    const data = snap.val() || {};
+    Object.keys(data).forEach(key => {
+      if(key.slice(0,8) < limiteStr){
+        window.fbDB.ref('backups/' + key).remove();
+      }
+    });
+  }).catch(()=>{});
+}
+
+function obtenerBackups(){
+  try { return JSON.parse(localStorage.getItem('pp_backups') || '[]'); } catch(e){ return []; }
+}
+
+function restaurarBackup(idx){
+  const backups = obtenerBackups();
+  const b = backups[idx];
+  if(!b){ toast('Backup no encontrado','err'); return; }
+  const fecha = new Date(b.fecha).toLocaleString('es-AR');
+  if(!confirm('¿Restaurar backup del ' + fecha + '?\n\nEsto reemplazará TODOS los pedidos e historial actuales con el backup.')) return;
+  pedidos   = JSON.parse(JSON.stringify(b.pedidos   || []));
+  historial = JSON.parse(JSON.stringify(b.historial || []));
+  if(b.areas) AREAS = JSON.parse(JSON.stringify(b.areas));
+  if(b.pesos) PESOS = JSON.parse(JSON.stringify(b.pesos));
+  guardarEstado();
+  replanificarTodo();
+  renderPedidosList();
+  renderResumen(); renderSeguimiento();
+  toast('Backup restaurado: ' + fecha, 'ok');
+  document.getElementById('modal-backups')?.remove();
+}
+
+function restaurarBackupFB(key, fecha){
+  if(!window.fbDB){ toast('Firebase no disponible','err'); return; }
+  if(!confirm('¿Restaurar backup de Firebase del ' + fecha + '?')) return;
+  window.fbDB.ref('backups/' + key).once('value', snap => {
+    const b = snap.val();
+    if(!b){ toast('Backup no encontrado en Firebase','err'); return; }
+    pedidos   = JSON.parse(JSON.stringify(b.pedidos   || []));
+    historial = JSON.parse(JSON.stringify(b.historial || []));
+    if(b.areas) AREAS = JSON.parse(JSON.stringify(b.areas));
+    if(b.pesos) PESOS = JSON.parse(JSON.stringify(b.pesos));
+    guardarEstado();
+    replanificarTodo();
+    renderPedidosList();
+    renderResumen(); renderSeguimiento();
+    toast('Backup Firebase restaurado: ' + fecha, 'ok');
+    document.getElementById('modal-backups')?.remove();
+  }).catch(e => toast('Error: ' + e.message, 'err'));
+}
+
+function abrirModalBackups(){
+  document.getElementById('modal-backups')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'modal-backups';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  
+  const backupsLocal = obtenerBackups();
+  
+  let html = `<div style='background:var(--s);border:1px solid var(--b);border-radius:8px;width:100%;max-width:560px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column'>
+    <div style='background:#2563a8;padding:14px 18px;display:flex;align-items:center;justify-content:space-between'>
+      <span style='font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;color:#fff'>💾 BACKUPS AUTOMÁTICOS</span>
+      <button onclick='document.getElementById("modal-backups").remove()' style='background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer'>✕</button>
+    </div>
+    <div style='padding:16px;overflow-y:auto;flex:1'>
+      <div style='font-size:11px;color:var(--m);font-family:DM Mono,monospace;margin-bottom:12px'>
+        El sistema guarda automáticamente 1 backup por día (últimos 10 días) en este dispositivo,
+        y un snapshot cada 6 horas en Firebase accesible desde cualquier dispositivo.
+      </div>
+      
+      <div style='font-size:11px;font-weight:700;color:var(--t);font-family:DM Mono,monospace;letter-spacing:1px;margin-bottom:8px'>📱 BACKUPS EN ESTE DISPOSITIVO (${backupsLocal.length}/10)</div>`;
+  
+  if(!backupsLocal.length){
+    html += `<div style='font-size:12px;color:var(--m);padding:8px 0'>Sin backups locales aún. Se generará uno automáticamente al próximo guardado.</div>`;
+  } else {
+    backupsLocal.forEach((b,i) => {
+      const fecha = new Date(b.fecha).toLocaleString('es-AR');
+      const nPeds = (b.pedidos||[]).length;
+      const nHist = (b.historial||[]).length;
+      html += `<div style='display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--b);border-radius:6px;margin-bottom:6px;background:var(--b2)'>
+        <div>
+          <div style='font-size:12px;font-weight:700;color:var(--t)'>${fecha}</div>
+          <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace'>${nPeds} pedidos activos · ${nHist} en historial</div>
+        </div>
+        <button onclick='restaurarBackup(${i})' style='padding:5px 10px;background:transparent;color:#2563a8;border:1.5px solid #2563a8;border-radius:4px;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:12px;cursor:pointer'>RESTAURAR</button>
+      </div>`;
+    });
+  }
+  
+  html += `<div style='font-size:11px;font-weight:700;color:var(--t);font-family:DM Mono,monospace;letter-spacing:1px;margin:12px 0 8px'>☁️ BACKUPS EN FIREBASE (últimos 7 días)</div>
+      <div id='lista-backups-fb' style='font-size:12px;color:var(--m)'>Cargando...</div>
+    </div>
+    <div style='padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px'>
+      <button onclick='exportarJSON()' style='flex:1;padding:8px;background:var(--ac);color:#fff;border:none;border-radius:4px;font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:13px;letter-spacing:1px;cursor:pointer'>📤 EXPORTAR JSON AHORA</button>
+      <button onclick='document.getElementById("modal-backups").remove()' style='padding:8px 16px;background:transparent;color:var(--m);border:1.5px solid var(--b);border-radius:4px;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px;cursor:pointer'>CERRAR</button>
+    </div>
+  </div>`;
+  
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  
+  // Cargar backups de Firebase
+  if(window.fbDB){
+    window.fbDB.ref('backups').orderByKey().limitToLast(14).once('value', snap => {
+      const data = snap.val() || {};
+      const keys = Object.keys(data).sort().reverse();
+      const listaEl = document.getElementById('lista-backups-fb');
+      if(!listaEl) return;
+      if(!keys.length){ listaEl.textContent = 'Sin backups en Firebase aún.'; return; }
+      listaEl.innerHTML = keys.map(key => {
+        const b = data[key];
+        const fecha = b.fecha ? new Date(b.fecha).toLocaleString('es-AR') : key;
+        const nPeds = (b.pedidos||[]).length;
+        return `<div style='display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--b);border-radius:6px;margin-bottom:6px;background:var(--b2)'>
+          <div>
+            <div style='font-size:12px;font-weight:700;color:var(--t)'>${fecha}</div>
+            <div style='font-size:10px;color:var(--m);font-family:DM Mono,monospace'>${nPeds} pedidos · clave: ${key}</div>
+          </div>
+          <button onclick='restaurarBackupFB("${key}","${fecha}")' style='padding:5px 10px;background:transparent;color:#00897b;border:1.5px solid #00897b;border-radius:4px;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:12px;cursor:pointer'>RESTAURAR</button>
+        </div>`;
+      }).join('');
+    }).catch(() => {
+      const listaEl = document.getElementById('lista-backups-fb');
+      if(listaEl) listaEl.textContent = 'No se pudo conectar a Firebase.';
+    });
+  } else {
+    const listaEl = document.getElementById('lista-backups-fb');
+    if(listaEl) listaEl.textContent = 'Firebase no disponible.';
   }
 }
 
