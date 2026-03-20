@@ -1648,14 +1648,33 @@ function exportarJSON(){
   const blob = new Blob([JSON.stringify(datos, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+
+  // Nombre con estructura: GDLV/2026/03_Marzo/Semana12/Lunes_16-03-2026.json
+  const ahora = new Date();
+  const anio  = ahora.getFullYear();
+  const mes   = String(ahora.getMonth()+1).padStart(2,'0');
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mesNombre = meses[ahora.getMonth()];
+  const dia   = String(ahora.getDate()).padStart(2,'0');
+  const diasSem = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const diaNombre = diasSem[ahora.getDay()];
+
+  // Número de semana del año
+  const inicioAnio = new Date(anio, 0, 1);
+  const semana = Math.ceil(((ahora - inicioAnio) / 86400000 + inicioAnio.getDay() + 1) / 7);
+
+  // Formato: GDLV_2026_03-Marzo_Semana12_Lunes_16-03.json
+  // (el navegador no puede crear subcarpetas, pero el nombre refleja la estructura)
+  const nombre = `GDLV_${anio}_${mes}-${mesNombre}_Semana${semana}_${diaNombre}_${dia}-${mes}.json`;
+
   a.href     = url;
-  a.download = `planta_control_${fecha}.json`;
+  a.download = nombre;
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
-  toast('Datos exportados — revisá tu carpeta de Descargas', 'ok');
+  localStorage.setItem('pp_ultimo_export', new Date().toISOString());
+  toast(`Exportado como: ${nombre}`, 'ok');
 }
 
 function importarJSON(){
@@ -4231,6 +4250,7 @@ document.getElementById('f-entrega').value=toS(fe);
 cargarContactos();
 renderResumen(); renderSeguimiento();
 setTimeout(renderAlertas, 2000);
+setTimeout(verificarRecordatorioExport, 3000);
 
 
 
@@ -5213,6 +5233,80 @@ function renderContador(){
       </div>
     </div>`;
   }).join('') || '<div class="empty">Sin producción en el período seleccionado</div>';
+}
+
+
+// ══════════════════════════════════════════════════════════
+// RECORDATORIO DE EXPORTACIÓN
+// ══════════════════════════════════════════════════════════
+function verificarRecordatorioExport(){
+  const ultimoExport = localStorage.getItem('pp_ultimo_export');
+  const ahora = new Date();
+
+  let horasDesde = Infinity;
+  if(ultimoExport){
+    const diff = ahora - new Date(ultimoExport);
+    horasDesde = Math.floor(diff / 3600000);
+  }
+
+  // Mostrar recordatorio si pasaron más de 24 horas o nunca exportó
+  if(horasDesde < 24) return;
+
+  const nunca = horasDesde === Infinity;
+  const dias  = Math.floor(horasDesde / 24);
+  const texto = nunca
+    ? 'Nunca exportaste un backup manual del sistema.'
+    : dias === 1
+    ? 'Hace 1 día que no exportás un backup.'
+    : `Hace ${dias} días que no exportás un backup.`;
+
+  // Crear banner no intrusivo en la parte superior
+  const existente = document.getElementById('banner-export');
+  if(existente) existente.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'banner-export';
+  banner.style.cssText = [
+    'position:fixed',
+    'top:0',
+    'left:0',
+    'right:0',
+    'z-index:8888',
+    'background:' + (dias >= 3 ? '#c62828' : '#c8960a'),
+    'color:#fff',
+    'padding:8px 16px',
+    'display:flex',
+    'align-items:center',
+    'justify-content:space-between',
+    'gap:12px',
+    'font-size:12px',
+    'font-family:DM Mono,monospace',
+    'box-shadow:0 2px 8px rgba(0,0,0,.3)',
+  ].join(';');
+
+  banner.innerHTML = `
+    <span>💾 ${texto} Exportá un JSON para tener una copia segura.</span>
+    <div style='display:flex;gap:8px;flex-shrink:0'>
+      <button onclick='exportarJSON();document.getElementById("banner-export").remove()'
+        style='padding:4px 12px;background:#fff;color:${dias>=3?"#c62828":"#c8960a"};border:none;border-radius:4px;
+               font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:12px;letter-spacing:1px;cursor:pointer'>
+        EXPORTAR AHORA
+      </button>
+      <button onclick='document.getElementById("banner-export").remove()'
+        style='padding:4px 10px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);
+               border-radius:4px;font-size:11px;cursor:pointer'>
+        Recordar más tarde
+      </button>
+    </div>`;
+
+  document.body.appendChild(banner);
+
+  // Ajustar el top del contenido para que no tape el menú
+  const app = document.getElementById('app-root');
+  if(app) app.style.paddingTop = '40px';
+  banner.querySelector('button:last-child').addEventListener('click', ()=>{
+    if(app) app.style.paddingTop = '';
+  });
 }
 
 
