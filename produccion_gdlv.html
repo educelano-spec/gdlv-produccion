@@ -674,6 +674,12 @@ body.role-emp .emp-hidden{display:none!important;}
     <div class="hdr-sub">Producción Diaria</div>
   </div>
   <div class="hdr-right">
+    <button onclick="descargarBackup()" title="Descargar copia de seguridad de todos los datos"
+      style="background:none;border:1px solid var(--border2);border-radius:5px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;transition:all .15s;"
+      onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--text2)'"
+      onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border2)'">
+      💾 <span id="backup-status">Backup</span>
+    </button>
     <div id="fb-status" title="Estado Firebase"><div class="fbs-dot"></div><span id="fb-status-txt">Conectando…</span></div>
     <div class="role-badge admin" id="hdr-role-badge" style="display:none">
       <div class="rb-dot"></div>
@@ -1605,6 +1611,103 @@ function normalizarTodosLosTipos(){
   }
 }
 
+
+// ── AUTO-BACKUP ──────────────────────────────────────────────────────
+// Guarda automáticamente en Firebase Storage organizado por fecha
+// + descarga local con nombre año/mes/semana/día
+let _lastBackupSize = 0;
+let _backupTimer = null;
+let _storage = null;
+
+function backupNombrePath(d){
+  // Devuelve { path, filename } organizados por año/mes/semana/día
+  const año  = d.getFullYear();
+  const mes  = String(d.getMonth()+1).padStart(2,'0');
+  const dia  = String(d.getDate()).padStart(2,'0');
+  // Número de semana ISO
+  const temp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayOfWeek = temp.getUTCDay() || 7;
+  temp.setUTCDate(temp.getUTCDate() + 4 - dayOfWeek);
+  const yearStart = new Date(Date.UTC(temp.getUTCFullYear(),0,1));
+  const semana = String(Math.ceil((((temp - yearStart) / 86400000) + 1)/7)).padStart(2,'0');
+  const h   = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  const filename = `gdlv_${año}-${mes}-${dia}_${h}-${min}.json`;
+  const path = `backups/${año}/${mes}/semana-${semana}/${dia}/${filename}`;
+  return { path, filename };
+}
+
+function buildPayload(){
+  return JSON.stringify({
+    exportado: new Date().toISOString(),
+    version: 'gdlv_produccion_v1',
+    total_registros: data.length,
+    data, marcas, empleados
+  });
+}
+
+function autoBackup(forzar=false){
+  if(!data.length) return;
+  const payload = buildPayload();
+  if(!forzar && payload.length === _lastBackupSize) return;
+  _lastBackupSize = payload.length;
+
+  // ── Guardar en localStorage siempre (emergencia offline) ──
+  try {
+    localStorage.setItem('gdlv_backup_auto', payload);
+    localStorage.setItem('gdlv_backup_fecha', new Date().toISOString());
+  } catch(e){}
+
+  // ── Guardar en Firebase Storage (silencioso, no bloquea) ──
+  const ahora = new Date();
+  if(_storage){
+    try{
+      const { path } = backupNombrePath(ahora);
+      const blob = new Blob([payload], {type:'application/json'});
+      _storage.ref(path).put(blob)
+        .then(()=>{
+          console.log('Backup Storage:', path);
+          const elBk = el('backup-status');
+          if(elBk) elBk.title = `Storage: ${path}`;
+        })
+        .catch(err=>{ console.warn('Storage backup falló (datos seguros en localStorage):', err.message); });
+    }catch(e){ console.warn('Storage error:', e.message); }
+  }
+
+  // ── Actualizar indicador en UI ──
+  const elBk = el('backup-status');
+  if(elBk){
+    const h = String(ahora.getHours()).padStart(2,'0');
+    const m = String(ahora.getMinutes()).padStart(2,'0');
+    elBk.textContent = `💾 ${h}:${m}`;
+    elBk.title = `Último backup: ${ahora.toLocaleString()} — también en Firebase Storage`;
+  }
+}
+
+function descargarBackup(){
+  // Descarga con nombre organizado: gdlv_2026-03-20_14-35.json
+  // El usuario puede configurar Chrome para preguntar carpeta,
+  // o simplemente va a Descargas y está ordenado por fecha
+  const ahora = new Date();
+  const { filename } = backupNombrePath(ahora);
+  const payload = buildPayload();
+  const blob = new Blob([payload], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`✓ Backup descargado: ${filename}`,'ok');
+  // También dispara backup a Storage
+  autoBackup(true);
+}
+
+function scheduleBackup(){
+  clearTimeout(_backupTimer);
+  _backupTimer = setTimeout(()=>autoBackup(), 3000);
+}
+
 const AREAS = ['corte','impresion','sublimacion','costura','serigrafia','transfer','empaque'];
 const LABELS = {corte:'CORTE',impresion:'IMPRESIÓN',sublimacion:'SUBLIMACIÓN',costura:'COSTURA',serigrafia:'SERIGRAFÍA',transfer:'TRANSFER',empaque:'EMPAQUE'};
 const COLORS = {corte:'#6d4fc2',impresion:'#0e7fa8',sublimacion:'#c4550a',costura:'#1a7a3c',serigrafia:'#9c1e6a',transfer:'#0e7a6a',empaque:'#8a6b0e'};
@@ -1657,10 +1760,40 @@ function fbStatus(state, txt){
   if(t) t.textContent = txt;
 }
 
+
+// ── FIREBASE STORAGE — carga lazy ────────────────────────────────────
+function _initStorageLazy(){
+  // Solo intenta cargar Storage si ya está disponible el SDK
+  if(typeof firebase !== 'undefined' && firebase.storage){
+    try {
+      _storage = firebase.storage();
+      console.log('Firebase Storage inicializado');
+    } catch(e){
+      console.warn('Storage no disponible, backups solo en localStorage:', e);
+    }
+    return;
+  }
+  // Si el SDK no está cargado, cargarlo dinámicamente
+  const script = document.createElement('script');
+  script.src = 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js';
+  script.onload = ()=>{
+    try {
+      _storage = firebase.storage();
+      console.log('Firebase Storage cargado y listo');
+    } catch(e){
+      console.warn('Storage cargó pero falló init:', e);
+    }
+  };
+  script.onerror = ()=>{ console.warn('No se pudo cargar Firebase Storage SDK — backups solo en localStorage'); };
+  document.head.appendChild(script);
+}
+
 function initFirebase(){
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     _db = firebase.database();
+    // Storage: carga dinámica para no bloquear si falla
+    _initStorageLazy();
 
     // Test conexión
     _db.ref('.info/connected').on('value', snap=>{
@@ -1798,6 +1931,7 @@ function lsSave(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
 // ── SAVE → Firebase + localStorage ───────────────────────────────────
 function save(){
   lsSave('gdlv_data', data);
+  scheduleBackup();
   if(_fbReady){
     fbStatus('sync','Guardando…');
     _fbIgnoreNext = true;
@@ -3548,9 +3682,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   updateDlTipos();
   updateDlEmp();
   renderResumen();
+  setTimeout(()=>autoBackup(true), 2000); // backup inicial al cargar
   AREAS.forEach(renderTabla);
   renderConfig();
   initFirebase();
+  setInterval(()=>autoBackup(), 10*60*1000); // backup automático cada 10 min
   // Bootstrap seed data si todo está vacío (primera vez)
   setTimeout(()=>{
     if(data.length===0 && marcas.length===0){
