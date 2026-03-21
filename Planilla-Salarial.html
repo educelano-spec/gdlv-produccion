@@ -709,7 +709,7 @@ function aplicar(fname){
   var marcData={ini:SEM_INI,fin:SEM_FIN,per:SEM_PER,emps:{}};
   Object.keys(EMPS).forEach(function(id){
     var e=EMPS[id];
-    marcData.emps[id]={marc:e.marc,det:e.det,hsTot:e.hsTot,hsNorm:e.hsNorm,hsNoct:e.hsNoct,hsExt:e.hsExt,hsEsp:e.hsEsp,diasTrab:e.diasTrab,bruto:e.bruto,dIPS:e.dIPS,bIPS:e.bIPS,neto:e.neto,tards:e.tards,totTard:e.totTard};
+    marcData.emps[id]={cfg:e.c,marc:e.marc,det:e.det,hsTot:e.hsTot,hsNorm:e.hsNorm,hsNoct:e.hsNoct,hsExt:e.hsExt,hsEsp:e.hsEsp,diasTrab:e.diasTrab,bruto:e.bruto,dIPS:e.dIPS,bIPS:e.bIPS,neto:e.neto,tards:e.tards,totTard:e.totTard};
   });
   var skSafe=sk.replace(/[^a-zA-Z0-9_]/g,'_');
   fbWrite('marcaciones/'+skSafe,marcData);
@@ -743,14 +743,28 @@ function actualizarSelector(){
 
 function renderSelector(){
   var sel=document.getElementById('sem-sel');
-  var keys=Object.keys(SEMANAS_INDEX).sort().reverse();
+  // Combinar SEMANAS_INDEX (tiene marcaciones) + HIST (resúmenes)
+  var combined={};
+  // Primero del historial (pueden no tener marcaciones)
+  HIST.forEach(function(h){
+    var skSafe=(h.sk||'').replace(/[^a-zA-Z0-9_]/g,'_');
+    if(!skSafe)return;
+    combined[skSafe]={ini:h.ini,fin:h.fin,per:h.sem,tieneMarcaciones:false};
+  });
+  // Encima del índice (estos SÍ tienen marcaciones guardadas)
+  Object.keys(SEMANAS_INDEX).forEach(function(k){
+    var s=SEMANAS_INDEX[k];
+    combined[k]={ini:s.ini,fin:s.fin,per:s.per,tieneMarcaciones:true};
+  });
+  var keys=Object.keys(combined).sort().reverse();
   if(keys.length===0){sel.style.display='none';return;}
   sel.style.display='inline-block';
   var cur=sKey().replace(/[^a-zA-Z0-9_]/g,'_');
   sel.innerHTML=keys.map(function(k){
-    var s=SEMANAS_INDEX[k];
+    var s=combined[k];
     var lbl=s.per||(s.ini+' → '+s.fin);
-    return '<option value="'+k+'"'+(k===cur?' selected':'')+'>📅 '+lbl+'</option>';
+    var prefix=s.tieneMarcaciones?'📅 ':'📋 ';
+    return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+prefix+lbl+'</option>';
   }).join('');
 }
 
@@ -774,8 +788,8 @@ function restaurarSemana(dat,skSafe){
   SEM_INI=dat.ini;SEM_FIN=dat.fin;SEM_PER=dat.per||'';
   EMPS={};
   Object.keys(dat.emps).forEach(function(id){
-    var cfg=CFG[id];if(!cfg)return;
     var ed=dat.emps[id];
+    var cfg=CFG[id]||ed.cfg||null;if(!cfg)return;
     // Recalcular ads para la semana restaurada
     var sk=SEM_INI+'__'+SEM_FIN;
     var ads=(ADELS[id]||[]).filter(function(a){return a.sk===sk;});
@@ -1212,11 +1226,11 @@ function addAdel(){
   if(!id||!mo||mo<=0){alert('Completá empleado y monto.');return;}
   if(!ADELS[id])ADELS[id]=[];
   ADELS[id].push({tp:tp,mo:mo,fe:fe,conc:conc,sk:sKey()});
-  fbWrite('adelantos',ADELS);lsSet('adels',ADELS);
+  fbWrite('adelantos',ADELS);lsSet('adelantos',ADELS);
   recalcEmp(id);renderAdelList();
   document.getElementById('a-monto').value='';document.getElementById('a-conc').value='';
 }
-function delAdel(id,i){if(ADELS[id])ADELS[id].splice(i,1);fbWrite('adelantos',ADELS);lsSet('adels',ADELS);recalcEmp(id);renderAdelList();}
+function delAdel(id,i){if(ADELS[id])ADELS[id].splice(i,1);fbWrite('adelantos',ADELS);lsSet('adelantos',ADELS);recalcEmp(id);renderAdelList();}
 function recalcEmp(id){if(EMPS[id])calcPago(id,CFG[id],EMPS[id].marc);updTots();renderSide();if(CUR===id)renderEmp(id);}
 function renderAdelList(){
   var c=document.getElementById('adel-list'),sk=sKey(),all=[];
@@ -1266,37 +1280,93 @@ function demo(){
 // ══════════════════════════════════════════════════════
 function initData(){
   fbDot('sync');
-  fbRead('feriados',function(d){if(d){FERIADOS=d;renderFeriados();}});
   fbListen('historial',function(d){
     if(!d)return;
     HIST=Object.values(d).sort(function(a,b){return (a.ini||'').localeCompare(b.ini||'');});
-    lsSet('hist',HIST);pobFilt();
+    lsSet('hist',HIST);pobFilt();renderSelector();
     if(GTAB==='resumen')renderRes();
     if(GTAB==='historial')renderHist();
   });
-  // Carga secuencial para garantizar CFG disponible antes de restaurar semana
+
+  // ── Estrategia: localStorage primero (síncrono, inmediato), Firebase actualiza encima ──
+
+  // 0. HIST desde localStorage
+  var lsHist=lsGet('hist');
+  if(lsHist&&lsHist.length){HIST=lsHist;pobFilt();}
+
+  // 1. CFG desde localStorage
   var lsCfg=lsGet('config_empleados');
-  if(lsCfg&&Object.keys(lsCfg).length){CFG=lsCfg;renderCfgGrid();}
-  function paso3_restaurar(){
-    var lsIdx=lsGet('semanas_index');
-    if(lsIdx&&Object.keys(lsIdx).length){SEMANAS_INDEX=lsIdx;renderSelector();}
-    fbRead('semanas_index',function(d){
-      if(d&&Object.keys(d).length){SEMANAS_INDEX=d;lsSet('semanas_index',d);renderSelector();}
-      var ultima=lsGet('ultima_sem');
-      if(ultima&&SEMANAS_INDEX[ultima]){cargarSemana(ultima);}
-    });
+  if(lsCfg&&Object.keys(lsCfg).length){CFG=lsCfg;}
+
+  // 2. Feriados desde localStorage
+  var lsFer=lsGet('feriados');
+  if(lsFer){FERIADOS=lsFer;}
+
+  // 3. Adelantos desde localStorage
+  var lsA=lsGet('adelantos');
+  if(lsA){ADELS=lsA;}
+
+  // 4. Índice de semanas desde localStorage
+  var lsIdx=lsGet('semanas_index');
+  if(lsIdx&&Object.keys(lsIdx).length){SEMANAS_INDEX=lsIdx;renderSelector();}
+
+  // 5. Restaurar última semana (usando lo que ya tenemos en localStorage)
+  function intentarRestaurar(){
+    var ultima=lsGet('ultima_sem');
+    if(ultima&&SEMANAS_INDEX[ultima]){
+      var dat=lsGet('marcaciones_'+ultima);
+      if(dat&&Object.keys(CFG).length){
+        restaurarSemana(dat,ultima);
+        return true;
+      }
+    }
+    return false;
   }
-  function paso2_adels(){
-    var lsA=lsGet('adelantos');
-    if(lsA)ADELS=lsA;
-    fbRead('adelantos',function(d){
-      if(d){ADELS=d;lsSet('adelantos',d);}
-      paso3_restaurar();
-    });
-  }
+  var restauradoLocal=intentarRestaurar();
+
+  // 6. Firebase actualiza todo en segundo plano
   fbRead('config_empleados',function(d){
     if(d&&Object.keys(d).length){CFG=d;lsSet('config_empleados',d);renderCfgGrid();}
-    paso2_adels();
+    fbRead('feriados',function(d2){
+      if(d2){FERIADOS=d2;lsSet('feriados',d2);renderFeriados();}
+      fbRead('adelantos',function(d3){
+        if(d3){ADELS=d3;lsSet('adelantos',d3);}
+        fbRead('semanas_index',function(d4){
+          if(d4&&Object.keys(d4).length){
+            SEMANAS_INDEX=d4;lsSet('semanas_index',d4);renderSelector();
+          }
+          // Si no se pudo restaurar desde localStorage, intentar ahora con Firebase
+          if(!restauradoLocal){
+            var ultima=lsGet('ultima_sem');
+            if(!ultima){
+              // Tomar la semana más reciente del índice
+              var keys=Object.keys(SEMANAS_INDEX).sort().reverse();
+              if(keys.length)ultima=keys[0];
+            }
+            if(ultima&&SEMANAS_INDEX[ultima]){
+              // Intentar desde localStorage primero, luego Firebase
+              var dat=lsGet('marcaciones_'+ultima);
+              if(dat){restaurarSemana(dat,ultima);}
+              else{
+                DB.ref('planilla_salarios/marcaciones/'+ultima).once('value').then(function(s){
+                  var d=s.val();
+                  if(d){lsSet('marcaciones_'+ultima,d);restaurarSemana(d,ultima);}
+                }).catch(function(){});
+              }
+            }
+          } else {
+            // Ya restaurado: refrescar con Firebase por si hay datos más nuevos
+            var ultima=lsGet('ultima_sem');
+            if(ultima){
+              DB.ref('planilla_salarios/marcaciones/'+ultima).once('value').then(function(s){
+                var d=s.val();
+                if(d){lsSet('marcaciones_'+ultima,d);}
+              }).catch(function(){});
+            }
+          }
+        });
+      });
+    });
   });
 }
 
