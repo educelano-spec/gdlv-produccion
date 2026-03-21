@@ -248,6 +248,7 @@ td.tot{background:var(--s2);color:var(--tx);font-weight:700}
   <div class="hdr-r">
     <span style="font-size:11px;color:var(--t3)"><span class="fb-dot" id="fb-dot"></span><span id="fb-lbl">Firebase</span></span>
     <div class="pill-per" id="per-pill">Sin datos</div>
+    <select id="sem-sel" style="display:none;font-family:Inter,sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--bor2);border-radius:7px;background:var(--sur);color:var(--tx);cursor:pointer" onchange="cargarSemana(this.value)"></select>
     <div class="pill-tot"><span class="lbl">Total semana</span><span class="val" id="tot-hdr">Gs. 0</span></div>
     <button class="btn" onclick="document.getElementById('fi').click()">📂 Importar Excel</button>
     <button class="btn btn-p" onclick="showAdelModal()">💰 Adelantos</button>
@@ -429,7 +430,7 @@ var CFG={
   '6042803216':{nm:'Néstor Franco',tp:'Día',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:null,pd:200000,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#4a6a8a',ini:'NF',act:true},
   '4501472':{nm:'Zunilda Cuenca',tp:'Hora',ent:'07:00',salm:'12:00',ralm:'13:00',sal:'17:00',tol:10,ph:15000,pd:null,pm:null,ips:null,ipsp:9,tope:48,sab:true,col:'#8a5a6a',ini:'ZC',act:true}
 };
-var ADELS={},HIST=[],FERIADOS={};
+var ADELS={},HIST=[],FERIADOS={},SEMANAS_INDEX={};
 var SEM_INI='',SEM_FIN='',SEM_PER='',EMPS={},CUR=null,GTAB='ficha',RTAB='sem';
 
 // ══════════════════════════════════════════════════════
@@ -698,18 +699,104 @@ bn.addEventListener('drop',function(e){
 function aplicar(fname){
   if(!Object.keys(EMPS).length){showSt('Sin empleados reconocidos.','wrn');return;}
   var sk=sKey();
+  // Historial resumen
   var hd={sk:sk,sem:SEM_PER,ini:SEM_INI,fin:SEM_FIN,emps:Object.keys(EMPS).map(function(id){var e=EMPS[id];return{id:id,nm:e.c.nm,hs:e.hsTot,hsExt:e.hsExt,hsNoct:e.hsNoct,hsEsp:e.hsEsp,bruto:e.bruto,neto:e.neto,dIPS:e.dIPS,tard:e.tards.length};})};
   var idx=HIST.findIndex(function(h){return h.sk===sk;});
   if(idx>=0)HIST[idx]=hd;else HIST.push(hd);
   var ho={};HIST.forEach(function(h,i){ho['sem_'+i]=h;});
   fbWrite('historial',ho);
+  // Guardar marcaciones completas por semana en Firebase
+  var marcData={ini:SEM_INI,fin:SEM_FIN,per:SEM_PER,emps:{}};
+  Object.keys(EMPS).forEach(function(id){
+    var e=EMPS[id];
+    marcData.emps[id]={marc:e.marc,det:e.det,hsTot:e.hsTot,hsNorm:e.hsNorm,hsNoct:e.hsNoct,hsExt:e.hsExt,hsEsp:e.hsEsp,diasTrab:e.diasTrab,bruto:e.bruto,dIPS:e.dIPS,bIPS:e.bIPS,neto:e.neto,tards:e.tards,totTard:e.totTard};
+  });
+  var skSafe=sk.replace(/[^a-zA-Z0-9_]/g,'_');
+  fbWrite('marcaciones/'+skSafe,marcData);
+  lsSet('marcaciones_'+skSafe,marcData);
+  lsSet('ultima_sem',skSafe);
+  // Actualizar selector de semanas
+  actualizarSelector();
+  document.getElementById('banner').style.display='none';
+  document.getElementById('app').style.display='grid';
+  document.getElementById('per-pill').textContent='📅 '+(SEM_PER||'Semana');
+  document.getElementById('sem-sel').value=skSafe;
+  document.getElementById('aside-per').textContent=SEM_INI+' → '+SEM_FIN;
+  updTots();renderSide();renderCfgGrid();pobFilt();renderFeriados();
+  showSt((fname?fname+' — ':'')+Object.keys(EMPS).length+' empleados cargados.','ok');
+  selectEmp(Object.keys(EMPS)[0]);
+}
+
+// ══════════════════════════════════════════════════════
+//  SELECTOR DE SEMANAS
+// ══════════════════════════════════════════════════════
+
+function actualizarSelector(){
+  // Registrar semana actual en índice
+  var sk=sKey();
+  var skSafe=sk.replace(/[^a-zA-Z0-9_]/g,'_');
+  SEMANAS_INDEX[skSafe]={ini:SEM_INI,fin:SEM_FIN,per:SEM_PER};
+  lsSet('semanas_index',SEMANAS_INDEX);
+  fbWrite('semanas_index',SEMANAS_INDEX);
+  renderSelector();
+}
+
+function renderSelector(){
+  var sel=document.getElementById('sem-sel');
+  var keys=Object.keys(SEMANAS_INDEX).sort().reverse();
+  if(keys.length===0){sel.style.display='none';return;}
+  sel.style.display='inline-block';
+  var cur=sKey().replace(/[^a-zA-Z0-9_]/g,'_');
+  sel.innerHTML=keys.map(function(k){
+    var s=SEMANAS_INDEX[k];
+    var lbl=s.per||(s.ini+' → '+s.fin);
+    return '<option value="'+k+'"'+(k===cur?' selected':'')+'>📅 '+lbl+'</option>';
+  }).join('');
+}
+
+function cargarSemana(skSafe){
+  // Intentar desde localStorage primero, luego Firebase
+  var dat=lsGet('marcaciones_'+skSafe);
+  if(dat){
+    restaurarSemana(dat,skSafe);
+  } else {
+    fbDot('sync');
+    DB.ref('planilla_salarios/marcaciones/'+skSafe).once('value').then(function(s){
+      fbDot('ok');
+      var d=s.val();
+      if(d){lsSet('marcaciones_'+skSafe,d);restaurarSemana(d,skSafe);}
+      else showSt('No se encontraron marcaciones para esa semana.','err');
+    }).catch(function(){fbDot('err');showSt('Error al cargar semana desde Firebase.','err');});
+  }
+}
+
+function restaurarSemana(dat,skSafe){
+  SEM_INI=dat.ini;SEM_FIN=dat.fin;SEM_PER=dat.per||'';
+  EMPS={};
+  Object.keys(dat.emps).forEach(function(id){
+    var cfg=CFG[id];if(!cfg)return;
+    var ed=dat.emps[id];
+    // Recalcular ads para la semana restaurada
+    var sk=SEM_INI+'__'+SEM_FIN;
+    var ads=(ADELS[id]||[]).filter(function(a){return a.sk===sk;});
+    var tAde=ads.filter(function(a){return a.tp==='adelanto';}).reduce(function(s,a){return s+a.mo;},0);
+    var tDes=ads.filter(function(a){return a.tp==='descuento';}).reduce(function(s,a){return s+a.mo;},0);
+    var tBon=ads.filter(function(a){return a.tp==='bonus';}).reduce(function(s,a){return s+a.mo;},0);
+    var DIV2=semanasDelMes(SEM_INI);
+    var bIPS=cfg.ips?Math.round(cfg.ips/DIV2):0;
+    var dIPS=cfg.ips?Math.round(bIPS*(cfg.ipsp||9)/100):0;
+    var neto=ed.bruto-dIPS-tAde-tDes+tBon;
+    EMPS[id]={c:cfg,marc:ed.marc,hsTot:ed.hsTot,hsNorm:ed.hsNorm||0,hsNoct:ed.hsNoct||0,hsExt:ed.hsExt||0,hsEsp:ed.hsEsp||0,diasTrab:ed.diasTrab||0,bruto:ed.bruto,det:ed.det||[],dIPS:dIPS,bIPS:bIPS,ads:ads,tAde:tAde,tDes:tDes,tBon:tBon,neto:neto,tards:ed.tards||[],totTard:ed.totTard||0};
+  });
+  lsSet('ultima_sem',skSafe);
+  document.getElementById('sem-sel').value=skSafe;
   document.getElementById('banner').style.display='none';
   document.getElementById('app').style.display='grid';
   document.getElementById('per-pill').textContent='📅 '+(SEM_PER||'Semana');
   document.getElementById('aside-per').textContent=SEM_INI+' → '+SEM_FIN;
   updTots();renderSide();renderCfgGrid();pobFilt();renderFeriados();
-  showSt((fname?fname+' — ':'')+Object.keys(EMPS).length+' empleados cargados.','ok');
-  selectEmp(Object.keys(EMPS)[0]);
+  showSt('Semana '+(SEM_PER||SEM_INI)+' cargada correctamente.','ok');
+  if(Object.keys(EMPS).length)selectEmp(Object.keys(EMPS)[0]);
 }
 
 function showSt(msg,tp){
@@ -1182,6 +1269,17 @@ function initData(){
   fbRead('config_empleados',function(d){if(d&&Object.keys(d).length){CFG=d;renderCfgGrid();}});
   fbRead('feriados',function(d){if(d){FERIADOS=d;renderFeriados();}});
   fbRead('adelantos',function(d){if(d)ADELS=d;});
+  // Cargar índice de semanas
+  var lsIdx=lsGet('semanas_index');
+  if(lsIdx){SEMANAS_INDEX=lsIdx;renderSelector();}
+  fbRead('semanas_index',function(d){
+    if(d){SEMANAS_INDEX=d;lsSet('semanas_index',d);renderSelector();}
+    // Restaurar última semana activa
+    var ultima=lsGet('ultima_sem');
+    if(ultima&&SEMANAS_INDEX[ultima]){
+      cargarSemana(ultima);
+    }
+  });
   fbListen('historial',function(d){
     if(!d)return;
     HIST=Object.values(d).sort(function(a,b){return (a.ini||'').localeCompare(b.ini||'');});
