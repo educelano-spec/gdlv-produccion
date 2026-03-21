@@ -3378,11 +3378,21 @@ function doLogin() {
   errEl.textContent = '⏳ Verificando...';
   errEl.style.color = 'var(--gold)';
 
-  // Load users from Firebase
-  fetch(FIREBASE_USERS_URL + '.json')
-  .then(function(r){ return r.json(); })
-  .then(function(data) {
+  // Load users — check both dedicated users node AND main data empleados
+  var usersPromise = fetch(FIREBASE_USERS_URL + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
+  var mainPromise  = fetch(FIREBASE_URL + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
+
+  Promise.all([usersPromise, mainPromise])
+  .then(function(results) {
+    var data     = results[0];
+    var mainData = results[1];
+
     var usuarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+
+    // Include empleados from main Firebase data (saved via Ajustes)
+    var empList = (mainData && mainData.empleados) ? mainData.empleados : (S.empleados || []);
+    var empUsuarios = empList.filter(function(e){ return e && (e.user || e.id) && e.pass; });
+    usuarios = usuarios.concat(empUsuarios);
 
     // Always include hardcoded admin as fallback
     usuarios = usuarios.concat(_getDefaultUsers());
@@ -3390,7 +3400,8 @@ function doLogin() {
     var passB64 = btoa(pass);
     var match = usuarios.find(function(u) {
       if (!u || u.activo === false) return false;
-      if (u.id !== user) return false;
+      var uid = u.id || u.user || '';
+      if (uid !== user) return false;
       return u.pass === pass || u.pass === passB64;
     });
 
@@ -3407,11 +3418,15 @@ function doLogin() {
     }
   })
   .catch(function() {
-    // Offline fallback — check default users
-    var usuarios = _getDefaultUsers();
-    var match = usuarios.find(function(u){ return u.id===user && u.pass===pass; });
+    // Offline fallback — check default users + local S.empleados
+    var passB64 = btoa(pass);
+    var usuarios = _getDefaultUsers().concat((S.empleados||[]).filter(function(e){ return e && (e.user||e.id) && e.pass; }));
+    var match = usuarios.find(function(u){
+      var uid = u.id || u.user || '';
+      return uid === user && (u.pass === pass || u.pass === passB64);
+    });
     if (match) {
-      _currentUser = { id:match.id, nombre:match.nombre, rol:match.rol, color:match.color||'#666' };
+      _currentUser = { id:match.id||match.user, nombre:match.nombre, rol:match.rol, color:match.color||'#666' };
       sessionStorage.setItem('gdv_session', JSON.stringify(_currentUser));
       errEl.textContent = '';
       showAppScreen();
