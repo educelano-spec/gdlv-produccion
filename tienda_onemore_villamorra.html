@@ -3384,13 +3384,14 @@ function doLogin() {
   .then(function(data) {
     var usuarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
 
-    // Also check hardcoded admin as fallback
-    if (!usuarios.length) {
-      usuarios = _getDefaultUsers();
-    }
+    // Always include hardcoded admin as fallback
+    usuarios = usuarios.concat(_getDefaultUsers());
 
+    var passB64 = btoa(pass);
     var match = usuarios.find(function(u) {
-      return u && u.id === user && u.pass === pass && u.activo !== false;
+      if (!u || u.activo === false) return false;
+      if (u.id !== user) return false;
+      return u.pass === pass || u.pass === passB64;
     });
 
     if (match) {
