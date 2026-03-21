@@ -374,6 +374,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
     <div class="nav-sec-lbl">Ingresos</div>
     <div class="nav-item" onclick="showView('cobros')"><span class="nav-ico">💰</span>Cobros Pendientes<span class="nbadge grn" id="nb-cob">0</span></div>
     <div class="nav-item" onclick="showView('cobros-recibidos')"><span class="nav-ico">✅</span>Cobros Recibidos</div>
+    <div class="nav-item" onclick="showView('pedidos')"><span class="nav-ico">📦</span>Pedidos / Ventas<span class="nbadge grn" id="nb-ped">0</span></div>
   </div>
   <div class="nav-div"></div>
   <div class="nav-sec">
@@ -1114,6 +1115,57 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
       <th style="text-align:right">Monto</th><th>Tipo</th><th>Estado</th><th>Factura</th><th></th>
     </tr></thead><tbody id="tb-cobros"></tbody></table></div>
   </div>
+</div>
+
+<!-- PEDIDOS / VENTAS -->
+<div id="view-pedidos" class="view">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Pedidos <em>&amp; Ventas</em></div>
+      <div class="ph-sub">Gestión de pedidos · señas · saldos proyectados</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-xl btn-sm" onclick="ped_exportar()">⬇ Excel</button>
+      <button class="btn btn-p" onclick="ped_abrirModal()">+ Nuevo Pedido</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
+    <div class="kpi gn"><div class="kpi-lbl">Pedidos Activos</div><div class="kpi-val pos" id="ped-k-activos">0</div></div>
+    <div class="kpi bl"><div class="kpi-lbl">Total Pedidos</div><div class="kpi-val" id="ped-k-total">Gs 0</div></div>
+    <div class="kpi am"><div class="kpi-lbl">Señas Recibidas</div><div class="kpi-val" id="ped-k-senias">Gs 0</div></div>
+    <div class="kpi rd"><div class="kpi-lbl">Saldo a Cobrar</div><div class="kpi-val neg" id="ped-k-saldo">Gs 0</div></div>
+    <div class="kpi gn"><div class="kpi-lbl">Cobros Este Mes</div><div class="kpi-val pos" id="ped-k-mes">Gs 0</div></div>
+  </div>
+
+  <!-- Filtros -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="filter-btn on" onclick="ped_setFiltro('activos',this)">Activos</button>
+    <button class="filter-btn" onclick="ped_setFiltro('todos',this)">Todos</button>
+    <button class="filter-btn" onclick="ped_setFiltro('entregado',this)">Entregados</button>
+    <button class="filter-btn" onclick="ped_setFiltro('cobrado',this)">Cobrados</button>
+    <button class="filter-btn" onclick="ped_setFiltro('cancelado',this)">Cancelados</button>
+  </div>
+
+  <!-- Tabla -->
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-title">Lista de Pedidos <span class="cnt" id="ped-cnt">0</span></div>
+      <input type="text" class="search-inp" placeholder="Buscar cliente o descripción..." id="ped-buscar" oninput="ped_render()" style="width:220px">
+    </div>
+    <div class="tscroll">
+      <table><thead><tr>
+        <th>Fecha</th><th>Cliente</th><th>Descripción</th>
+        <th class="r">Total</th><th class="r">Seña</th><th class="r">Saldo</th>
+        <th>Entrega est.</th><th>Estado</th><th></th>
+      </tr></thead>
+      <tbody id="ped-tabla"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Pagos parciales panel (se muestra al expandir un pedido) -->
+  <div id="ped-pagos-panel" style="display:none;margin-top:14px"></div>
 </div>
 
 <!-- COBROS RECIBIDOS -->
@@ -3567,6 +3619,7 @@ function renderView(name) {
     'realizados': function() { renderTabla('realizados'); },
     'cobros': function() { renderTabla('cobros'); },
     'cobros-recibidos': renderCobrosRecibidos,
+    'pedidos': function(){ ped_render(); },
     'disponible': renderDisponible,
     'deseos': renderDeseos,
     'backups': function(){ renderBackups(); },
@@ -9053,6 +9106,411 @@ costos_init = function() {
 var _orig_cMin = cMin;
 cMin = function(e) { return cMinReal(e); };
 
+
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO PEDIDOS / VENTAS
+// Firebase path: costos/gdlv_v1 → campo: pedidos[]
+// Los saldos pendientes se inyectan en el Dashboard de Tesorería
+// ══════════════════════════════════════════════════════════════
+
+var PED_FILTRO = 'activos';
+var PED_ESTADOS = ['en-produccion','listo','entregado','cobrado','cancelado'];
+var PED_EST_LABEL = {
+  'en-produccion':'En producción',
+  'listo':'Listo',
+  'entregado':'Entregado',
+  'cobrado':'Cobrado',
+  'cancelado':'Cancelado'
+};
+var PED_EST_CLASS = {
+  'en-produccion':'badge-pend',
+  'listo':'badge-info',
+  'entregado':'badge-paid',
+  'cobrado':'badge-paid',
+  'cancelado':'badge-over'
+};
+
+// ── Getters ─────────────────────────────────────────────────
+function ped_getAll() { return CDB.pedidos || []; }
+
+function ped_getSaldoPendiente(p) {
+  var pagado = (p.pagos||[]).reduce(function(s,pg){return s+cN(pg.monto);},0) + cN(p.senia);
+  return Math.max(0, cN(p.total) - pagado);
+}
+
+function ped_getTotalSenias() {
+  return ped_getAll().filter(function(p){return p.estado!=='cancelado';})
+    .reduce(function(s,p){return s+cN(p.senia);},0);
+}
+
+function ped_getSaldoTotal() {
+  return ped_getAll().filter(function(p){return p.estado!=='cobrado'&&p.estado!=='cancelado';})
+    .reduce(function(s,p){return s+ped_getSaldoPendiente(p);},0);
+}
+
+// Saldo pendiente del mes (para integración con Dashboard de Tesorería)
+function ped_getSaldoMes(mes, anio) {
+  return ped_getAll().filter(function(p){
+    if(p.estado==='cobrado'||p.estado==='cancelado') return false;
+    if(!p.fechaEntrega) return false;
+    var d=new Date(p.fechaEntrega+'T00:00:00');
+    return d.getMonth()+1===mes && d.getFullYear()===anio;
+  }).reduce(function(s,p){return s+ped_getSaldoPendiente(p);},0);
+}
+
+// ── Render principal ─────────────────────────────────────────
+function ped_render() {
+  var hoy    = new Date();
+  var mes    = hoy.getMonth()+1;
+  var anio   = hoy.getFullYear();
+  var todos  = ped_getAll();
+  var buscar = ((document.getElementById('ped-buscar')||{}).value||'').toLowerCase();
+
+  var filtrados = todos.filter(function(p){
+    if(buscar){
+      var hay=(p.cliente||'').toLowerCase().indexOf(buscar)>=0
+           ||(p.descripcion||'').toLowerCase().indexOf(buscar)>=0;
+      if(!hay) return false;
+    }
+    if(PED_FILTRO==='todos') return true;
+    if(PED_FILTRO==='activos') return p.estado!=='cobrado'&&p.estado!=='cancelado';
+    return p.estado===PED_FILTRO;
+  });
+
+  // KPIs
+  var activos=todos.filter(function(p){return p.estado!=='cobrado'&&p.estado!=='cancelado';});
+  var totalPed=activos.reduce(function(s,p){return s+cN(p.total);},0);
+  var senias=ped_getTotalSenias();
+  var saldo=ped_getSaldoTotal();
+  var estesMes=ped_getSaldoMes(mes,anio);
+  var setEl=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('ped-k-activos',activos.length);
+  setEl('ped-k-total',cGs(totalPed));
+  setEl('ped-k-senias',cGs(senias));
+  setEl('ped-k-saldo',cGs(saldo));
+  setEl('ped-k-mes',cGs(estesMes));
+  setEl('ped-cnt',filtrados.length);
+
+  // Badge sidebar
+  var nb=document.getElementById('nb-ped');
+  if(nb) nb.textContent=activos.length;
+
+  // Tabla
+  var tb=document.getElementById('ped-tabla');
+  if(!tb) return;
+
+  if(!filtrados.length){
+    tb.innerHTML='<tr><td colspan="9" class="empty">Sin pedidos'+(buscar?' que coincidan con "'+buscar+'"':'')+'</td></tr>';
+    return;
+  }
+
+  // Ordenar por fecha de entrega más próxima
+  filtrados.sort(function(a,b){
+    var da=a.fechaEntrega||'9999', db=b.fechaEntrega||'9999';
+    return da>db?1:da<db?-1:0;
+  });
+
+  tb.innerHTML=filtrados.map(function(p){
+    var saldo2  = ped_getSaldoPendiente(p);
+    var vencido = p.fechaEntrega && p.fechaEntrega < hoy.toISOString().slice(0,10)
+                  && p.estado!=='cobrado' && p.estado!=='cancelado';
+    var idx=CDB.pedidos.findIndex(function(x){return x.id===p.id;});
+    return '<tr style="'+(vencido?'background:var(--ambl)':'')+'">'
+      +'<td style="font-family:JetBrains Mono,monospace;font-size:11px">'+(p.fecha||'—')+'</td>'
+      +'<td><strong>'+(p.cliente||'—')+'</strong></td>'
+      +'<td style="color:var(--ink2);font-size:12px">'+(p.descripcion||'—')+'</td>'
+      +'<td class="r" style="font-weight:700">'+cGs(p.total||0)+'</td>'
+      +'<td class="r" style="color:var(--grn)">'+cGs(p.senia||0)+'</td>'
+      +'<td class="r" style="font-weight:700;color:'+(saldo2>0?'var(--red)':'var(--grn)')+'">'+cGs(saldo2)+'</td>'
+      +'<td style="font-family:JetBrains Mono,monospace;font-size:11px;color:'+(vencido?'var(--red)':'var(--ink)')+'">'+(p.fechaEntrega||'—')+(vencido?' ⚠':'')+'</td>'
+      +'<td><span class="'+PED_EST_CLASS[p.estado||'en-produccion']+'">'+PED_EST_LABEL[p.estado||'en-produccion']+'</span></td>'
+      +'<td><div style="display:flex;gap:4px">'
+      +'<button class="btn btn-g btn-sm" onclick="ped_abrirModal('+idx+')">✏</button>'
+      +'<button class="btn btn-g btn-sm" onclick="ped_abrirPagos('+idx+')" title="Pagos parciales">💰</button>'
+      +'<button class="btn btn-del btn-sm" onclick="ped_eliminar('+idx+')">✕</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+
+function ped_setFiltro(f, btn) {
+  PED_FILTRO=f;
+  document.querySelectorAll('#view-pedidos .filter-btn').forEach(function(b){b.classList.remove('on');});
+  if(btn) btn.classList.add('on');
+  ped_render();
+}
+
+// ── Modal nuevo/editar pedido ────────────────────────────────
+function ped_abrirModal(idx) {
+  var p = idx!==undefined ? CDB.pedidos[idx] : null;
+  var div=document.createElement('div'); div.className='modal-body';
+
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:12px';
+
+  function fld(full,lbl,inp,note){
+    var d=document.createElement('div');
+    d.className='fgrp'+(full?' full':'');
+    d.innerHTML='<label>'+lbl+'</label>'+inp+(note?'<small style="color:var(--ink3);font-size:10px">'+note+'</small>':'');
+    return d;
+  }
+
+  grid.appendChild(fld(false,'Cliente *','<input type="text" id="pd-cliente" class="fc" placeholder="Ej: SPORT GROUP">'));
+  grid.appendChild(fld(false,'Fecha del pedido','<input type="date" id="pd-fecha" class="fc">'));
+  grid.appendChild(fld(true,'Descripción del pedido','<input type="text" id="pd-desc" class="fc" placeholder="Ej: 200 remeras sublimadas + 50 camperas">'));
+  grid.appendChild(fld(false,'Monto Total (Gs) *','<input type="number" id="pd-total" class="fc" placeholder="0" oninput="ped_previewSaldo()">'));
+  grid.appendChild(fld(false,'Seña recibida (Gs)','<input type="number" id="pd-senia" class="fc" placeholder="0" oninput="ped_previewSaldo()">','Ya ingresó al banco — no se proyecta'));
+  grid.appendChild(fld(false,'Fecha estimada de entrega/cobro','<input type="date" id="pd-entrega" class="fc">'));
+  grid.appendChild(fld(false,'Forma de pago del saldo',
+    '<select id="pd-forma" class="fc"><option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Mixto</option></select>'));
+  grid.appendChild(fld(false,'Estado',
+    '<select id="pd-estado" class="fc">'
+    +PED_ESTADOS.map(function(e){return '<option value="'+e+'">'+PED_EST_LABEL[e]+'</option>';}).join('')
+    +'</select>'));
+  grid.appendChild(fld(true,'Notas','<input type="text" id="pd-notas" class="fc" placeholder="Observaciones, condiciones especiales...">'));
+  div.appendChild(grid);
+
+  // Preview saldo
+  var prev=document.createElement('div');
+  prev.id='pd-saldo-prev';
+  prev.style.cssText='margin-top:12px;padding:10px 14px;background:var(--grnl);border:1px solid #bbf7d0;border-radius:8px;font-size:13px;display:none';
+  div.appendChild(prev);
+
+  // Footer
+  var ftr=document.createElement('div'); ftr.className='modal-ftr';
+  var bc=document.createElement('button'); bc.className='btn btn-g'; bc.textContent='Cancelar';
+  bc.addEventListener('click',function(){closeModal('m-costos-gen');});
+  var bs=document.createElement('button'); bs.className='btn btn-a'; bs.textContent='Guardar Pedido';
+  bs.addEventListener('click',function(){ped_guardar(idx);});
+  ftr.appendChild(bc); ftr.appendChild(bs); div.appendChild(ftr);
+
+  costos_openModal((p?'Editar':'Nuevo')+' Pedido', div.outerHTML);
+
+  // Poblar valores
+  setTimeout(function(){
+    if(p){
+      var s=function(id,v){var e=document.getElementById(id);if(e&&v!==undefined)e.value=v;};
+      s('pd-cliente',p.cliente); s('pd-fecha',p.fecha); s('pd-desc',p.descripcion);
+      s('pd-total',p.total); s('pd-senia',p.senia); s('pd-entrega',p.fechaEntrega);
+      s('pd-forma',p.formaPago); s('pd-estado',p.estado); s('pd-notas',p.notas);
+    } else {
+      var hoy2=new Date().toISOString().slice(0,10);
+      var ef=document.getElementById('pd-fecha'); if(ef) ef.value=hoy2;
+      var es=document.getElementById('pd-estado'); if(es) es.value='en-produccion';
+    }
+    // Re-bind eventos en el DOM insertado
+    var mc=document.querySelector('#m-costos-gen-body .btn-g');
+    var ms=document.querySelector('#m-costos-gen-body .btn-a');
+    if(mc) mc.addEventListener('click',function(){closeModal('m-costos-gen');});
+    if(ms) ms.addEventListener('click',function(){ped_guardar(idx);});
+    var pt=document.getElementById('pd-total');
+    var ps=document.getElementById('pd-senia');
+    if(pt) pt.addEventListener('input',ped_previewSaldo);
+    if(ps) ps.addEventListener('input',ped_previewSaldo);
+    ped_previewSaldo();
+  },80);
+}
+
+function ped_previewSaldo(){
+  var total=cN((document.getElementById('pd-total')||{}).value);
+  var senia=cN((document.getElementById('pd-senia')||{}).value);
+  var saldo=Math.max(0,total-senia);
+  var el=document.getElementById('pd-saldo-prev');
+  if(!el) return;
+  if(!total){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML='Total: <strong>'+cGs(total)+'</strong>'
+    +' &nbsp;·&nbsp; Seña: <strong style="color:var(--grn)">'+cGs(senia)+'</strong>'
+    +' &nbsp;·&nbsp; <strong>Saldo a cobrar: <span style="color:var(--red)">'+cGs(saldo)+'</span></strong>';
+}
+
+function ped_guardar(idx){
+  var cliente=(document.getElementById('pd-cliente')||{}).value||'';
+  if(!cliente){alert('Ingresá el cliente');return;}
+  var total=cN((document.getElementById('pd-total')||{}).value);
+  if(!total){alert('Ingresá el monto total');return;}
+  var ped={
+    id: idx!==undefined?CDB.pedidos[idx].id:cid(),
+    cliente: cliente,
+    fecha: (document.getElementById('pd-fecha')||{}).value||'',
+    descripcion: (document.getElementById('pd-desc')||{}).value||'',
+    total: total,
+    senia: cN((document.getElementById('pd-senia')||{}).value),
+    fechaEntrega: (document.getElementById('pd-entrega')||{}).value||'',
+    formaPago: (document.getElementById('pd-forma')||{}).value||'Transferencia',
+    estado: (document.getElementById('pd-estado')||{}).value||'en-produccion',
+    notas: (document.getElementById('pd-notas')||{}).value||'',
+    pagos: idx!==undefined?(CDB.pedidos[idx].pagos||[]):[]
+  };
+  if(!CDB.pedidos) CDB.pedidos=[];
+  if(idx!==undefined) CDB.pedidos[idx]=ped; else CDB.pedidos.push(ped);
+  cSave(); closeModal('m-costos-gen'); ped_render();
+}
+
+function ped_eliminar(idx){
+  if(!confirm('¿Eliminar este pedido?')) return;
+  CDB.pedidos.splice(idx,1);
+  cSave(); ped_render();
+}
+
+// ── Pagos parciales ──────────────────────────────────────────
+function ped_abrirPagos(idx){
+  var p=CDB.pedidos[idx];
+  if(!p) return;
+  var saldo=ped_getSaldoPendiente(p);
+  var pagos=p.pagos||[];
+
+  var html='<div class="modal-body">';
+  html+='<div style="padding:10px 0 14px;font-size:13px;color:var(--ink2)">';
+  html+='<strong>'+p.cliente+'</strong> — '+p.descripcion;
+  html+='<div style="margin-top:6px;display:flex;gap:16px;font-size:12px">';
+  html+='<span>Total: <strong>'+cGs(p.total)+'</strong></span>';
+  html+='<span style="color:var(--grn)">Seña: <strong>'+cGs(p.senia||0)+'</strong></span>';
+  html+='<span style="color:var(--red)">Saldo: <strong>'+cGs(saldo)+'</strong></span>';
+  html+='</div></div>';
+
+  if(pagos.length){
+    html+='<table style="width:100%;font-size:12px;margin-bottom:12px"><thead><tr>'
+      +'<th>Fecha</th><th>Monto</th><th>Forma</th><th>Nota</th><th></th>'
+      +'</tr></thead><tbody>';
+    pagos.forEach(function(pg,pi){
+      html+='<tr><td style="font-family:JetBrains Mono,monospace;font-size:11px">'+pg.fecha+'</td>'
+        +'<td class="r" style="color:var(--grn);font-weight:700">'+cGs(pg.monto)+'</td>'
+        +'<td>'+( pg.forma||'—')+'</td>'
+        +'<td style="color:var(--ink3)">'+( pg.nota||'—')+'</td>'
+        +'<td><button class="btn btn-del btn-sm" data-idx="'+idx+'" data-pi="'+pi+'" onclick="ped_quitarPago(this.dataset.idx,this.dataset.pi)">✕</button></td></tr>';
+    });
+    html+='</tbody></table>';
+  } else {
+    html+='<p style="font-size:12px;color:var(--ink3);margin-bottom:12px">Sin pagos parciales registrados.</p>';
+  }
+
+  html+='<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:12px">';
+  html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px">Registrar pago</div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
+  html+='<div class="fgrp"><label>Fecha</label><input type="date" id="pp-fecha" class="fc" value="'+new Date().toISOString().slice(0,10)+'"></div>';
+  html+='<div class="fgrp"><label>Monto (Gs)</label><input type="number" id="pp-monto" class="fc" placeholder="0"></div>';
+  html+='<div class="fgrp"><label>Forma</label><select id="pp-forma" class="fc"><option>Transferencia</option><option>Efectivo</option><option>Cheque</option></select></div>';
+  html+='<div class="fgrp full"><label>Nota</label><input type="text" id="pp-nota" class="fc" placeholder="Opcional"></div>';
+  html+='</div></div>';
+  html+='<div class="modal-ftr">';
+  html+='<button class="btn btn-g" onclick="closeModal(\'m-costos-gen\')">Cerrar</button>';
+  html+='<button class="btn btn-a" onclick="ped_agregarPago('+idx+')">Registrar Pago</button>';
+  html+='</div></div>';
+
+  costos_openModal('💰 Pagos — '+p.cliente, html);
+}
+
+function ped_agregarPago(idx){
+  var monto=cN((document.getElementById('pp-monto')||{}).value);
+  if(!monto){alert('Ingresá el monto');return;}
+  var pg={
+    fecha:(document.getElementById('pp-fecha')||{}).value||new Date().toISOString().slice(0,10),
+    monto:monto,
+    forma:(document.getElementById('pp-forma')||{}).value||'Transferencia',
+    nota:(document.getElementById('pp-nota')||{}).value||''
+  };
+  if(!CDB.pedidos[idx].pagos) CDB.pedidos[idx].pagos=[];
+  CDB.pedidos[idx].pagos.push(pg);
+  // Si saldo = 0 → marcar como cobrado automáticamente
+  if(ped_getSaldoPendiente(CDB.pedidos[idx])<=0){
+    CDB.pedidos[idx].estado='cobrado';
+  }
+  cSave(); closeModal('m-costos-gen'); ped_render();
+}
+
+function ped_quitarPago(idx,pi){
+  if(!confirm('¿Quitar este pago?')) return;
+  CDB.pedidos[parseInt(idx)].pagos.splice(parseInt(pi),1);
+  cSave(); closeModal('m-costos-gen'); ped_render();
+}
+
+// ── Exportar a Excel simplificado ────────────────────────────
+function ped_exportar(){
+  var rows=[['Fecha','Cliente','Descripcion','Total','Senia','Saldo','Entrega Est.','Estado','Notas']];
+  ped_getAll().forEach(function(p){
+    rows.push([p.fecha||'',p.cliente||'',p.descripcion||'',p.total||0,p.senia||0,
+      ped_getSaldoPendiente(p),p.fechaEntrega||'',PED_EST_LABEL[p.estado||'en-produccion'],p.notas||'']);
+  });
+  var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='pedidos_gdlv_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+// ── Integración con Dashboard de Tesorería ───────────────────
+// Inyectar saldos de pedidos en el panel de cobros del dashboard
+var _ped_origRenderDash = renderDashboard;
+renderDashboard = function(){
+  _ped_origRenderDash.apply(this, arguments);
+  ped_inyectarEnDashboard();
+};
+
+function ped_inyectarEnDashboard(){
+  var hoy=new Date(); var mes=hoy.getMonth()+1; var anio=hoy.getFullYear();
+  var saldoMes=ped_getSaldoMes(mes,anio);
+  var saldoTotal=ped_getSaldoTotal();
+  var activos=ped_getAll().filter(function(p){return p.estado!=='cobrado'&&p.estado!=='cancelado';});
+
+  // Intentar agregar widget en el dashboard si existe el contenedor
+  var cont=document.getElementById('dash-ped-widget');
+  if(!cont){
+    // Buscar un buen lugar para insertar — después del primer panel de cobros
+    var existing=document.querySelector('#view-dashboard .panel');
+    if(!existing) return;
+    cont=document.createElement('div');
+    cont.id='dash-ped-widget';
+    cont.style.cssText='margin-top:10px';
+    existing.parentNode.insertBefore(cont, existing.nextSibling);
+  }
+
+  if(!saldoTotal && !activos.length){cont.innerHTML='';return;}
+
+  var pedVenc=activos.filter(function(p){
+    return p.fechaEntrega && p.fechaEntrega<hoy.toISOString().slice(0,10);
+  });
+
+  cont.innerHTML='<div class="panel" style="border-left:4px solid var(--grn)">'
+    +'<div class="panel-hdr">'
+    +'<div class="panel-title">📦 Pedidos — Cobros Proyectados</div>'
+    +'<button class="btn btn-g btn-sm" onclick="showView(\'pedidos\')">Ver todos →</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:12px 14px">'
+    +'<div><div style="font-size:11px;color:var(--ink3)">Pedidos activos</div><div style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:16px">'+activos.length+'</div></div>'
+    +'<div><div style="font-size:11px;color:var(--ink3)">Saldo total a cobrar</div><div style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:16px;color:var(--grn)">'+cGs(saldoTotal)+'</div></div>'
+    +'<div><div style="font-size:11px;color:var(--ink3)">Cobros est. este mes</div><div style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:16px;color:var(--acc)">'+cGs(saldoMes)+'</div></div>'
+    +(pedVenc.length?'<div><div style="font-size:11px;color:var(--red)">⚠ Vencidos sin cobrar</div><div style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:16px;color:var(--red)">'+pedVenc.length+'</div></div>':'')
+    +'</div>'
+    +(activos.slice(0,4).length?
+      '<div style="border-top:1px solid var(--bdr);padding:8px 14px">'
+      +activos.slice(0,4).map(function(p){
+        var saldo=ped_getSaldoPendiente(p);
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px">'
+          +'<div><strong>'+p.cliente+'</strong> <span style="color:var(--ink3);font-size:11px">'+( p.fechaEntrega||'sin fecha')+'</span></div>'
+          +'<span style="font-family:JetBrains Mono,monospace;font-weight:700;color:var(--grn)">'+cGs(saldo)+'</span></div>';
+      }).join('')
+      +'</div>':'')
+    +'</div>';
+}
+
+// ── Hook: asegurar que CDB.pedidos existe al cargar costos ───
+var _ped_origCostosInit = costos_init;
+costos_init = function(){
+  _ped_origCostosInit.apply(this, arguments);
+  if(!CDB.pedidos) CDB.pedidos=[];
+};
+
+// ── Hook: actualizar badge al cargar datos ───────────────────
+var _ped_origCostosLoad = typeof costos_load==='function' ? costos_load : null;
+// El listener de Firebase ya actualiza CDB — simplemente re-render badges
+setTimeout(function(){
+  var nb=document.getElementById('nb-ped');
+  if(nb){
+    var n=(CDB.pedidos||[]).filter(function(p){return p.estado!=='cobrado'&&p.estado!=='cancelado';}).length;
+    nb.textContent=n;
+  }
+},3000);
 
 </script>
 </body>
