@@ -1180,7 +1180,7 @@ function saveCfg(){
   var id=_eid||document.getElementById('c-id').value.trim();if(!id){alert('Ingresá un ID.');return;}
   var tp=document.getElementById('c-tipo').value;
   CFG[id]={nm:document.getElementById('c-nm').value.trim(),tp:tp,ent:document.getElementById('c-ent').value,salm:document.getElementById('c-salm').value||null,ralm:document.getElementById('c-ralm').value||null,sal:document.getElementById('c-sal').value,tol:+document.getElementById('c-tol').value||10,ph:tp==='Hora'?+document.getElementById('c-ph').value||null:null,pd:tp==='Día'?+document.getElementById('c-pd').value||null:null,pm:tp==='Mes'?+document.getElementById('c-pm').value||null:null,ips:+document.getElementById('c-ips').value||null,ipsp:+document.getElementById('c-ipsp').value||9,tope:+document.getElementById('c-tope').value||48,sab:document.getElementById('c-sab').value==='si',col:document.getElementById('c-col').value,ini:document.getElementById('c-ini').value.toUpperCase()||document.getElementById('c-nm').value.slice(0,2).toUpperCase(),act:document.getElementById('c-act').value==='si'};
-  fbWrite('config_empleados',CFG);lsSet('cfg',CFG);closeCfg();renderCfgGrid();showSt('Guardado: '+CFG[id].nm,'ok');
+  fbWrite('config_empleados',CFG);lsSet('config_empleados',CFG);closeCfg();renderCfgGrid();showSt('Guardado: '+CFG[id].nm,'ok');
 }
 function renderCfgGrid(){
   var g=document.getElementById('cfg-grid');if(!g)return;
@@ -1266,27 +1266,37 @@ function demo(){
 // ══════════════════════════════════════════════════════
 function initData(){
   fbDot('sync');
-  fbRead('config_empleados',function(d){if(d&&Object.keys(d).length){CFG=d;renderCfgGrid();}});
   fbRead('feriados',function(d){if(d){FERIADOS=d;renderFeriados();}});
-  fbRead('adelantos',function(d){if(d)ADELS=d;});
-  // Cargar índice de semanas
-  var lsIdx=lsGet('semanas_index');
-  if(lsIdx){SEMANAS_INDEX=lsIdx;renderSelector();}
-  fbRead('semanas_index',function(d){
-    if(d){SEMANAS_INDEX=d;lsSet('semanas_index',d);renderSelector();}
-    // Restaurar última semana activa
-    var ultima=lsGet('ultima_sem');
-    if(ultima&&SEMANAS_INDEX[ultima]){
-      cargarSemana(ultima);
-    }
-  });
   fbListen('historial',function(d){
     if(!d)return;
     HIST=Object.values(d).sort(function(a,b){return (a.ini||'').localeCompare(b.ini||'');});
     lsSet('hist',HIST);pobFilt();
-    // No ocultar el banner desde Firebase — el usuario tiene que importar un Excel
     if(GTAB==='resumen')renderRes();
     if(GTAB==='historial')renderHist();
+  });
+  // Carga secuencial para garantizar CFG disponible antes de restaurar semana
+  var lsCfg=lsGet('config_empleados');
+  if(lsCfg&&Object.keys(lsCfg).length){CFG=lsCfg;renderCfgGrid();}
+  function paso3_restaurar(){
+    var lsIdx=lsGet('semanas_index');
+    if(lsIdx&&Object.keys(lsIdx).length){SEMANAS_INDEX=lsIdx;renderSelector();}
+    fbRead('semanas_index',function(d){
+      if(d&&Object.keys(d).length){SEMANAS_INDEX=d;lsSet('semanas_index',d);renderSelector();}
+      var ultima=lsGet('ultima_sem');
+      if(ultima&&SEMANAS_INDEX[ultima]){cargarSemana(ultima);}
+    });
+  }
+  function paso2_adels(){
+    var lsA=lsGet('adelantos');
+    if(lsA)ADELS=lsA;
+    fbRead('adelantos',function(d){
+      if(d){ADELS=d;lsSet('adelantos',d);}
+      paso3_restaurar();
+    });
+  }
+  fbRead('config_empleados',function(d){
+    if(d&&Object.keys(d).length){CFG=d;lsSet('config_empleados',d);renderCfgGrid();}
+    paso2_adels();
   });
 }
 
