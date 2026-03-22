@@ -258,6 +258,7 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
 </head>
 <body>
 
+
 <!-- ══════════ LOGIN SCREEN ══════════ -->
 <div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:36px 40px;width:340px;max-width:95vw;">
@@ -331,7 +332,7 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
       <button class="period-btn" onclick="setPeriod('año',this)">Este año</button>
       <button class="period-btn" onclick="setPeriod('custom',this)">Personalizado</button>
     </div>
-    <div id="custom-range" style="display:none;display:flex;gap:6px;align-items:center;">
+    <div id="custom-range" style="display:none;gap:6px;align-items:center;">
       <input type="date" id="range-from" onchange="renderDashboard()" style="padding:5px 8px;font-size:11px;width:130px;">
       <span style="color:var(--text3);font-size:12px;">→</span>
       <input type="date" id="range-to" onchange="renderDashboard()" style="padding:5px 8px;font-size:11px;width:130px;">
@@ -1176,7 +1177,9 @@ function init(){
       if (data.pedidos    && data.pedidos.length)    S.pedidos    = data.pedidos;
       if (data.facturas   && data.facturas.length)   S.facturas   = data.facturas;
     }
-    save(); renderAll();
+    renderAll();
+    if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
+    setTimeout(function(){ checkDailyBackup(); checkWeeklyDownload(); }, 5000);
   });
 }
 function resetData(){ S={ventas:[...VENTAS_INIT],inventario:INV_INIT.map(p=>({...p,stock:{...p.stock}})),clientes:[...CLI_INIT],ingresos:[],empleados:JSON.parse(JSON.stringify(EMP_INIT)),pedidos:[]}; }
@@ -1194,6 +1197,10 @@ function save(){
     localStorage.setItem('tiendaV4_villamorra', JSON.stringify(slim));
   } catch(e) {
     console.warn('localStorage lleno, solo Sheets:', e.message);
+  }
+  // Trigger Firebase sync (debounced)
+  if (typeof scheduleSync === 'function') {
+    try { scheduleSync(); } catch(e2) {}
   }
 }
 function renderAll(){ renderDashboard(); renderHistorial(); renderInventario(); renderResumen(); renderClientes(); renderIngresos(); renderBottomBar(); buildDataLists(); buildVendedorSelects(); renderEmpleados(); renderPedidos(); if(resumenOpen) renderResumen(); }
@@ -1217,6 +1224,7 @@ const validas=()=>S.ventas.filter(v=>v.estado!=='ANULADA');
 //  TABS
 // ════════════════════════════════════════════
 function showTab(name,btn){
+  if(_currentUser && !canAccess(name)){toast('Sin permisos','err');return;}
   if(name==="ajustes"){document.querySelectorAll(".panel").forEach(function(p){p.classList.remove("active");});document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});document.getElementById("panel-ajustes").classList.add("active");if(btn)btn.classList.add("active");if(typeof renderUsuarios==="function"&&_currentUser&&_currentUser.rol==="admin")renderUsuarios();if(typeof renderBackupPanel==="function")renderBackupPanel();return;}
   if(name==="facturacion"){document.querySelectorAll(".panel").forEach(function(p){p.classList.remove("active");});document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});document.getElementById("panel-facturacion").classList.add("active");if(btn)btn.classList.add("active");renderFacturacion();return;}
   if(name==="reportes"){document.querySelectorAll(".panel").forEach(function(p){p.classList.remove("active");});document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});document.getElementById("panel-reportes").classList.add("active");if(btn)btn.classList.add("active");renderReportes();return;}
@@ -3096,13 +3104,7 @@ function loadFromFirebase(callback) {
 // ── Hook save() to trigger sync ──
 var _origSave = null;
 function hookSave() {
-  if (typeof save === 'function' && !_origSave) {
-    _origSave = save;
-    save = function() {
-      _origSave();
-      scheduleSync();
-    };
-  }
+  // scheduleSync is now called directly from save()
 }
 
 
@@ -3617,15 +3619,7 @@ function restoreSession() {
 // ── Override showTab to enforce permissions ──
 var _origShowTab = null;
 function hookShowTab() {
-  _origShowTab = showTab;
-  showTab = function(name, btn) {
-    if (!_currentUser) { showLoginScreen(); return; }
-    if (!canAccess(name)) {
-      toast('No tenés permisos para acceder a esta sección', 'err');
-      return;
-    }
-    _origShowTab(name, btn);
-  };
+  // Auth check integrated directly into showTab below
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4004,33 +3998,17 @@ function restaurarBackup(date) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   try {
-    // Run init() first to populate S with localStorage/default data
     init();
   } catch(e) {
-    document.getElementById('login-error').textContent = 'Error init: ' + e.message;
-    document.getElementById('login-error').style.color = 'red';
+    console.error('Init error:', e);
   }
-
-  loadFromFirebase(function(data) {
-    if (data) {
-      if (data.inventario && data.inventario.length) S.inventario = data.inventario;
-      if (data.ventas     && data.ventas.length)     S.ventas     = data.ventas;
-      if (data.clientes   && data.clientes.length)   S.clientes   = data.clientes;
-      if (data.ingresos   && data.ingresos.length)   S.ingresos   = data.ingresos;
-      if (data.empleados  && data.empleados.length)  S.empleados  = data.empleados;
-      if (data.pedidos    && data.pedidos.length)    S.pedidos    = data.pedidos;
-      if (data.facturas   && data.facturas.length)   S.facturas   = data.facturas;
-    }
-    save(); renderAll();
-    if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
-    setTimeout(function(){ checkDailyBackup(); checkWeeklyDownload(); }, 5000);
-  });
+  // Fallback: if Firebase takes too long, show login anyway
   setTimeout(function(){
     if (!_currentUser) {
       if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
     }
-  }, 800);
-}); // end DOMContentLoaded
+  }, 3000);
+});
 </script>
 
 </body>
