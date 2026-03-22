@@ -3519,71 +3519,66 @@ function applyRoleUI() {
 
 // ── Login ──
 function doLogin() {
-  var user = document.getElementById('login-user').value.trim().toLowerCase();
-  var pass = document.getElementById('login-pass').value;
-  var errEl = document.getElementById('login-error');
-  if (!user || !pass) { errEl.textContent = 'Ingresá usuario y contraseña'; return; }
+  var user   = (document.getElementById('login-user').value || '').trim().toLowerCase();
+  var pass   = document.getElementById('login-pass').value || '';
+  var errEl  = document.getElementById('login-error');
+
+  if (!user || !pass) { errEl.textContent = 'Ingresá usuario y contraseña'; errEl.style.color = 'var(--red)'; return; }
 
   errEl.textContent = '⏳ Verificando...';
-  errEl.style.color = 'var(--gold)';
+  errEl.style.color = 'var(--accent)';
 
-  // Load users — check both dedicated users node AND main data empleados
-  var usersPromise = fetch(FIREBASE_USERS_URL + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
-  var mainPromise  = fetch(FIREBASE_URL + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
+  // Build candidate list from all sources
+  function buildUsers(firebaseMainData) {
+    var list = [];
+    // 1. Empleados from Firebase main node (most up to date)
+    if (firebaseMainData && Array.isArray(firebaseMainData.empleados)) {
+      firebaseMainData.empleados.forEach(function(e){ if(e) list.push(e); });
+    }
+    // 2. Empleados from local S (loaded from localStorage)
+    (S.empleados || []).forEach(function(e){ if(e) list.push(e); });
+    // 3. Hardcoded admin always last (lowest priority but always available)
+    list.push({ id:'admin', user:'admin', nombre:'ADMINISTRADOR', rol:'admin', pass:'gdv2024', activo:true, color:'#C8952A' });
+    return list;
+  }
 
-  Promise.all([usersPromise, mainPromise])
-  .then(function(results) {
-    var data     = results[0];
-    var mainData = results[1];
-
-    var usuarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
-
-    // Include empleados from main Firebase data (saved via Ajustes)
-    var empList = (mainData && mainData.empleados) ? mainData.empleados : (S.empleados || []);
-    var empUsuarios = empList.filter(function(e){ return e && (e.user || e.id) && e.pass; });
-    usuarios = usuarios.concat(empUsuarios);
-
-    // Always include hardcoded admin as fallback
-    usuarios = usuarios.concat(_getDefaultUsers());
-
-    var passB64 = btoa(pass);
-    var match = usuarios.find(function(u) {
-      if (!u || u.activo === false) return false;
-      var uid = u.id || u.user || '';
+  function tryMatch(list) {
+    var passB64 = btoa(unescape(encodeURIComponent(pass)));  // safe btoa for any charset
+    var passB64simple = btoa(pass);  // simple btoa
+    return list.find(function(u) {
+      if (!u) return false;
+      if (u.activo === false) return false;
+      var uid = (u.id || u.user || '').toLowerCase().trim();
       if (uid !== user) return false;
-      return u.pass === pass || u.pass === passB64;
-    });
+      // Compare: plain text, simple btoa, or safe btoa
+      return u.pass === pass || u.pass === passB64simple || u.pass === passB64;
+    }) || null;
+  }
 
+  function doMatch(firebaseData) {
+    var list  = buildUsers(firebaseData);
+    var match = tryMatch(list);
     if (match) {
-      _currentUser = { id: match.id, nombre: match.nombre, rol: match.rol, color: match.color || '#666' };
+      _currentUser = { id: match.id || match.user, nombre: match.nombre || match.id, rol: match.rol || 'vendedor', color: match.color || '#666' };
       sessionStorage.setItem('gdv_session', JSON.stringify(_currentUser));
       errEl.textContent = '';
       showAppScreen();
     } else {
       errEl.textContent = '❌ Usuario o contraseña incorrectos';
-      errEl.style.color = 'var(--danger)';
+      errEl.style.color = 'var(--red)';
       document.getElementById('login-pass').value = '';
       document.getElementById('login-pass').focus();
     }
-  })
-  .catch(function() {
-    // Offline fallback — check default users + local S.empleados
-    var passB64 = btoa(pass);
-    var usuarios = _getDefaultUsers().concat((S.empleados||[]).filter(function(e){ return e && (e.user||e.id) && e.pass; }));
-    var match = usuarios.find(function(u){
-      var uid = u.id || u.user || '';
-      return uid === user && (u.pass === pass || u.pass === passB64);
+  }
+
+  // Try Firebase first, fall back to local immediately if it fails
+  fetch(FIREBASE_URL + '.json')
+    .then(function(r) { return r.json(); })
+    .then(function(data) { doMatch(data); })
+    .catch(function() {
+      // Firebase unavailable — use local data only
+      doMatch(null);
     });
-    if (match) {
-      _currentUser = { id:match.id||match.user, nombre:match.nombre, rol:match.rol, color:match.color||'#666' };
-      sessionStorage.setItem('gdv_session', JSON.stringify(_currentUser));
-      errEl.textContent = '';
-      showAppScreen();
-    } else {
-      errEl.textContent = '⚠️ Sin conexión. Solo usuarios predeterminados disponibles.';
-      errEl.style.color = 'var(--danger)';
-    }
-  });
 }
 
 function _getDefaultUsers() {
