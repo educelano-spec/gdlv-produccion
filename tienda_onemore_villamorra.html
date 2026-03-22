@@ -3415,8 +3415,8 @@ function renderAlertas(){
       var icon=p.total===0?'\ud83d\udd34':p.bajos.length?'\ud83d\udfe0':'\ud83d\udfe2';
       var urg=p.total===0?'FABRICAR URGENTE':p.bajos.length?'Reponer pronto':'Stock OK';
       var uc=p.total===0?'background:#FEF2F2;color:#DC2626':p.bajos.length?'background:#FFF7ED;color:#EA580C':'background:#F0FDF4;color:#16A34A';
-      var chips=p.vacios.map(function(t){return '<span style="background:#FEF2F2;color:#DC2626;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;">'+t+':0</span>';})\
-        .concat(p.bajos.map(function(t){return '<span style="background:#FFF7ED;color:#EA580C;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;">'+t+':'+p.stock[t]+'</span>';}))\
+      var chips=p.vacios.map(function(t){return '<span style="background:#FEF2F2;color:#DC2626;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;">'+t+':0</span>';})
+        .concat(p.bajos.map(function(t){return '<span style="background:#FFF7ED;color:#EA580C;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;">'+t+':'+p.stock[t]+'</span>';}))
         .concat(p.ok.map(function(t){return '<span style="background:#F0FDF4;color:#16A34A;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;">'+t+':'+p.stock[t]+'</span>';})).join(' ');
       var invP=(S.inventario||[]).find(function(x){return x.cod==p.cod;});
       var thumbHTML=invP&&invP.img
