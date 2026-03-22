@@ -259,7 +259,7 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
 <body>
 
 <!-- ══════════ LOGIN SCREEN ══════════ -->
-<div id="login-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;">
+<div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:36px 40px;width:340px;max-width:95vw;">
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px;">ONE MORE <span style="color:var(--accent);">· TIENDA</span></div>
@@ -3999,6 +3999,9 @@ function restaurarBackup(date) {
 </div>
 
 <script>
+// Run init() first to populate S with localStorage/default data
+init();
+
 loadFromFirebase(function(data) {
     if (data) {
       if (data.inventario && data.inventario.length) S.inventario = data.inventario;
@@ -4017,7 +4020,7 @@ loadFromFirebase(function(data) {
     if (!_currentUser) {
       if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
     }
-  }, 4000);
+  }, 800);
 </script>
 
 </body>
