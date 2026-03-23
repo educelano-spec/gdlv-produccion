@@ -1144,6 +1144,8 @@ function init(){
   renderAll();
   hookSave();
   hookShowTab();
+  // Show login FIRST before Firebase loads
+  if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
   loadFromFirebase(function(data) {
     if (data) {
       if (data.inventario && data.inventario.length) S.inventario = data.inventario;
@@ -1155,7 +1157,8 @@ function init(){
       if (data.facturas   && data.facturas.length)   S.facturas   = data.facturas;
     }
     renderAll();
-    if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
+    // Session already handled above — just refresh UI if logged in
+    if (_currentUser) { applyRoleUI(); }
     setTimeout(function(){ checkDailyBackup(); checkWeeklyDownload(); }, 5000);
   });
 }
@@ -3490,7 +3493,7 @@ function doLogin() {
       rol:    match.rol || 'vendedor',
       color:  match.color || '#666'
     };
-    sessionStorage.setItem('gdv_session', JSON.stringify(_currentUser));
+    sessionStorage.setItem('gdv_session_tienda', JSON.stringify(_currentUser));
     errEl.textContent = '';
     showAppScreen();
     // Then try Firebase in background
@@ -3522,14 +3525,14 @@ function doLogin() {
 function doLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
   _currentUser = null;
-  sessionStorage.removeItem('gdv_session');
+  sessionStorage.removeItem('gdv_session_tienda');
   showLoginScreen();
 }
 
 // ── Restore session ──
 
 function restoreSession() {
-  var saved = sessionStorage.getItem('gdv_session');
+  var saved = sessionStorage.getItem('gdv_session_tienda');
   if (saved) {
     try {
       _currentUser = JSON.parse(saved);
@@ -3907,16 +3910,16 @@ function descargarBackupFecha(date) {
 
 
 function _fullPayload() {
+  // Backup transactional data only — inventario ya esta en Firebase principal
   return {
-    inventario: S.inventario || [],
-    ventas:     S.ventas     || [],
-    clientes:   S.clientes   || [],
-    ingresos:   S.ingresos   || [],
-    empleados:  S.empleados  || [],
-    pedidos:    S.pedidos    || [],
-    facturas:   S.facturas   || [],
-    _fecha:     _pyDate(),
-    _ts:        Date.now()
+    ventas:    S.ventas    || [],
+    clientes:  S.clientes  || [],
+    ingresos:  S.ingresos  || [],
+    empleados: S.empleados || [],
+    pedidos:   S.pedidos   || [],
+    facturas:  S.facturas  || [],
+    _fecha:    _pyDate(),
+    _ts:       Date.now()
   };
 }
 
@@ -4070,11 +4073,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch(e) {
     console.error('Init error:', e);
   }
-  setTimeout(function(){
-    if (!_currentUser) {
-      if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
-    }
-  }, 3000);
+  // Timeout removed — login handled immediately
 });
 </script>
 <div class="modal-bg" id="mod-cierre">
