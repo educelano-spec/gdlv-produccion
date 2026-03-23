@@ -5461,7 +5461,7 @@ function editarTransferencia(idx) {
       var p=d.split('/');
       if(p.length===3) document.getElementById('mp-fecha').value=p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);
     }
-    document.getElementById('mp-monto').value = r.monto||'';
+    var _mEl=document.getElementById('mp-monto');if(_mEl){_mEl.value=r.monto||'';fmtMoney(_mEl);}
     document.getElementById('mp-benef').value = r.beneficiario||'';  // correct ID
     document.getElementById('mp-concepto').value = r.concepto||'';
     document.getElementById('mp-tipo').value = r.tipo||'';
@@ -5518,7 +5518,7 @@ function editarCheque(idx) {
       }
     }
     var s=function(id,v){var e=document.getElementById(id);if(e&&v!==undefined)e.value=v;};
-    s('mp-monto', r.monto||'');
+    var _mel=document.getElementById('mp-monto');if(_mel){_mel.value=r.monto||'';fmtMoney(_mel);}
     s('mp-benef', r.beneficiario||'');
     s('mp-concepto', r.concepto||'');
     s('mp-tipo', r.tipo||'');
@@ -5545,7 +5545,7 @@ function guardarEdicionCheque() {
   if(vtoVal) r.vto=dateToXl(vtoVal);
   var get=function(id){return document.getElementById(id);};
   var v;
-  v=get('mp-monto');    if(v&&v.value) r.monto=v.value;
+  v=get('mp-monto');    if(v&&v.value) r.monto=String(getMoneyVal('mp-monto'));
   v=get('mp-benef');    if(v&&v.value) r.beneficiario=v.value;
   v=get('mp-concepto'); if(v) r.concepto=v.value;
   v=get('mp-tipo');     if(v&&v.value) r.tipo=v.value;
