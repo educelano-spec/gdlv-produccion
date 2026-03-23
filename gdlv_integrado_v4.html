@@ -3569,6 +3569,7 @@ function actionBtns(mod, idx) {
   if (mod === 'cheques') {
     return '<div style="display:flex;gap:3px">' +
       '<button class="btn btn-ok btn-sm" onclick="marcarChequePagado('+idx+')" title="Marcar como cobrado">✓</button>' +
+      '<button class="btn btn-acc btn-sm" onclick="editarCheque('+idx+')" title="Editar">✎</button>' +
       '<button class="btn btn-del btn-sm" onclick="eliminar(\'cheques\','+idx+')" title="Eliminar">✗</button>' +
       '</div>';
   }
@@ -5289,6 +5290,7 @@ function openModal(id, tipo) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   if(id === 'm-pago') {
+    window._editChqIdx = null;
     window._editTraIdx = null;
     var titleEl = document.getElementById('m-pago-title');
     if(titleEl) titleEl.textContent = 'Nuevo Pago';
@@ -5497,6 +5499,67 @@ function guardarEdicionTransferencia() {
   closeModal('m-pago');
   renderTabla('transferencias');
   renderTraMesHeader();
+}
+
+function editarCheque(idx) {
+  var r = DB.cheques[idx];
+  if(!r) return;
+  window._editChqIdx = idx;
+  openModal('m-pago','cheques');
+  setTimeout(function(){
+    var d = xlToDate(r.fecha);
+    if(d && d!=='—') {
+      var p=d.split('/');
+      if(p.length===3) document.getElementById('mp-fecha').value=p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);
+    }
+    var vd = xlToDate(r.vto);
+    if(vd && vd!=='—') {
+      var pv=vd.split('/');
+      if(pv.length===3) {
+        var vtoEl=document.getElementById('mp-vto');
+        if(vtoEl) vtoEl.value=pv[2]+'-'+('0'+pv[1]).slice(-2)+'-'+('0'+pv[0]).slice(-2);
+      }
+    }
+    var s=function(id,v){var e=document.getElementById(id);if(e&&v!==undefined)e.value=v;};
+    s('mp-monto', r.monto||'');
+    s('mp-benef', r.beneficiario||'');
+    s('mp-concepto', r.concepto||'');
+    s('mp-tipo', r.tipo||'');
+    s('mp-cheque', r.cheque||'');
+    s('mp-estado', r.estado||'PENDIENTE');
+    var titleEl=document.getElementById('m-pago-title');
+    if(titleEl) titleEl.textContent='Editar Cheque';
+    var btnEl=document.querySelector('#m-pago .btn-p');
+    if(btnEl){
+      btnEl.textContent='Guardar Cambios';
+      btnEl.setAttribute('onclick','guardarEdicionCheque()');
+    }
+  }, 80);
+}
+
+function guardarEdicionCheque() {
+  var idx = window._editChqIdx;
+  if(idx===undefined||idx===null) return;
+  var r = DB.cheques[idx];
+  if(!r) return;
+  var fechaVal=document.getElementById('mp-fecha').value;
+  if(fechaVal) r.fecha=dateToXl(fechaVal);
+  var vtoVal=document.getElementById('mp-vto').value;
+  if(vtoVal) r.vto=dateToXl(vtoVal);
+  var get=function(id){return document.getElementById(id);};
+  var v;
+  v=get('mp-monto');    if(v&&v.value) r.monto=v.value;
+  v=get('mp-benef');    if(v&&v.value) r.beneficiario=v.value;
+  v=get('mp-concepto'); if(v) r.concepto=v.value;
+  v=get('mp-tipo');     if(v&&v.value) r.tipo=v.value;
+  v=get('mp-cheque');   if(v&&v.value) r.cheque=v.value;
+  v=get('mp-estado');   if(v&&v.value) r.estado=v.value;
+  window._editChqIdx = null;
+  guardarEstado();
+  closeModal('m-pago');
+  renderTabla('cheques');
+  renderChqMesHeader();
+  updateBadges();
 }
 
 function abrirDetalleMes(tipo, mesKey) {
