@@ -1117,6 +1117,7 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
 //  ESTADO
 // ════════════════════════════════════════════
 let S={ventas:[],inventario:[],clientes:[],ingresos:[],empleados:[],pedidos:[],facturas:[]};
+var _currentUser = null;
 let empEditIdx=null;
 let editIdx=null, currentPhoto='', catFilter='TODOS';
 let cliEditIdx=null;
@@ -2830,98 +2831,89 @@ function imprimirFactura(f) {
   var iva10 = Math.round(f.total / 11);
   var iva5  = 0;
   var liq10 = f.total - iva10;
-  var liq5  = 0;
-  var totalIva = iva10;
-  var monto5txt = '0';
-  var monto10txt = Math.round(liq10).toLocaleString('es-PY');
-  var ivaTotal = Math.round(iva10).toLocaleString('es-PY');
   var totalGs = Math.round(f.total).toLocaleString('es-PY');
-
-  // Build items rows HTML (max 12 lines fit in the form)
-  var itemsHtml = '';
-  var maxItems = 12;
-  for(var i=0; i<maxItems; i++) {
-    var item = f.items[i] || null;
-    if(item) {
-      itemsHtml += '<div style="display:flex;height:6.5mm;align-items:center;">'
-        + '<div style="width:14mm;text-align:center;font-size:8pt;">' + item.cant + '</div>'
-        + '<div style="flex:1;font-size:8pt;white-space:nowrap;overflow:hidden;">' + item.desc + '</div>'
-        + '<div style="width:22mm;text-align:right;font-size:8pt;">' + Math.round(item.precio).toLocaleString('es-PY') + '</div>'
-        + '<div style="width:16mm;text-align:right;font-size:8pt;">0</div>'
-        + '<div style="width:13mm;text-align:right;font-size:8pt;">0</div>'
-        + '<div style="width:18mm;text-align:right;font-size:8pt;">' + Math.round(item.total).toLocaleString('es-PY') + '</div>'
-        + '</div>';
-    } else {
-      itemsHtml += '<div style="height:6.5mm;"></div>';
-    }
-  }
-
-  // condicion marks
-  var fechaDisplay=f.fecha?f.fecha.split('-').reverse().join('-'):'';
+  var ivaTotal = Math.round(iva10).toLocaleString('es-PY');
+  var liq10txt = Math.round(liq10).toLocaleString('es-PY');
+  var fechaDisplay = f.fecha ? f.fecha.split('-').reverse().join('-') : '';
   var xContado = f.condicion === 'CONTADO' ? 'X' : '';
   var xCredito = f.condicion === 'CREDITO' ? 'X' : '';
 
-  function buildCopy(offsetLeft) {
-    return '<div style="position:absolute;left:' + offsetLeft + ';top:0;width:103mm;height:297mm;">'
+  // Max 13 item lines fit in the form
+  var maxItems = 13;
 
-      // FECHA
-      + '<div style="position:absolute;top:56mm;left:17mm;font-size:8.5pt;font-weight:400;">' + fechaDisplay + '</div>'
+  // Build one copy positioned absolutely within its column
+  // offL = left offset of that copy in mm from paper left edge
+  function buildCopy(offL) {
+    var h = '';
 
-      // CONDICION checkboxes
-      + '<div style="position:absolute;top:55.5mm;left:75mm;font-size:8.5pt;font-weight:700;">' + xContado + '</div>'
-      + '<div style="position:absolute;top:55.5mm;left:91mm;font-size:8.5pt;font-weight:700;">' + xCredito + '</div>'
+    // FECHA
+    h += pos(offL+22, 59.5, fechaDisplay, 8.5, 'normal');
 
-      // RUC cliente
-      + '<div style="position:absolute;top:63mm;left:17mm;font-size:8.5pt;">' + (f.ruc||'') + '</div>'
+    // CONDICION checkboxes
+    h += pos(offL+83, 59.5, xContado, 9, 'bold');
+    h += pos(offL+97, 59.5, xCredito, 9, 'bold');
 
-      // NOMBRE / RAZON SOCIAL
-      + '<div style="position:absolute;top:70mm;left:17mm;font-size:8.5pt;max-width:50mm;white-space:nowrap;overflow:hidden;">' + (f.cliente||'') + '</div>'
+    // RUC cliente
+    h += pos(offL+14, 67.5, f.ruc||'', 8.5, 'normal');
 
-      // VENDEDOR
-      + '<div style="position:absolute;top:70mm;left:64mm;font-size:8pt;">' + (f.vendedor||'') + '</div>'
+    // NOMBRE / RAZON SOCIAL
+    h += pos(offL+14, 76.5, f.cliente||'', 8.5, 'normal', 65);
 
-      // Items block
-      + '<div style="position:absolute;top:87mm;left:0;width:103mm;">' + itemsHtml + '</div>'
+    // ITEMS — each line 7mm tall starting at top=86mm
+    for (var i = 0; i < maxItems; i++) {
+      var item = f.items[i] || null;
+      var ty = 86 + i * 7;
+      if (item) {
+        h += pos(offL+3,  ty, item.cant+'',  8, 'normal', 10, 'center');
+        h += pos(offL+14, ty, item.desc||'', 8, 'normal', 58);
+        h += pos(offL+72, ty, Math.round(item.precio).toLocaleString('es-PY'), 8, 'normal', 18, 'right');
+        // All items go to 10% column
+        h += pos(offL+91, ty, Math.round(item.total).toLocaleString('es-PY'), 8, 'normal', 12, 'right');
+      }
+    }
 
-      // SUBTOTAL col 10%
-      + '<div style="position:absolute;top:246mm;left:83mm;width:18mm;text-align:right;font-size:8.5pt;">' + totalGs + '</div>'
+    // SUBTOTAL (col 10%)
+    h += pos(offL+79, 202, Math.round(f.total).toLocaleString('es-PY'), 8.5, 'bold', 24, 'right');
 
-      // TOTAL A PAGAR
-      + '<div style="position:absolute;top:252mm;left:83mm;width:18mm;text-align:right;font-size:8.5pt;font-weight:700;">' + totalGs + '</div>'
+    // TOTAL A PAGAR
+    h += pos(offL+79, 210, Math.round(f.total).toLocaleString('es-PY'), 8.5, 'bold', 24, 'right');
 
-      // LIQUIDACION IVA - 5%
-      + '<div style="position:absolute;top:259mm;left:27mm;width:18mm;text-align:right;font-size:8pt;">' + monto5txt + '</div>'
+    // LIQUIDACION IVA
+    // 5% liq = 0 (todo va al 10%)
+    h += pos(offL+23, 218, '0', 8, 'normal', 18, 'right');
+    // 10% liq
+    h += pos(offL+46, 218, liq10txt, 8, 'normal', 22, 'right');
+    // TOTAL IVA
+    h += pos(offL+79, 218, ivaTotal, 8, 'normal', 24, 'right');
 
-      // LIQUIDACION IVA - 10%
-      + '<div style="position:absolute;top:259mm;left:56mm;width:18mm;text-align:right;font-size:8pt;">' + monto10txt + '</div>'
-
-      // TOTAL IVA
-      + '<div style="position:absolute;top:259mm;left:83mm;width:18mm;text-align:right;font-size:8pt;">' + ivaTotal + '</div>'
-
-      // IVA monto 5% (segunda fila liquidacion)
-      + '<div style="position:absolute;top:264mm;left:27mm;width:18mm;text-align:right;font-size:8pt;">' + monto5txt + '</div>'
-
-      // IVA monto 10%
-      + '<div style="position:absolute;top:264mm;left:56mm;width:18mm;text-align:right;font-size:8pt;">' + ivaTotal + '</div>'
-
-    + '</div>';
+    return h;
   }
 
-  var printHtml = '<html><head><meta charset="UTF-8">'
+  function pos(left, top, text, fontSize, weight, width, align) {
+    var w = width ? 'width:'+width+'mm;' : '';
+    var ta = align ? 'text-align:'+align+';' : '';
+    return '<div style="position:absolute;left:'+left+'mm;top:'+top+'mm;'+w+ta
+      +'font-size:'+fontSize+'pt;font-weight:'+(weight||'normal')+';font-family:Arial,sans-serif;'
+      +'white-space:nowrap;overflow:hidden;color:#000;">'
+      + text + '</div>';
+  }
+
+  // Build full A4 page with both copies
+  var printHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
     + '<style>'
     + '@page{size:A4 portrait;margin:0;}'
-    + 'body{margin:0;padding:0;font-family:Arial,sans-serif;color:#000;}'
-    + '.page{position:relative;width:210mm;height:297mm;overflow:hidden;}'
+    + '*{box-sizing:border-box;margin:0;padding:0;}'
+    + 'body{width:210mm;height:297mm;overflow:hidden;position:relative;}'
     + '@media print{body{-webkit-print-color-adjust:exact;}}'
     + '</style></head><body>'
-    + '<div class="page">'
-    + buildCopy('2mm')       // copia izquierda (cliente)
-    + buildCopy('106mm')     // copia derecha (empresa)
-    + '</div>'
-    + '<script>window.onload=function(){window.print();}<\/script>'
+    // Left copy (original - comprador)
+    + buildCopy(3)
+    // Right copy (duplicado - archivo tributario)  
+    + buildCopy(108)
+    + '<script>window.onload=function(){window.print();};<\/script>'
     + '</body></html>';
 
-  var win = window.open('','_blank','width=900,height=700');
+  var win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(printHtml);
   win.document.close();
 }
@@ -3787,7 +3779,7 @@ function toggleUsuario(uid) {
 //  SISTEMA DE BACKUP AUTOMÁTICO
 // ═══════════════════════════════════════════════════════
 
-var BACKUP_BASE_URL = FIREBASE_URL.replace(/\/[^\/]+$/, '') + '/backups_' + FIREBASE_URL.split('/').pop();
+var BACKUP_BASE_URL = FIREBASE_URL + '/backups';
 var BACKUP_DAYS_TO_KEEP = 30;
 var _lastBackupCheck = null;
 
@@ -3819,14 +3811,9 @@ function checkDailyBackup() {
   var lastDone = localStorage.getItem(lastKey);
   if (lastDone === today) return; // ya se hizo hoy
 
-  // Check if backup exists for today
-  fetch(BACKUP_BASE_URL + '/' + today + '/_ts.json')
-  .then(function(r){ return r.json(); })
-  .then(function(ts){
-    if (!ts) { doBackupToFirebase(today); }
-    else { localStorage.setItem(lastKey, today); }
-  })
-  .catch(function(){ doBackupToFirebase(today); });
+  // Mark immediately to prevent duplicate attempts
+  localStorage.setItem(lastKey, today);
+  doBackupToFirebase(today);
 }
 
 function doBackupToFirebase(dateStr) {
@@ -3851,13 +3838,14 @@ function _cleanupOldBackups() {
   fetch(BACKUP_BASE_URL + '.json?shallow=true')
   .then(function(r){ return r.json(); })
   .then(function(keys){
-    if (!keys) return;
+    if (!keys || typeof keys !== 'object') return;
     var dates = Object.keys(keys).sort();
     var toDelete = dates.slice(0, Math.max(0, dates.length - BACKUP_DAYS_TO_KEEP));
     toDelete.forEach(function(d){
-      fetch(BACKUP_BASE_URL + '/' + d + '.json', { method: 'DELETE' });
+      fetch(BACKUP_BASE_URL + '/' + d + '.json', { method: 'DELETE' }).catch(function(){});
     });
-  });
+  })
+  .catch(function(){});
 }
 
 // ── Descarga semanal automática ──
