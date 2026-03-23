@@ -2918,18 +2918,28 @@ function renderPesos(){
 
 // ── EDIT NOMBRE PRENDA (inline) ───────────────────────────────────────
 function startEditPeso(tipo, btn){
-  // Find the row
   const row = btn.closest('tr');
   const tipoCell = row.querySelector('.pesos-tipo-cell');
   const currentName = tipo;
+  // Desactivar el onclick del modal mientras se edita
+  tipoCell.removeAttribute('onclick');
+  tipoCell.style.cursor = 'default';
   tipoCell.innerHTML = `
-    <div style="display:flex;gap:6px;align-items:center">
+    <div style="display:flex;gap:6px;align-items:center" onclick="event.stopPropagation()">
       <input type="text" id="edit-peso-input" value="${currentName}" style="font-size:13px;padding:4px 8px;border:1.5px solid var(--accent);border-radius:4px;font-family:'Plus Jakarta Sans',sans-serif;width:160px">
-      <button class="btn-save-edit" onclick="saveEditPeso('${currentName.replace(/'/g,"\\'")}')">✓</button>
-      <button class="btn-cancel-edit" onclick="renderPesos()">✕</button>
+      <button class="btn-save-edit" onclick="event.stopPropagation();saveEditPeso('${currentName.replace(/'/g,"\\'")}')">✓</button>
+      <button class="btn-cancel-edit" onclick="event.stopPropagation();renderPesos()">✕</button>
     </div>`;
   const inp = el('edit-peso-input');
-  if(inp){ inp.focus(); inp.select(); }
+  if(inp){
+    inp.focus(); inp.select();
+    // Enter para guardar, Escape para cancelar
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.stopPropagation(); saveEditPeso(currentName); }
+      if(e.key==='Escape'){ e.stopPropagation(); renderPesos(); }
+    });
+    inp.addEventListener('click', e=>e.stopPropagation());
+  }
 }
 
 function saveEditPeso(tipoViejo){
