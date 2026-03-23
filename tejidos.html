@@ -119,6 +119,39 @@ body {
 .sync-loading { background: rgba(255,255,255,.15); color: #ffffffbb; }
 .sync-ok      { background: rgba(42,157,143,.35); color: #7fffd4; }
 .sync-error   { background: rgba(230,57,70,.35);  color: #ffaaaa; }
+.btn-backup {
+  background: rgba(255,255,255,.1); color: #ffffffcc;
+  border: 1px solid rgba(255,255,255,.2); border-radius: 6px;
+  padding: 5px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  flex-shrink: 0; transition: all .18s; position: relative;
+}
+.btn-backup:hover { background: rgba(255,255,255,.2); color: #fff; }
+.btn-backup.saving { opacity: .6; cursor: wait; }
+.backup-panel {
+  position: fixed; top: 68px; right: 16px; z-index: 600;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; box-shadow: var(--shadow-lg);
+  width: 340px; max-height: 480px; overflow-y: auto;
+  display: none;
+}
+.backup-panel.open { display: block; }
+.backup-panel-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.backup-panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1.5px; }
+.backup-item {
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+}
+.backup-item:last-child { border-bottom: none; }
+.backup-item-date { font-size: 13px; font-weight: 600; color: var(--text); }
+.backup-item-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.backup-item-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.backup-empty { padding: 32px 18px; text-align: center; color: var(--muted); font-size: 13px; }
 
 /* ── LAYOUT ── */
 .main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
@@ -221,6 +254,7 @@ select:focus { border-color: var(--accent); }
   gap: 6px;
   opacity: 0;
   transition: opacity .2s;
+  z-index: 10;
 }
 .tejido-card:hover .card-actions { opacity: 1; }
 .card-action-btn {
@@ -420,8 +454,10 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
 .card-foto-gallery {
   position: relative; width: 100%; height: 140px;
   border-radius: 8px; margin-bottom: 10px;
-  overflow: hidden; background: var(--bg2);
+  background: var(--bg2);
   border: 1px solid var(--border);
+  overflow: hidden;
+  clip-path: inset(0 round 8px);
 }
 .card-foto-gallery img {
   width: 100%; height: 100%; object-fit: cover;
@@ -664,7 +700,21 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
   </nav>
   <button class="compare-btn" onclick="showSection('comparar')">⚖ Comparar (<span id="compare-count">0</span>)</button>
   <span class="sync-status sync-loading" id="sync-status">⏳ Conectando...</span>
+  <button class="btn-backup" id="btn-backup" onclick="toggleBackupPanel()" title="Backups">💾 Backup</button>
 </header>
+
+<!-- PANEL BACKUPS -->
+<div class="backup-panel" id="backup-panel">
+  <div class="backup-panel-header">
+    <div class="backup-panel-title">💾 Backups</div>
+    <button class="card-action-btn" onclick="toggleBackupPanel()" title="Cerrar">✕</button>
+  </div>
+  <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px">
+    <button class="btn-success" style="flex:1;font-size:12px;padding:8px" onclick="hacerBackup(true)">⬆ Guardar ahora</button>
+    <button class="btn-outline" style="flex:1;font-size:12px;padding:8px" onclick="descargarBackup()">⬇ Descargar JSON</button>
+  </div>
+  <div id="backup-list"></div>
+</div>
 
 <div class="main">
 
@@ -1264,6 +1314,165 @@ function detailGalNav(dir, forcIdx) {
 // ═══════════════════════════════════════════════════════
 //  FIREBASE SYNC
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  BACKUP AUTOMÁTICO
+// ═══════════════════════════════════════════════════════
+const FB_BACKUPS = '/tejidos_sistema/backups';
+const BACKUP_MAX_DIAS = 7;
+const BACKUP_KEY_DIA = 'gdlv_tejidos_ultimo_backup';
+
+function fechaParaguay() {
+  const now = new Date();
+  const py = new Date(now.getTime() - (4 * 3600000));
+  return py.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function tsParaguay() {
+  const now = new Date();
+  return new Date(now.getTime() - (4 * 3600000)).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+async function hacerBackup(manual = false) {
+  if(!window.db) return;
+  const btn = document.getElementById('btn-backup');
+  try {
+    if(btn) { btn.classList.add('saving'); btn.textContent = '⏳ Guardando...'; }
+    const fecha = fechaParaguay();
+    const ts = tsParaguay();
+    const snapshot = {
+      fecha,
+      timestamp: ts,
+      manual,
+      tejidos_count: tejidos.length,
+      consumos_count: consumos.length,
+      tejidos,
+      consumos,
+    };
+    await db.ref(FB_BACKUPS + '/' + fecha).set(snapshot);
+    // Limpiar backups viejos (>7 días)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - BACKUP_MAX_DIAS);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const allSnap = await db.ref(FB_BACKUPS).once('value');
+    const all = allSnap.val() || {};
+    for(const key of Object.keys(all)) {
+      if(key < cutoffStr) await db.ref(FB_BACKUPS + '/' + key).remove();
+    }
+    localStorage.setItem(BACKUP_KEY_DIA, fecha);
+    if(manual) showToast('✓ Backup guardado en Firebase (' + ts + ')');
+    renderBackupList();
+  } catch(e) {
+    if(manual) showToast('⚠ Error al guardar backup: ' + e.message, 'error');
+    console.error('Backup error:', e);
+  } finally {
+    if(btn) { btn.classList.remove('saving'); btn.textContent = '💾 Backup'; }
+  }
+}
+
+function chequearBackupDiario() {
+  const hoy = fechaParaguay();
+  const ultimo = localStorage.getItem(BACKUP_KEY_DIA);
+  if(ultimo !== hoy) {
+    // Esperar 5 segundos a que carguen los datos de Firebase antes de hacer backup
+    setTimeout(() => hacerBackup(false), 5000);
+  }
+}
+
+function descargarBackup() {
+  const hoy = fechaParaguay();
+  const data = {
+    sistema: 'GDV Tejidos',
+    fecha: hoy,
+    timestamp: tsParaguay(),
+    tejidos_count: tejidos.length,
+    consumos_count: consumos.length,
+    tejidos,
+    consumos,
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'gdlv_tejidos_backup_' + hoy + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Archivo descargado');
+}
+
+async function renderBackupList() {
+  if(!window.db) return;
+  const cont = document.getElementById('backup-list');
+  if(!cont) return;
+  try {
+    const snap = await db.ref(FB_BACKUPS).once('value');
+    const all = snap.val() || {};
+    const keys = Object.keys(all).sort().reverse(); // más reciente primero
+    if(!keys.length) {
+      cont.innerHTML = '<div class="backup-empty">No hay backups guardados aún</div>';
+      return;
+    }
+    cont.innerHTML = keys.map(k => {
+      const b = all[k];
+      return `<div class="backup-item">
+        <div>
+          <div class="backup-item-date">${b.fecha} ${b.manual ? '· Manual' : '· Automático'}</div>
+          <div class="backup-item-sub">${b.tejidos_count} tejidos · ${b.consumos_count} consumos · ${b.timestamp}</div>
+        </div>
+        <div class="backup-item-btns">
+          <button class="btn-success" style="font-size:11px;padding:5px 10px" onclick="restaurarBackup('${k}')">↩ Restaurar</button>
+          <button class="card-action-btn" style="font-size:11px;padding:5px 10px;width:auto" onclick="descargarBackupFecha('${k}')">⬇</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    cont.innerHTML = '<div class="backup-empty">Error al cargar backups</div>';
+  }
+}
+
+async function restaurarBackup(fecha) {
+  if(!confirm('¿Restaurar el backup del ' + fecha + '? Se reemplazarán los datos actuales.')) return;
+  try {
+    const snap = await db.ref(FB_BACKUPS + '/' + fecha).once('value');
+    const b = snap.val();
+    if(!b || !b.tejidos) { showToast('Backup inválido', 'error'); return; }
+    // Hacer backup del estado actual antes de restaurar
+    await hacerBackup(true);
+    tejidos = b.tejidos;
+    consumos = b.consumos || consumos;
+    await fbSave();
+    renderStats(); populateProvSelect(); populateProvDatalist();
+    applyFilters(); renderProveedores(); renderConsumos();
+    showToast('✓ Backup del ' + fecha + ' restaurado correctamente');
+    toggleBackupPanel();
+  } catch(e) {
+    showToast('Error al restaurar: ' + e.message, 'error');
+  }
+}
+
+async function descargarBackupFecha(fecha) {
+  try {
+    const snap = await db.ref(FB_BACKUPS + '/' + fecha).once('value');
+    const b = snap.val();
+    if(!b) { showToast('Backup no encontrado', 'error'); return; }
+    const json = JSON.stringify(b, null, 2);
+    const blob = new Blob([json], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gdlv_tejidos_backup_' + fecha + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    showToast('Error al descargar: ' + e.message, 'error');
+  }
+}
+
+function toggleBackupPanel() {
+  const p = document.getElementById('backup-panel');
+  if(p.classList.toggle('open')) renderBackupList();
+}
+
 function fbSave() {
   const obj = {};
   tejidos.forEach((t, i) => { obj[i] = t; });
@@ -1302,6 +1511,7 @@ function fbListen() {
     applyFilters();
     renderProveedores();
     showSyncStatus('✓ Sincronizado', 'ok');
+    chequearBackupDiario();
   }, err => {
     showSyncStatus('⚠ Sin conexión', 'error');
   });
@@ -2247,6 +2457,13 @@ function showSection(id) {
 
 // Click outside modal
 document.getElementById('modal-edit').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('backup-panel');
+  const btn = document.getElementById('btn-backup');
+  if(panel && panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
 document.getElementById('modal-detail').addEventListener('click', function(e){ if(e.target===this) closeDetailModal(); });
 
 init();
@@ -2282,6 +2499,7 @@ init();
   window.db = firebase.database();
   window.FB_TEJIDOS  = '/tejidos_sistema/tejidos';
   window.FB_CONSUMOS = '/tejidos_sistema/consumos';
+  // FB_BACKUPS está definido en el JS como constante global
   fbListen();
 </script>
 </body>
