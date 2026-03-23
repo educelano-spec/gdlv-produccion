@@ -3513,10 +3513,7 @@ function doLogin() {
       }).catch(function(){});
   } else {
     // Show debug info so we can diagnose
-    var debug = 'Usuarios disponibles: ';
-    debug += list.map(function(u){ return (u.id||u.user||'?') + '(pass:' + (u.pass||'').substring(0,6) + '...)'; }).join(', ');
-    debug += ' | Ingresaste: ' + user + ' / pass[0..4]:' + pass.substring(0,4);
-    errEl.innerHTML = '❌ No coincide<br><small style="font-size:10px;word-break:break-all;">' + debug + '</small>';
+    errEl.textContent = '❌ Usuario o contraseña incorrectos';
     errEl.style.color = 'var(--red)';
     document.getElementById('login-pass').value = '';
   }
