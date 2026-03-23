@@ -1168,6 +1168,8 @@ function init(){
   renderAll();
   hookSave();
   hookShowTab();
+  // Show login FIRST before Firebase loads
+  if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
   loadFromFirebase(function(data) {
     if (data) {
       if (data.inventario && data.inventario.length) S.inventario = data.inventario;
@@ -1179,7 +1181,8 @@ function init(){
       if (data.facturas   && data.facturas.length)   S.facturas   = data.facturas;
     }
     renderAll();
-    if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
+    // Session already handled above — just refresh UI if logged in
+    if (_currentUser) { applyRoleUI(); }
     setTimeout(function(){ checkDailyBackup(); checkWeeklyDownload(); }, 5000);
   });
 }
@@ -3570,7 +3573,7 @@ function doLogin() {
       rol:    match.rol || 'vendedor',
       color:  match.color || '#666'
     };
-    sessionStorage.setItem('gdv_session', JSON.stringify(_currentUser));
+    sessionStorage.setItem('gdv_session_villamorra', JSON.stringify(_currentUser));
     errEl.textContent = '';
     showAppScreen();
     // Then try Firebase in background
@@ -3607,13 +3610,13 @@ function _getDefaultUsers() {
 function doLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
   _currentUser = null;
-  sessionStorage.removeItem('gdv_session');
+  sessionStorage.removeItem('gdv_session_villamorra');
   showLoginScreen();
 }
 
 // ── Restore session ──
 function restoreSession() {
-  var saved = sessionStorage.getItem('gdv_session');
+  var saved = sessionStorage.getItem('gdv_session_villamorra');
   if (saved) {
     try {
       _currentUser = JSON.parse(saved);
@@ -3791,16 +3794,16 @@ function _pyDate() {
 
 // ── Payload completo ──
 function _fullPayload() {
+  // Backup transactional data only — inventario ya esta en Firebase principal
   return {
-    inventario: S.inventario || [],
-    ventas:     S.ventas     || [],
-    clientes:   S.clientes   || [],
-    ingresos:   S.ingresos   || [],
-    empleados:  S.empleados  || [],
-    pedidos:    S.pedidos    || [],
-    facturas:   S.facturas   || [],
-    _fecha:     _pyDate(),
-    _ts:        Date.now()
+    ventas:    S.ventas    || [],
+    clientes:  S.clientes  || [],
+    ingresos:  S.ingresos  || [],
+    empleados: S.empleados || [],
+    pedidos:   S.pedidos   || [],
+    facturas:  S.facturas  || [],
+    _fecha:    _pyDate(),
+    _ts:       Date.now()
   };
 }
 
@@ -4121,11 +4124,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.error('Init error:', e);
   }
   // Fallback: if Firebase takes too long, show login anyway
-  setTimeout(function(){
-    if (!_currentUser) {
-      if (restoreSession()) { showAppScreen(); } else { showLoginScreen(); }
-    }
-  }, 3000);
+  // Timeout removed — login handled immediately
 });
 </script>
 
