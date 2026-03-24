@@ -1376,6 +1376,7 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
       <div class="fgrp"><label>% IPS patronal</label><input type="number" id="cfg-ips" value="16.5" step="0.1" class="fc" oninput="costos_saveConf()"></div>
       <div class="fgrp"><label>% Recargo hora extra</label><input type="number" id="cfg-he" value="50" class="fc" oninput="costos_saveConf()"></div>
       <div class="fgrp"><label>MTESS total/mes (Gs)</label><input type="number" id="cfg-mtess" value="2192000" class="fc" oninput="costos_saveConf()"></div>
+      <div class="fgrp"><label>% ANDE → Costo Directo</label><input type="number" id="cfg-ande" value="60" min="0" max="100" class="fc" oninput="costos_saveConf()"><small style="color:var(--ink3);font-size:10px">El resto va a Indirecto</small></div>
     </div>
     <div id="cfg-horas-preview" style="padding:6px 18px 10px;font-size:12px;color:var(--ink2)"></div>
     <div style="border-top:1px solid var(--bdr);padding:12px 18px">
@@ -7602,7 +7603,7 @@ function restoreBackup(key) {
 // ══════════════════════════════════════════════════════════════════
 var C_PATH = 'costos/gdlv_v1';
 var CDB = {
-  conf:        { horas:8, horasSab:5, trabajaDomingo:false, ips:16.5, he:50, mtess:2192000 },
+  conf:        { horas:8, horasSab:5, trabajaDomingo:false, ips:16.5, he:50, mtess:2192000, pctAndeDirecto:60 },
   feriadosCostos: {},
   empleados:   [],
   areas:       [],
@@ -7787,101 +7788,186 @@ function costos_autoSnapshot() {
 }
 
 // ── Leer egresos reales de Tesorería + módulos propios ────────────
-function costos_getEgresos(mes,anio) {
-  var total=0, items=[];
-  function isMes(xl) {
-    var d=xlToDate(xl); if(!d||d==='—') return false;
-    var p=d.split('/'); return p.length===3&&parseInt(p[1])===mes&&parseInt(p[2])===anio;
-  }
-  // Cheques cobrados (Tesorería)
-  (DB.chequesCobrados||[]).forEach(function(r){
-    var xl=r.fechaCobro||r.fecha; if(!isMes(xl)) return;
-    var m=parseFloat(r.monto||0); total+=m;
-    items.push({fecha:xlToDate(xl),concepto:(r.concepto||r.beneficiario||''),cat:r.tipo||'INSUMO',monto:m,origen:'Cheque cobrado'});
-  });
-  // Transferencias realizadas (Tesorería)
-  // ⚠ SALARIOS se excluyen aquí — vienen de planilla_salarios para no duplicar
-  var TIPOS_SAL = ['SALARIOS','IPS','MTESS'];
-  (DB.transferenciasRealizadas||[]).forEach(function(r){
-    if(!isMes(r.fecha)) return;
-    if(TIPOS_SAL.indexOf((r.tipo||'').toUpperCase()) >= 0) return; // excluir
-    var m=parseFloat(r.monto||0); total+=m;
-    items.push({fecha:xlToDate(r.fecha),concepto:(r.concepto||r.beneficiario||''),cat:r.tipo||'TRANSFERENCIA',monto:m,origen:'Transferencia'});
-  });
-  // Cheques cobrados tipo SALARIOS también se excluyen
-  // (ya se procesan más abajo via planilla salarial)
+// ── Reglas de clasificación por tipo de pago ─────────────────────
+// DIRECTO  = va al costo de producción
+// INDIRECTO= va al costo de empresa/período
+// EXCLUIDO = deuda financiera, no es costo
+var CLASIF_TIPO = {
+  'INSUMO':            'DIRECTO',
+  'CONFECCION':        'DIRECTO',
+  'CORTE':             'DIRECTO',
+  'ACTIVO FIJO':       'DIRECTO',   // cuota maquinaria → directo por decisión
+  'SALARIOS':          'DIRECTO',   // operarios → viene de planilla; admin → indirecto por área
+  'ALQUILER':          'INDIRECTO',
+  'SERVICIOS':         'INDIRECTO',
+  'SISTEMA':           'INDIRECTO',
+  'TELEFONIA':         'INDIRECTO',
+  'MARKETING':         'INDIRECTO',
+  'MUNICIPALIDAD':     'INDIRECTO',
+  'MANTENIMIENTO EQUIPOS': 'INDIRECTO',
+  'SERVICIO CONTABLE': 'INDIRECTO',
+  'GASTO ADMINISTRATIVO': 'INDIRECTO',
+  'INTERNET':          'INDIRECTO',
+  'DONACION':          'INDIRECTO',
+  'FONDO FIJO':        'INDIRECTO',
+  'MTESS':             'DIRECTO',
+  'IPS':               'DIRECTO',
+  'PRESTAMO':          'EXCLUIDO',  // deuda financiera
+  'PREVISION AGUINALDO': 'DIRECTO',
+  'ANDE':              'MIXTO',     // se divide por %
+  'CAJA CHICA':        'INDIRECTO'  // por defecto; puede tener directos mezclados
+};
 
-  // ── MOD Real desde Planilla Salarial ──────────────────────────────
+function clasif_tipo(tipo) {
+  var t = (tipo||'').toUpperCase().trim();
+  return CLASIF_TIPO[t] || 'INDIRECTO';
+}
+
+function costos_getEgresos(mes, anio) {
+  var pctAndeDirecto = cConf('pctAndeDirecto', 60) / 100;
+  var directoTotal = 0, indirectoTotal = 0;
+  var items = [];
+
+  function isMes(xl) {
+    var d = xlToDate(xl); if (!d || d === '—') return false;
+    var p = d.split('/'); return p.length === 3 && parseInt(p[1]) === mes && parseInt(p[2]) === anio;
+  }
+
+  function pushItem(fecha, concepto, tipo, monto, origen) {
+    var cl = clasif_tipo(tipo);
+    var montoD = 0, montoI = 0;
+    if (cl === 'DIRECTO')   { montoD = monto; directoTotal += monto; }
+    if (cl === 'INDIRECTO') { montoI = monto; indirectoTotal += monto; }
+    if (cl === 'MIXTO') {
+      montoD = Math.round(monto * pctAndeDirecto);
+      montoI = monto - montoD;
+      directoTotal   += montoD;
+      indirectoTotal += montoI;
+    }
+    if (cl === 'EXCLUIDO') return; // no suma a ningún total
+    items.push({ fecha:fecha, concepto:concepto, cat:tipo||'—',
+      clasif:cl, monto:monto, montoD:montoD, montoI:montoI, origen:origen });
+  }
+
+  // ── Cheques cobrados ─────────────────────────────────────────────
+  var TIPOS_SAL = ['SALARIOS','IPS','MTESS'];
+  (DB.chequesCobrados||[]).forEach(function(r) {
+    var xl = r.fechaCobro || r.fecha; if (!isMes(xl)) return;
+    var tipo = (r.tipo||'').toUpperCase();
+    // SALARIOS de cheques: excluir si viene planilla (se suma abajo), incluir si no
+    if (TIPOS_SAL.indexOf(tipo) >= 0) return; // siempre excluir cheques SALARIOS — vienen de planilla
+    pushItem(xlToDate(xl), r.concepto||r.beneficiario||'', r.tipo||'INSUMO', parseFloat(r.monto||0), 'Cheque');
+  });
+
+  // ── Transferencias realizadas ────────────────────────────────────
+  (DB.transferenciasRealizadas||[]).forEach(function(r) {
+    if (!isMes(r.fecha)) return;
+    var tipo = (r.tipo||'').toUpperCase();
+    if (TIPOS_SAL.indexOf(tipo) >= 0) return; // excluir SALARIOS → viene de planilla
+    pushItem(xlToDate(r.fecha), r.concepto||r.beneficiario||'', r.tipo||'TRANSFERENCIA', parseFloat(r.monto||0), 'Transferencia');
+  });
+
+  // ── MOD desde Planilla Salarial ──────────────────────────────────
   var modSal = sal_getModMes(mes, anio);
-  if(modSal.disponible && modSal.total > 0) {
-    // Agregar cada semana como un ítem desglosado
-    modSal.semanas.forEach(function(sem){
-      total += sem.total;
-      var empNames = sem.emps.map(function(e){return e.nm;}).join(', ');
-      items.push({
-        fecha: sem.ini ? sem.ini.slice(8,10)+'/'+sem.ini.slice(5,7)+'/'+sem.ini.slice(0,4) : '—',
-        concepto: 'MOD Semana '+(sem.sem||sem.sk||'')+' ('+sem.emps.length+' emp.: '+empNames+')',
-        cat: 'SALARIOS (Planilla)',
-        monto: sem.total,
-        origen: 'Planilla Salarial',
-        desglose: sem.emps
+  if (modSal.disponible && modSal.total > 0) {
+    modSal.semanas.forEach(function(sem) {
+      // Separar MOD por área: operarios (DIRECTO) vs admin (INDIRECTO)
+      var modDirSem = 0, modIndSem = 0;
+      sem.emps.forEach(function(e) {
+        // Buscar el empleado en CDB para saber su área
+        var empCfg = (CDB.empleados||[]).find(function(x){ return x.nombre && e.nm && x.nombre.toLowerCase().indexOf(e.nm.split(' ')[0].toLowerCase()) >= 0; });
+        var area = empCfg ? (CDB.areas||[]).find(function(a){ return a.id === empCfg.areaId; }) : null;
+        // Si tiene área de producción → directo; sin área o área admin → indirecto
+        var esDirArea = area ? true : false; // por defecto directo si tiene área
+        if (esDirArea) modDirSem += cN(e.bruto); else modIndSem += cN(e.bruto);
       });
+      // Si no pudimos distinguir, todo directo (son operarios de producción)
+      if (modDirSem === 0 && modIndSem === 0) modDirSem = sem.total;
+      directoTotal   += modDirSem;
+      indirectoTotal += modIndSem;
+      var empNames = sem.emps.map(function(e){ return e.nm; }).join(', ');
+      var fecha = sem.ini ? sem.ini.slice(8,10)+'/'+sem.ini.slice(5,7)+'/'+sem.ini.slice(0,4) : '—';
+      if (modDirSem > 0) items.push({ fecha:fecha, concepto:'MOD Producción sem '+(sem.sem||''), cat:'MOD DIRECTO', clasif:'DIRECTO', monto:modDirSem, montoD:modDirSem, montoI:0, origen:'Planilla Salarial' });
+      if (modIndSem > 0) items.push({ fecha:fecha, concepto:'MOD Admin/Diseño sem '+(sem.sem||''), cat:'MOD INDIRECTO', clasif:'INDIRECTO', monto:modIndSem, montoD:0, montoI:modIndSem, origen:'Planilla Salarial' });
     });
-  } else if(!modSal.disponible) {
-    // Si la planilla salarial no está cargada aún, usar transferencias SALARIOS como fallback
-    (DB.transferenciasRealizadas||[]).forEach(function(r){
-      if(!isMes(r.fecha)) return;
-      if(TIPOS_SAL.indexOf((r.tipo||'').toUpperCase()) < 0) return;
-      var m=parseFloat(r.monto||0); total+=m;
-      items.push({fecha:xlToDate(r.fecha),concepto:(r.concepto||r.beneficiario||''),cat:'SALARIOS (Tesorería — fallback)',monto:m,origen:'Transferencia (sin planilla)'});
-    });
-    (DB.chequesCobrados||[]).forEach(function(r){
-      var xl=r.fechaCobro||r.fecha; if(!isMes(xl)) return;
-      if(TIPOS_SAL.indexOf((r.tipo||'').toUpperCase()) < 0) return;
-      var m=parseFloat(r.monto||0); total+=m;
-      items.push({fecha:xlToDate(xl),concepto:(r.concepto||r.beneficiario||''),cat:'SALARIOS (Cheque — fallback)',monto:m,origen:'Cheque (sin planilla)'});
+  } else if (!modSal.disponible) {
+    // Fallback: transferencias SALARIOS como MOD total (sin poder separar)
+    (DB.transferenciasRealizadas||[]).forEach(function(r) {
+      if (!isMes(r.fecha)) return;
+      if (TIPOS_SAL.indexOf((r.tipo||'').toUpperCase()) < 0) return;
+      var m = parseFloat(r.monto||0);
+      directoTotal += m;
+      items.push({ fecha:xlToDate(r.fecha), concepto:r.concepto||r.beneficiario||'', cat:'SALARIOS', clasif:'DIRECTO', monto:m, montoD:m, montoI:0, origen:'Transferencia (sin planilla)' });
     });
   }
-  // Cuotas de préstamos del mes (Tesorería)
-  (DB.prestamos||[]).forEach(function(p){
-    var ini=new Date(p.inicio);
-    for(var q=1;q<=p.nCuotas;q++){
-      if(q<=(p.pagadas||0)) continue;
-      var dt=new Date(ini.getFullYear(),ini.getMonth()+(q-1),p.dia);
-      if(dt.getMonth()+1===mes&&dt.getFullYear()===anio){
-        var m=parseFloat(p.cuota||0); total+=m;
-        items.push({fecha:dt.getDate()+'/'+(dt.getMonth()+1)+'/'+dt.getFullYear(),
-          concepto:'Cuota '+p.nombre+' ('+q+'/'+p.nCuotas+')',cat:'PRÉSTAMO',monto:m,origen:'Préstamo'});
+
+  // ── Préstamos: EXCLUIDOS (deuda financiera, no costo) ────────────
+  // Se listan aparte pero NO suman a totales
+  var prestExcluidos = [];
+  (DB.prestamos||[]).forEach(function(p) {
+    var ini = new Date(p.inicio);
+    for (var q = 1; q <= p.nCuotas; q++) {
+      if (q <= (p.pagadas||0)) continue;
+      var dt = new Date(ini.getFullYear(), ini.getMonth()+(q-1), p.dia);
+      if (dt.getMonth()+1 === mes && dt.getFullYear() === anio) {
+        prestExcluidos.push({ fecha:dt.getDate()+'/'+(dt.getMonth()+1)+'/'+dt.getFullYear(),
+          concepto:'Cuota '+p.nombre+' ('+q+'/'+p.nCuotas+')', monto:parseFloat(p.cuota||0) });
       }
     }
   });
-  // Caja chica (Tesorería)
-  (DB.cajachica||[]).forEach(function(r){
-    var d=new Date(r.fecha);
-    if(d.getMonth()+1!==mes||d.getFullYear()!==anio) return;
-    var m=parseFloat(r.monto||0); total+=m;
-    items.push({fecha:r.fecha,concepto:r.descripcion||'',cat:'CAJA CHICA',monto:m,origen:'Caja chica'});
+
+  // ── Caja chica ───────────────────────────────────────────────────
+  (DB.cajachica||[]).forEach(function(r) {
+    var d = new Date(r.fecha);
+    if (d.getMonth()+1 !== mes || d.getFullYear() !== anio) return;
+    // Caja chica: directo si rubro es INSUMO, indirecto en resto
+    var cl = (r.rubro||'').toUpperCase() === 'INSUMO' ? 'DIRECTO' : 'INDIRECTO';
+    var m = parseFloat(r.monto||0);
+    if (cl === 'DIRECTO') directoTotal += m; else indirectoTotal += m;
+    items.push({ fecha:r.fecha, concepto:r.descripcion||'', cat:'CAJA CHICA ('+( r.rubro||'VARIOS')+')', clasif:cl, monto:m, montoD:cl==='DIRECTO'?m:0, montoI:cl==='INDIRECTO'?m:0, origen:'Caja chica' });
   });
-  // Gastos Fijos propios (módulo costos — los NO contemplados en Tesorería)
-  (CDB.gastosFijos||[]).forEach(function(g){
-    var m=cN(g.monto); total+=m;
-    items.push({fecha:'—',concepto:g.concepto,cat:g.categoria||'Gasto Fijo',monto:m,origen:'Gasto fijo propio'});
+
+  // ── Gastos Fijos propios ─────────────────────────────────────────
+  (CDB.gastosFijos||[]).forEach(function(g) {
+    var m = cN(g.monto);
+    var cl = clasif_tipo(g.categoria);
+    if (cl === 'EXCLUIDO') return;
+    if (cl === 'DIRECTO')   directoTotal += m;
+    if (cl === 'INDIRECTO') indirectoTotal += m;
+    if (cl === 'MIXTO') { directoTotal += Math.round(m*pctAndeDirecto); indirectoTotal += m-Math.round(m*pctAndeDirecto); }
+    items.push({ fecha:'—', concepto:g.concepto, cat:g.categoria||'Gasto Fijo', clasif:cl, monto:m, montoD:cl==='DIRECTO'?m:0, montoI:cl==='INDIRECTO'?m:0, origen:'Gasto fijo propio' });
   });
-  // Gastos Esporádicos — provisión mensual
-  (CDB.esporadicos||[]).forEach(function(g){
-    var prov=cN(g.monto)/Math.max(cN(g.periodo),1);
-    total+=prov;
-    items.push({fecha:'—',concepto:g.concepto+' (provisión)',cat:g.categoria||'Esporádico',monto:Math.round(prov),origen:'Esporádico'});
+
+  // ── Esporádicos (provisión) ──────────────────────────────────────
+  (CDB.esporadicos||[]).forEach(function(g) {
+    var prov = Math.round(cN(g.monto) / Math.max(cN(g.periodo), 1));
+    var cl = clasif_tipo(g.categoria);
+    if (cl === 'EXCLUIDO') return;
+    if (cl === 'DIRECTO')   directoTotal += prov;
+    if (cl === 'INDIRECTO') indirectoTotal += prov;
+    items.push({ fecha:'—', concepto:g.concepto+' (provisión)', cat:g.categoria||'Esporádico', clasif:cl, monto:prov, montoD:cl==='DIRECTO'?prov:0, montoI:cl==='INDIRECTO'?prov:0, origen:'Esporádico' });
   });
-  // Gastos Diarios propios del mes
-  (CDB.gastosDiarios||[]).forEach(function(g){
-    var d=new Date(g.fecha);
-    if(d.getMonth()+1!==mes||d.getFullYear()!==anio) return;
-    var m=cN(g.monto); total+=m;
-    items.push({fecha:g.fecha,concepto:g.concepto,cat:g.categoria||'Gasto diario',monto:m,origen:'Gasto diario'});
+
+  // ── Gastos Diarios ───────────────────────────────────────────────
+  (CDB.gastosDiarios||[]).forEach(function(g) {
+    var d = new Date(g.fecha);
+    if (d.getMonth()+1 !== mes || d.getFullYear() !== anio) return;
+    var m = cN(g.monto);
+    var cl = clasif_tipo(g.categoria);
+    if (cl === 'EXCLUIDO') return;
+    if (cl === 'DIRECTO')   directoTotal += m;
+    if (cl === 'INDIRECTO') indirectoTotal += m;
+    items.push({ fecha:g.fecha, concepto:g.concepto, cat:g.categoria||'Gasto diario', clasif:cl, monto:m, montoD:cl==='DIRECTO'?m:0, montoI:cl==='INDIRECTO'?m:0, origen:'Gasto diario' });
   });
-  items.sort(function(a,b){return (a.fecha||'')>(b.fecha||'')?1:-1;});
-  return {total:total,items:items};
+
+  items.sort(function(a,b){ return (a.fecha||'') > (b.fecha||'') ? 1 : -1; });
+  return {
+    total:       directoTotal + indirectoTotal,
+    directoTotal: directoTotal,
+    indirectoTotal: indirectoTotal,
+    prestExcluidos: prestExcluidos,
+    items:       items
+  };
 }
 
 // Costo base mensual estructural
@@ -8217,19 +8303,38 @@ function costos_renderMes() {
     }
   }
 
-  // Por categoría
+  // Por clasificación directos vs indirectos
   var catEl=document.getElementById('mes-cats');
   if(catEl){
-    var byCat={};
-    egr.items.forEach(function(r){byCat[r.cat]=(byCat[r.cat]||0)+r.monto;});
-    catEl.innerHTML=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];})
-      .map(function(e){
-        var pct=egr.total>0?Math.round(e[1]/egr.total*100):0;
-        return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
-          +'<span style="font-weight:600;color:var(--ink2)">'+e[0]+'</span>'
-          +'<span style="font-family:JetBrains Mono,monospace">'+cGs(e[1])+' ('+pct+'%)</span></div>'
-          +'<div style="height:6px;background:var(--bg2);border-radius:3px"><div style="height:6px;background:var(--acc);border-radius:3px;width:'+pct+'%"></div></div></div>';
-      }).join('')||'<div class="empty">Sin egresos</div>';
+    var totD2=egr2.directoTotal||0, totI2=egr2.indirectoTotal||0, totT2=totD2+totI2||1;
+    var pD2=Math.round(totD2/totT2*100), pI2=100-pD2;
+    var byCat4={};
+    egr2.items.forEach(function(r){
+      var k=r.clasif+':'+r.cat;
+      if(!byCat4[k])byCat4[k]={cat:r.cat,clasif:r.clasif,total:0};
+      byCat4[k].total+=r.monto;
+    });
+    catEl.innerHTML=''
+      +'<div style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
+      +'<span style="font-weight:600;color:#15803d">Costos Directos</span>'
+      +'<span style="font-family:JetBrains Mono,monospace;font-weight:700;color:#15803d">'+cGs(totD2)+' ('+pD2+'%)</span></div>'
+      +'<div style="height:8px;background:var(--bg2);border-radius:4px"><div style="height:8px;background:#3b6d11;border-radius:4px;width:'+pD2+'%"></div></div>'
+      +'<div style="font-size:10px;color:var(--ink3);margin-top:2px">Insumos · MOD · Maquinaria · Tercerización</div></div>'
+      +'<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
+      +'<span style="font-weight:600;color:var(--acc)">Costos Indirectos</span>'
+      +'<span style="font-family:JetBrains Mono,monospace;font-weight:700;color:var(--acc)">'+cGs(totI2)+' ('+pI2+'%)</span></div>'
+      +'<div style="height:8px;background:var(--bg2);border-radius:4px"><div style="height:8px;background:var(--acc);border-radius:4px;width:'+pI2+'%"></div></div>'
+      +'<div style="font-size:10px;color:var(--ink3);margin-top:2px">Alquileres · Admin · Marketing · Servicios</div></div>'
+      +'<div style="border-top:1px solid var(--bdr);padding-top:8px">'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3);margin-bottom:6px">Detalle por tipo</div>'
+      +Object.values(byCat4).sort(function(a,b){return b.total-a.total;}).map(function(e){
+        var col=e.clasif==='DIRECTO'?'#15803d':'var(--acc)';
+        return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bdr)">'
+          +'<span style="color:var(--ink2)">'+e.cat+'</span>'
+          +'<span style="font-family:JetBrains Mono,monospace;color:'+col+'">'+cGs(e.total)+'</span></div>';
+      }).join('')+'</div>';
   }
 
   // Evolución semanal
@@ -9211,6 +9316,7 @@ var _orig_saveConf = costos_saveConf;
 costos_saveConf = function() {
   CDB.conf.horasSab = cN((document.getElementById('cfg-horas-sab') || {}).value) || 5;
   CDB.conf.trabajaDomingo = ((document.getElementById('cfg-domingo') || {}).value || 'false') === 'true';
+  CDB.conf.pctAndeDirecto = cN((document.getElementById('cfg-ande') || {}).value) || 60;
   _orig_saveConf();
   cfg_previewHoras();
 };
