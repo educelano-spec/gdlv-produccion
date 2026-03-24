@@ -305,6 +305,14 @@ td.r, th.r {text-align:right !important;} .tscroll table th {white-space:nowrap;
   <div class="topbar-right">
     <div class="gsearch"><span style="color:var(--ink3)">🔍</span><input id="gs-inp" placeholder="Buscar en todo el sistema..." oninput="globalSearch(this.value)"></div>
     <div class="alert-btn" onclick="showView('alertas')" title="Alertas"><span>🔔</span><div class="dot" id="al-dot"></div></div>
+    <div class="alert-btn" id="backup-btn" onclick="backup_descargarAhora()" title="Descargar backup ahora" style="position:relative">
+      <span>💾</span>
+      <div class="dot" id="backup-dot" style="display:none;background:#f59e0b;border-color:#fef3c7"></div>
+    </div>
+    <div id="backup-toast" style="display:none;align-items:center;gap:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:6px 12px;font-size:12px;color:#92400e;cursor:pointer" onclick="backup_descargarAhora()">
+      <span>💾</span><span>Backup listo &mdash; <strong>clic para descargar</strong></span>
+      <span onclick="event.stopPropagation();this.parentNode.style.display='none'" style="margin-left:4px;color:#b45309;cursor:pointer;font-size:14px">&#x2715;</span>
+    </div>
     <div class="topbar-date" id="fecha-hoy"></div>
   </div>
 </div>
@@ -3125,6 +3133,7 @@ function initDBFromFirebase() {
     FB_CONNECTED = true;
     updateOnlineIndicator(true);
     setTimeout(autoBackup, 5000);
+    setTimeout(backup_iniciarRecordatorio, 7000);
     setTimeout(backup_iniciarRecordatorio, 6000);
     var extra = snap.val();
     if(extra) {
@@ -7241,7 +7250,12 @@ function aprobarDeseo(idx) {
 // ══════════════════════════════════════════════
 
 var BACKUP_PATH = 'tesoreria/gdv_v4d_backups';
-var _lastBackupDay = null;
+var _lastBackupDay        = null;
+var _pendingBackupData    = null;
+var _pendingBackupDay     = null;
+var _backupReminderTs     = 0;
+var _backupReminderStarted= false;
+var BACKUP_REMIND_MS      = 3 * 60 * 60 * 1000;
 
 function getBackupDayKey() {
   // Returns YYYY-MM-DD in Paraguay time
@@ -7279,8 +7293,55 @@ function autoBackup() {
 
   // Save to localStorage
   saveLocalSnapshot(dayKey, extra);
-  // Auto-download on first backup of the day (silent)
-  downloadBackupFile(extra, 'GDV_Tesoreria_autobackup_'+dayKey+'.json');
+  // NO auto-download — usuario descarga cuando el sistema le avisa
+  _pendingBackupData = extra;
+  _pendingBackupDay  = dayKey;
+  backup_mostrarAviso();
+}
+
+function backup_mostrarAviso() {
+  var dot = document.getElementById('backup-dot');
+  if (dot) dot.style.display = 'block';
+  var toast = document.getElementById('backup-toast');
+  if (toast) {
+    toast.style.display = 'flex';
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(function(){ toast.style.display = 'none'; }, 12000);
+  }
+  _backupReminderTs = Date.now();
+}
+
+function backup_descargarAhora() {
+  var dot = document.getElementById('backup-dot');
+  if (dot) dot.style.display = 'none';
+  var toast = document.getElementById('backup-toast');
+  if (toast) toast.style.display = 'none';
+  if (_pendingBackupData && _pendingBackupDay) {
+    downloadBackupFile(_pendingBackupData, 'GDV_Tesoreria_backup_' + _pendingBackupDay + '.json');
+    _pendingBackupData = null;
+    _pendingBackupDay  = null;
+  } else {
+    manualBackup();
+  }
+}
+
+function backup_iniciarRecordatorio() {
+  if (_backupReminderStarted) return;
+  _backupReminderStarted = true;
+  _backupReminderTs = Date.now();
+  setInterval(function() {
+    if (!FB_CONNECTED) return;
+    if (Date.now() - _backupReminderTs < BACKUP_REMIND_MS) return;
+    var extra = buildExtra();
+    var dayKey = getBackupDayKey();
+    extra._backup_ts  = new Date().toISOString();
+    extra._backup_day = dayKey;
+    _pendingBackupData = extra;
+    _pendingBackupDay  = dayKey;
+    saveLocalSnapshot(dayKey, extra);
+    if (FBDB) FBDB.ref(BACKUP_PATH + '/' + dayKey).set(extra).catch(function(){});
+    backup_mostrarAviso();
+  }, 30 * 60 * 1000);
 }
 
 function saveLocalSnapshot(dayKey, extra) {
