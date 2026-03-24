@@ -430,6 +430,10 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
 
 <!-- ══════════ CARGAR VENTA ══════════ -->
 <div class="panel" id="panel-venta">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);">💰 Cargar Venta</div>
+    <button class="btn btn-ghost btn-sm" onclick="abrirCierreTurno()" style="background:#0f1923;color:#E8A820;border:1px solid #C8952A;font-weight:700;font-size:11px;">📊 Cierre de turno</button>
+  </div>
   <div class="form-card">
     <div class="form-grid">
       <div class="form-group">
@@ -442,17 +446,17 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
       </div>
       <div class="form-group">
         <label>Tipo de prenda</label>
-        <input type="text" id="v-tipo" list="dl-tipo" placeholder="REM ALGO…" oninput="vAutoDesdeFields()" class="auto-field">
+        <input type="text" id="v-tipo" list="dl-tipo" placeholder="REM ALGO…" oninput="updateDisenoDl();vAutoDesdeFields()" class="auto-field">
         <datalist id="dl-tipo"></datalist>
       </div>
       <div class="form-group">
         <label>Diseño</label>
-        <input type="text" id="v-diseno" list="dl-diseno" placeholder="47 NORMALIDAD…" oninput="vAutoDesdeFields()" class="auto-field">
+        <input type="text" id="v-diseno" list="dl-diseno" placeholder="47 NORMALIDAD…" oninput="updateColorDl();vAutoDesdeFields()" class="auto-field">
         <datalist id="dl-diseno"></datalist>
       </div>
       <div class="form-group">
         <label>Color</label>
-        <input type="text" id="v-color" list="dl-color" placeholder="NEGRO…" oninput="vAutoDesdeFields()" class="auto-field">
+        <input type="text" id="v-color" list="dl-color" placeholder="NEGRO…" oninput="updateTalleDl();vAutoDesdeFields()" class="auto-field">
         <datalist id="dl-color"></datalist>
       </div>
       <div class="form-group">
@@ -1585,13 +1589,106 @@ function exportDashImg(){
 //  VENTAS — AUTOCOMPLETADO BIDIRECCIONAL
 // ════════════════════════════════════════════
 function buildDataLists(){
-  const tipos=[...new Set(S.inventario.map(p=>p.tipo).filter(Boolean))];
-  const disenos=[...new Set(S.inventario.map(p=>p.diseno).filter(Boolean))];
-  const colores=[...new Set(S.inventario.map(p=>p.color).filter(Boolean))];
-  ['dl-tipo','i-dl-tipo'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=tipos.map(t=>`<option value="${t}">`).join('');});
-  ['dl-diseno','i-dl-diseno'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=disenos.map(d=>`<option value="${d}">`).join('');});
-  ['dl-color','i-dl-color'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=colores.map(c=>`<option value="${c}">`).join('');});
+  // Populate tipo with all unique tipos that have stock
+  const inv = S.inventario || [];
+  const tipos = [...new Set(inv.filter(p=>Object.values(p.stock||{}).some(v=>v>0)).map(p=>p.tipo).filter(Boolean))].sort();
+  ['dl-tipo','i-dl-tipo'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e) e.innerHTML=tipos.map(t=>'<option value="'+t+'">').join('');
+  });
+  // Diseño, color, talle updated by cascade
+  updateDisenoDl();
 }
+
+function updateDisenoDl(){
+  const inv = S.inventario || [];
+  const tipo = (document.getElementById('v-tipo')||{}).value||'';
+  // Filter by tipo if set, then by stock > 0
+  const filtered = tipo
+    ? inv.filter(p=>p.tipo===tipo && Object.values(p.stock||{}).some(v=>v>0))
+    : inv.filter(p=>Object.values(p.stock||{}).some(v=>v>0));
+  const disenos = [...new Set(filtered.map(p=>p.diseno).filter(Boolean))].sort();
+  ['dl-diseno','i-dl-diseno'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e) e.innerHTML=disenos.map(d=>'<option value="'+d+'">').join('');
+  });
+  updateColorDl();
+}
+
+function updateColorDl(){
+  const inv = S.inventario || [];
+  const tipo   = (document.getElementById('v-tipo')||{}).value||'';
+  const diseno = (document.getElementById('v-diseno')||{}).value||'';
+  let filtered = inv.filter(p=>Object.values(p.stock||{}).some(v=>v>0));
+  if(tipo)   filtered = filtered.filter(p=>p.tipo===tipo);
+  if(diseno) filtered = filtered.filter(p=>p.diseno===diseno);
+  const colores = [...new Set(filtered.map(p=>p.color).filter(Boolean))].sort();
+  ['dl-color','i-dl-color'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e) e.innerHTML=colores.map(c=>'<option value="'+c+'">').join('');
+  });
+  // Also update talle via checkStock (it already filters by product)
+  updateTalleDl();
+}
+
+function updateTalleDl(){
+  const inv = S.inventario || [];
+  const tipo   = (document.getElementById('v-tipo')||{}).value||'';
+  const diseno = (document.getElementById('v-diseno')||{}).value||'';
+  const color  = (document.getElementById('v-color')||{}).value||'';
+  // Try to find exact product
+  let matches = inv.filter(p=>Object.values(p.stock||{}).some(v=>v>0));
+  if(tipo)   matches = matches.filter(p=>p.tipo===tipo);
+  if(diseno) matches = matches.filter(p=>p.diseno===diseno);
+  if(color)  matches = matches.filter(p=>p.color===color);
+  const sel = document.getElementById('v-talle');
+  if(!sel) return;
+  const orden=['P','M','G','XG','2XG','3XG','T2','T4','T6','T8','T10','T12','T14','UNICO'];
+  const curVal = sel.value;
+  // Aggregate stock across all matching products
+  const stockAgg = {};
+  matches.forEach(function(p){
+    Object.entries(p.stock||{}).forEach(function(e){ stockAgg[e[0]]=(stockAgg[e[0]]||0)+(+e[1]||0); });
+  });
+  const disponibles = orden.filter(t=>(stockAgg[t]||0)>0);
+  sel.innerHTML = '<option value="">—</option>';
+  if(!disponibles.length && matches.length===0){
+    // No product found yet — show all talles from inventory
+    return;
+  }
+  if(!disponibles.length){
+    sel.innerHTML='<option value="">⚠ SIN STOCK</option>';
+    const info=document.getElementById('stock-info');
+    if(info){info.style.color='var(--red)';info.textContent='Sin stock disponible';}
+    return;
+  }
+  disponibles.forEach(function(t){
+    const o=document.createElement('option');
+    o.value=t; o.textContent=t+' ('+stockAgg[t]+')';
+    if(t===curVal) o.selected=true;
+    sel.appendChild(o);
+  });
+  const sep=document.createElement('option');sep.disabled=true;sep.textContent='──────';sel.appendChild(sep);
+  const ot=document.createElement('option');ot.value='__OTRO__';ot.textContent='✏️ Otro...';sel.appendChild(ot);
+  // Auto-select if only one talle
+  if(disponibles.length===1 && !curVal){ sel.value=disponibles[0]; }
+  // Update price if product found
+  if(matches.length===1){
+    const prod=matches[0];
+    document.getElementById('v-cod').value=prod.cod;
+    const t2=sel.value;
+    const precio=t2==='2XG'?prod.p2:t2==='3XG'?prod.p3:prod.p1;
+    document.getElementById('v-precio').value=precio||prod.p1||'';
+    calcTotal();
+    const info=document.getElementById('stock-info');
+    if(info&&t2&&t2!=='__OTRO__'){
+      const s=prod.stock[t2]||0;
+      info.style.color=s<=0?'var(--red)':s<=2?'var(--orange)':'var(--green)';
+      info.textContent='Stock '+t2+': '+s+' und.';
+    }
+  }
+}
+
 function findProd(cod,tipo,diseno,color,cat){
   if(cod){const p=S.inventario.find(p=>p.cod===cod);if(p)return p;}
   const matches=S.inventario.filter(p=>{
@@ -1619,11 +1716,12 @@ function vAutoDesdeFields(){
   const tipo=document.getElementById('v-tipo').value.trim();
   const diseno=document.getElementById('v-diseno').value.trim();
   const color=document.getElementById('v-color').value.trim();
-  const talle=document.getElementById('v-talle').value;
   const cod=parseInt(document.getElementById('v-cod').value)||null;
+  // Try exact match first
   const prod=findProd(cod,tipo,diseno,color,null);
   if(prod){
     document.getElementById('v-cod').value=prod.cod;
+    // Update talle dropdown for this specific product
     checkStock();
     const talle2=document.getElementById('v-talle').value;
     const precio=talle2==='2XG'?prod.p2:talle2==='3XG'?prod.p3:prod.p1;
@@ -1717,6 +1815,7 @@ function limpiarVenta(){
   document.getElementById('v-talle').value='';document.getElementById('v-talle-otro').value='';document.getElementById('v-talle-otro-wrap').style.display='none';
   document.getElementById('stock-info').textContent='';
   document.getElementById('v-fecha').value=today();
+  buildDataLists();
 }
 function anularVenta(idx){
   if(!confirm('¿Anular esta venta?'))return;
@@ -3029,6 +3128,7 @@ function exportarFacturasCSV(){
 // ═══════════════════════════════════════════════════════
 
 var FIREBASE_URL = 'https://gdlv-produccion-default-rtdb.firebaseio.com/tienda_villamorra';
+var FIREBASE_USERS_URL = FIREBASE_URL + '/usuarios';
 var _syncTimer = null;
 var _pendingSync = false;
 var _syncStatus = 'idle';
@@ -3472,7 +3572,8 @@ var FIREBASE_USERS_URL = FIREBASE_URL.replace('/tienda_villamorra', '') + '/usua
 var ROLE_PERMS = {
   admin: ['dashboard','venta','inventario','ingreso','clientes','pedidos','facturacion','reportes','alertas','ajustes'],
   administracion: ['dashboard','inventario','clientes','facturacion','reportes','alertas'],
-  vendedor: ['venta','inventario','clientes','pedidos','facturacion']
+  vendedor: ['venta','inventario','clientes','pedidos','facturacion'],
+  supervisor: ['venta','inventario','ingreso','clientes','facturacion','alertas']
 };
 
 function canAccess(tab) {
@@ -3511,8 +3612,8 @@ function applyRoleUI() {
   // Update user indicator in header
   var el = document.getElementById('user-indicator');
   if (el) {
-    var roleColors = { admin:'#C8952A', administracion:'#7C3AED', vendedor:'#16A34A' };
-    var roleLabels = { admin:'ADMIN', administracion:'ADMIN.', vendedor:'VENDEDOR' };
+    var roleColors = { admin:'#C8952A', administracion:'#7C3AED', vendedor:'#16A34A', supervisor:'#0891B2' };
+    var roleLabels = { admin:'ADMIN', administracion:'ADMIN.', vendedor:'VENDEDOR', supervisor:'SUPERV.' };
     el.innerHTML = '<span style="background:' + (roleColors[_currentUser.rol]||'#666')
       + ';color:#fff;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:800;margin-right:6px;">'
       + roleLabels[_currentUser.rol] + '</span>'
@@ -3639,6 +3740,7 @@ function renderUsuarios() {
   .then(function(r){ return r.json(); })
   .then(function(data) {
     var usuarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+    usuarios = usuarios.filter(function(u){ return u && u.id && u.id !== 'undefined'; });
     // Always include default admin
     var tieneAdmin = usuarios.some(function(u){ return u && u.rol === 'admin'; });
     if (!tieneAdmin) usuarios.unshift(_getDefaultUsers()[0]);
@@ -3663,8 +3765,8 @@ function _renderUsuariosTable(usuarios) {
 
   usuarios.forEach(function(u) {
     if (!u) return;
-    var rolColor = {admin:'#C8952A', administracion:'#7C3AED', vendedor:'#16A34A'}[u.rol] || '#666';
-    var rolLabel = {admin:'Admin', administracion:'Administración', vendedor:'Vendedor'}[u.rol] || u.rol;
+    var rolColor = {admin:'#C8952A', administracion:'#7C3AED', vendedor:'#16A34A', supervisor:'#0891B2'}[u.rol] || '#666';
+    var rolLabel = {admin:'Admin', administracion:'Administración', vendedor:'Vendedor', supervisor:'Supervisor'}[u.rol] || u.rol;
     h += '<tr style="border-bottom:1px solid var(--border);">';
     h += '<td style="padding:10px 12px;font-family:monospace;font-weight:700;">' + u.id + '</td>';
     h += '<td style="padding:10px 12px;font-weight:600;">' + u.nombre + '</td>';
@@ -3693,6 +3795,7 @@ function abrirModalUsuario(uid) {
     .then(function(r){ return r.json(); })
     .then(function(data){
       var usuarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+    usuarios = usuarios.filter(function(u){ return u && u.id && u.id !== 'undefined'; });
       u = usuarios.find(function(x){ return x && x.id === uid; });
       _openUserModal(u, isNew);
     });
@@ -3710,8 +3813,8 @@ function _openUserModal(u, isNew) {
   h += '<div class="form-group"><label>Nombre completo</label><input id="mu-nombre" placeholder="JUAN GARCIA" value="' + (u?u.nombre:'') + '" oninput="this.value=this.value.toUpperCase()"></div>';
   h += '<div class="form-group"><label>Contraseña ' + (isNew?'':'(dejar vacío para no cambiar)') + '</label><input type="password" id="mu-pass" placeholder="••••••••"></div>';
   h += '<div class="form-group"><label>Rol</label><select id="mu-rol">';
-  ['vendedor','administracion','admin'].forEach(function(r){
-    var labels = {vendedor:'Vendedor', administracion:'Administración', admin:'Admin'};
+  ['vendedor','supervisor','administracion','admin'].forEach(function(r){
+    var labels = {vendedor:'Vendedor', supervisor:'Supervisor', administracion:'Administración', admin:'Admin'};
     h += '<option value="' + r + '" ' + (u&&u.rol===r?'selected':'') + '>' + labels[r] + '</option>';
   });
   h += '</select></div>';
