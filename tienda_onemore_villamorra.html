@@ -8,20 +8,28 @@
 <style>
 
 :root {
-  --bg:#F5F4F1; --surface:#FFFFFF; --surface2:#F9F8F6; --border:#E8E5E0; --border2:#D4CFC8;
-  --text:#1A1814; --text2:#6B6560; --text3:#9E9890;
+  --bg:#FFFDF5; --surface:#FFFFFF; --surface2:#FFFBEE; --border:#F0D97A; --border2:#E8C840;
+  --text:#3D2E00; --text2:#7A5C00; --text3:#B8922A;
   --accent:#C8952A; --accent-bg:#FEF6E7; --accent-border:#F0C870;
   --blue:#2563EB; --blue-bg:#EFF6FF; --blue-border:#BFDBFE;
   --green:#16A34A; --green-bg:#F0FDF4; --green-border:#BBF7D0;
   --red:#DC2626; --red-bg:#FEF2F2; --red-border:#FECACA;
-  --orange:#EA580C; --orange-bg:#FFF7ED; --orange-border:#FED7AA;
+  --orange:#D97706; --orange-bg:#FFFBEB; --orange-border:#FDE68A;
   --purple:#7C3AED; --purple-bg:#F5F3FF; --purple-border:#DDD6FE;
-  --input-highlight:#FFFBEB; --input-border:#F59E0B;
-  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
-  --shadow:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
-  --shadow-lg:0 12px 32px rgba(0,0,0,.10),0 4px 8px rgba(0,0,0,.06);
+  --input-highlight:#FFFBEB; --input-border:#E8A820;
+  --shadow-sm:0 1px 3px rgba(200,149,42,.10),0 1px 2px rgba(200,149,42,.06);
+  --shadow:0 4px 12px rgba(200,149,42,.14),0 2px 4px rgba(200,149,42,.06);
+  --shadow-lg:0 12px 32px rgba(200,149,42,.16),0 4px 8px rgba(200,149,42,.08);
   --radius:12px; --radius-sm:8px;
 }
+header{border-bottom:2px solid #E8A820 !important;background:linear-gradient(180deg,#FFFEF9,#FFFFFF) !important;}
+.tab.active{color:#8B6200 !important;border-bottom:3px solid #C8952A !important;font-weight:800;}
+.btn-primary{background:linear-gradient(135deg,#C8952A,#E8A820) !important;color:#fff !important;}
+.chip.active{background:linear-gradient(135deg,#C8952A,#E8A820) !important;color:#fff !important;border-color:#C8952A !important;}
+.main-nav{border-bottom:2px solid #E8A820 !important;}
+.live-pill{background:linear-gradient(135deg,#C8952A,#E8A820) !important;}
+.form-card{border:1px solid #F0D97A !important;}
+body{background:#FFFDF5;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
@@ -4133,46 +4141,54 @@ function generarImagenCierre(){
   var tr=vh.filter(function(v){return v.pago==='TRANSFERENCIA';}).reduce(function(a,v){return a+(v.total||0);},0);
   var db=vh.filter(function(v){return v.pago==='T. DEBITO';}).reduce(function(a,v){return a+(v.total||0);},0);
   var cr=vh.filter(function(v){return v.pago==='T. CREDITO';}).reduce(function(a,v){return a+(v.total||0);},0);
-  var W=800,lH=34,H=210+Math.max(vh.length,1)*lH+220;
+  var W=800,lH=32,H=220+Math.max(vh.length,1)*lH+200;
   var canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
   var ctx=canvas.getContext('2d');
-  ctx.fillStyle='#0f1923';ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#C8952A';ctx.fillRect(0,0,W,6);
-  ctx.fillStyle='#E8A820';ctx.font='bold 32px Arial';ctx.textAlign='center';ctx.fillText(sN,W/2,54);
-  ctx.fillStyle='#9E9890';ctx.font='16px Arial';ctx.fillText('RESUMEN DE TURNO',W/2,80);
-  ctx.fillStyle='#ffffff';ctx.font='bold 18px Arial';ctx.fillText(fD+' · '+vend+' · '+turno,W/2,110);
-  ctx.strokeStyle='#2a3440';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(40,128);ctx.lineTo(W-40,128);ctx.stroke();
-  ctx.fillStyle='#E8A820';ctx.font='bold 26px Arial';ctx.fillText('TOTAL: Gs. '+Math.round(tot).toLocaleString('es-PY'),W/2,162);
-  ctx.fillStyle='#9E9890';ctx.font='15px Arial';ctx.fillText(vh.length+' VENTAS',W/2,186);
-  ctx.beginPath();ctx.moveTo(40,202);ctx.lineTo(W-40,202);ctx.stroke();
-  var y=225;
-  ctx.fillStyle='#9E9890';ctx.font='bold 12px Arial';
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#C8952A';ctx.fillRect(0,0,W,8);
+  ctx.fillStyle='#8B6200';ctx.font='bold 30px Arial';ctx.textAlign='center';ctx.fillText(sN,W/2,50);
+  ctx.fillStyle='#C8952A';ctx.font='13px Arial';ctx.fillText('RESUMEN DE TURNO',W/2,72);
+  ctx.fillStyle='#5C4200';ctx.font='bold 17px Arial';ctx.fillText(fD+' · '+vend+' · '+turno,W/2,98);
+  ctx.strokeStyle='#E8C870';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(40,114);ctx.lineTo(W-40,114);ctx.stroke();
+  ctx.fillStyle='#8B6200';ctx.font='bold 26px Arial';ctx.fillText('TOTAL: Gs. '+Math.round(tot).toLocaleString('es-PY'),W/2,148);
+  ctx.fillStyle='#C8952A';ctx.font='14px Arial';ctx.fillText(vh.length+' VENTAS',W/2,170);
+  ctx.beginPath();ctx.moveTo(40,184);ctx.lineTo(W-40,184);ctx.stroke();
+  var y=205;
+  ctx.fillStyle='#8B6200';ctx.font='bold 11px Arial';
   ctx.textAlign='left';ctx.fillText('PRODUCTO',50,y);
-  ctx.textAlign='center';ctx.fillText('TALLE',370,y);ctx.fillText('CANT',450,y);
+  ctx.textAlign='center';ctx.fillText('TALLE',365,y);ctx.fillText('CANT',450,y);
   ctx.textAlign='right';ctx.fillText('TOTAL Gs.',W-50,y);
   y+=6;ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(W-40,y);ctx.stroke();y+=14;
   vh.forEach(function(v,i){
-    ctx.fillStyle=i%2===0?'#1a2530':'#0f1923';ctx.fillRect(40,y-18,W-80,lH);
-    ctx.fillStyle='#ffffff';ctx.font='13px Arial';
+    ctx.fillStyle=i%2===0?'#FFFBF0':'#FFFFFF';ctx.fillRect(40,y-20,W-80,lH);
+    ctx.fillStyle='#3D2E00';ctx.font='13px Arial';
     ctx.textAlign='left';
     var p=(v.tipo||'')+' '+(v.diseno||'')+(v.color?' · '+v.color:'');
     if(p.length>42)p=p.slice(0,40)+'…';
     ctx.fillText(p,50,y);
-    ctx.textAlign='center';ctx.fillText(v.talle||'',370,y);ctx.fillText(v.cant||1,450,y);
-    ctx.fillStyle='#E8A820';ctx.textAlign='right';
+    ctx.textAlign='center';ctx.fillText(v.talle||'',365,y);ctx.fillText(v.cant||1,450,y);
+    ctx.fillStyle='#8B6200';ctx.font='bold 13px Arial';ctx.textAlign='right';
     ctx.fillText(Math.round(v.total||0).toLocaleString('es-PY'),W-50,y);
     y+=lH;
   });
-  if(!vh.length){ctx.fillStyle='#9E9890';ctx.font='15px Arial';ctx.textAlign='center';ctx.fillText('Sin ventas',W/2,y+10);y+=lH;}
-  y+=8;ctx.strokeStyle='#C8952A';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(W-40,y);ctx.stroke();y+=22;ctx.lineWidth=1;
-  ctx.fillStyle='#9E9890';ctx.font='bold 13px Arial';ctx.textAlign='left';ctx.fillText('DESGLOSE',50,y);y+=26;
-  [[ef,'Efectivo'],[dl,'Delivery'],[tr,'Transferencia'],[db,'T. Debito'],[cr,'T. Credito']].forEach(function(d){
+  if(!vh.length){
+    ctx.fillStyle='#C8952A';ctx.font='15px Arial';ctx.textAlign='center';
+    ctx.fillText('Sin ventas registradas',W/2,y+10);y+=lH;
+  }
+  y+=10;ctx.strokeStyle='#C8952A';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(W-40,y);ctx.stroke();y+=22;ctx.lineWidth=1;
+  ctx.fillStyle='#8B6200';ctx.font='bold 12px Arial';ctx.textAlign='left';
+  ctx.fillText('DESGLOSE POR FORMA DE PAGO',50,y);y+=26;
+  [[ef,'Efectivo en tienda'],[dl,'Delivery'],[tr,'Transferencia'],[db,'Tarjeta Debito'],[cr,'Tarjeta Credito']].forEach(function(d){
     if(!d[0])return;
-    ctx.fillStyle='#aaaaaa';ctx.font='14px Arial';ctx.textAlign='left';ctx.fillText(d[1],60,y);
-    ctx.fillStyle='#ffffff';ctx.font='bold 14px Arial';ctx.textAlign='right';ctx.fillText('Gs. '+Math.round(d[0]).toLocaleString('es-PY'),W-50,y);y+=28;
+    ctx.fillStyle='#8B6200';ctx.font='14px Arial';ctx.textAlign='left';ctx.fillText(d[1],60,y);
+    ctx.fillStyle='#3D2E00';ctx.font='bold 14px Arial';ctx.textAlign='right';
+    ctx.fillText('Gs. '+Math.round(d[0]).toLocaleString('es-PY'),W-50,y);y+=28;
   });
-  ctx.fillStyle='#2a3440';ctx.fillRect(0,H-28,W,28);
-  ctx.fillStyle='#9E9890';ctx.font='11px Arial';ctx.textAlign='center';ctx.fillText('Grupo de la Vida S.R.L.',W/2,H-10);
+  ctx.fillStyle='#C8952A';ctx.fillRect(0,H-28,W,28);
+  ctx.fillStyle='#FFFFFF';ctx.font='11px Arial';ctx.textAlign='center';
+  ctx.fillText('Grupo de la Vida S.R.L.',W/2,H-10);
+  ctx.fillStyle='#C8952A';ctx.fillRect(0,H-8,W,8);
   document.getElementById('mod-cierre').classList.remove('open');
   canvas.toBlob(function(blob){
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);
