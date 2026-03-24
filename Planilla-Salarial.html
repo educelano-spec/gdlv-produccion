@@ -254,8 +254,16 @@ td.tot{background:var(--s2);color:var(--tx);font-weight:700}
     <button class="btn btn-p" onclick="showAdelModal()">💰 Adelantos</button>
     <button class="btn" onclick="showFerModal()">📅 Feriados</button>
     <button class="btn" onclick="showCfgModal()">⚙️ Config</button>
+    <div id="backup-btn" onclick="backup_descargarAhora()" title="Descargar backup ahora" style="cursor:pointer;width:32px;height:32px;background:var(--s2);border:1px solid var(--bor2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;position:relative;flex-shrink:0">
+      💾<div id="backup-dot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;background:#f59e0b;border-radius:50%;border:2px solid #fff"></div>
+    </div>
+    <div id="backup-toast" style="display:none;align-items:center;gap:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:6px 12px;font-size:12px;color:#92400e;cursor:pointer" onclick="backup_descargarAhora()">
+      <span>💾</span><span>Backup listo &mdash; <strong>clic para descargar</strong></span>
+      <span onclick="event.stopPropagation();this.parentNode.style.display='none'" style="margin-left:4px;color:#b45309;cursor:pointer;font-size:14px">✕</span>
+    </div>
   </div>
 </div>
+<div id="save-indicator" style="position:fixed;bottom:18px;right:18px;background:#2e7d32;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;opacity:0;transition:opacity .4s;z-index:9998;pointer-events:none">☁ Guardado</div>
 
 <div id="banner" onclick="document.getElementById('fi').click()">
   <div class="ban-ico">⏱️</div>
@@ -295,8 +303,28 @@ td.tot{background:var(--s2);color:var(--tx);font-weight:700}
       <div class="tb" onclick="gTab('historial')">📋 Historial</div>
       <div class="tb" onclick="gTab('config')">⚙️ Config</div>
       <div class="tb" onclick="gTab('feriados')">📅 Feriados</div>
+      <div class="tb" onclick="gTab('backups');renderBackups()">🔒 Backups</div>
     </div>
     <div id="tab-ficha"><div class="empty"><div class="ei">👈</div><p>Seleccioná un empleado</p></div></div>
+    <div id="tab-backups" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:16px;font-weight:700;font-family:Fraunces,serif">Backups de Datos</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">Respaldo automático diario · 30 días en Firebase · 5 copias locales</div></div>
+        <button class="btn btn-g" onclick="manualBackup()">💾 Backup Manual Ahora</button>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--bor);border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:12px;max-width:700px">
+        <div style="font-weight:700;margin-bottom:7px">🔒 Cómo funciona el backup automático</div>
+        <div style="color:var(--t2);line-height:1.75">
+          📅 <b>Diario automático:</b> Cada vez que importás un Excel, el sistema verifica si ya se hizo el backup del día. Si no, lo guarda en Firebase.<br>
+          🔑 <b>30 días en Firebase:</b> Se mantienen los últimos 30 días de backups en la nube. Los más antiguos se eliminan solos.<br>
+          💾 <b>5 copias locales:</b> También se guardan las últimas 5 copias en el navegador como respaldo offline.<br>
+          ↓ <b>Descarga disponible:</b> Cuando se genera un backup aparece el botón 💾 en el header. También podés descargar cualquier backup manualmente desde acá.<br>
+          ↩ <b>Restaurar:</b> Podés restaurar cualquier backup. El sistema guarda el estado actual antes de restaurar.
+        </div>
+      </div>
+      <div style="font-size:9.5px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Backups disponibles</div>
+      <div id="backups-lista"><div style="padding:20px;color:var(--t3);text-align:center">Cargando...</div></div>
+    </div>
     <div id="tab-resumen" style="display:none">
       <div class="rtabs">
         <div class="rtab on" onclick="rTab('sem')">Semanal</div>
@@ -414,9 +442,9 @@ window.addEventListener('load',initFirebase);
 function fbDot(s){var d=document.getElementById('fb-dot'),l=document.getElementById('fb-lbl');d.className='fb-dot '+(s==='ok'?'ok':s==='err'?'err':'sync');l.textContent=s==='ok'?'Firebase ✓':s==='err'?'Firebase ✗':'Sincronizando...';}
 function lsGet(k){try{var v=localStorage.getItem('gdlv_sal_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem('gdlv_sal_'+k,JSON.stringify(v));}catch(e){}}
-function fbWrite(path,data,lsKey){fbDot('sync');var k=lsKey!==undefined?lsKey:path;return DB.ref('planilla_salarios/'+path).set(data).then(function(){fbDot('ok');if(k!==null)lsSet(k,data);}).catch(function(){fbDot('err');if(k!==null)lsSet(k,data);});}
-function fbRead(path,cb){DB.ref('planilla_salarios/'+path).once('value').then(function(s){fbDot('ok');var d=s.val();if(d!==null)cb(d);else{var ls=lsGet(path);if(ls)cb(ls);}}).catch(function(){fbDot('err');var ls=lsGet(path);if(ls)cb(ls);});}
-function fbListen(path,cb){DB.ref('planilla_salarios/'+path).on('value',function(s){fbDot('ok');var d=s.val();if(d!==null)cb(d);},function(){fbDot('err');});}
+function fbWrite(path,data,lsKey){var k=lsKey!==undefined?lsKey:path;if(k!==null)lsSet(k,data);if(!DB){return Promise.resolve();}fbDot('sync');return DB.ref('planilla_salarios/'+path).set(data).then(function(){fbDot('ok');}).catch(function(){fbDot('err');if(k!==null)lsSet(k,data);});}
+function fbRead(path,cb){if(!DB){var ls=lsGet(path);if(ls)cb(ls);return;}DB.ref('planilla_salarios/'+path).once('value').then(function(s){fbDot('ok');var d=s.val();if(d!==null)cb(d);else{var ls=lsGet(path);if(ls)cb(ls);}}).catch(function(){fbDot('err');var ls=lsGet(path);if(ls)cb(ls);});}
+function fbListen(path,cb){if(!DB)return;DB.ref('planilla_salarios/'+path).on('value',function(s){fbDot('ok');var d=s.val();if(d!==null)cb(d);},function(){fbDot('err');});}
 
 // ══════════════════════════════════════════════════════
 //  ESTADO GLOBAL
@@ -724,6 +752,8 @@ function aplicar(fname){
   document.getElementById('aside-per').textContent=SEM_INI+' → '+SEM_FIN;
   updTots();renderSide();renderCfgGrid();pobFilt();renderFeriados();
   showSt((fname?fname+' — ':'')+Object.keys(EMPS).length+' empleados cargados.','ok');
+  showSaveIndicator();
+  autoBackup();
   selectEmp(Object.keys(EMPS)[0]);
 }
 
@@ -774,6 +804,7 @@ function cargarSemana(skSafe){
   if(dat){
     restaurarSemana(dat,skSafe);
   } else {
+    if(!DB){showSt('Sin conexión Firebase y sin datos locales para esa semana.','err');return;}
     fbDot('sync');
     DB.ref('planilla_salarios/marcaciones/'+skSafe).once('value').then(function(s){
       fbDot('ok');
@@ -844,7 +875,7 @@ function renderSide(){
 // ══════════════════════════════════════════════════════
 function gTab(t){
   GTAB=t;
-  ['ficha','resumen','historial','config','feriados'].forEach(function(x,i){
+  ['ficha','resumen','historial','config','feriados','backups'].forEach(function(x,i){
     document.getElementById('tab-'+x).style.display=x===t?'block':'none';
     document.querySelectorAll('#gtabs .tb')[i].classList.toggle('on',x===t);
   });
@@ -1275,6 +1306,286 @@ function demo(){
   parse(rows);aplicar('Demo_2026-02-28_2026-03-06.xlsx');
 }
 
+
+// ══════════════════════════════════════════════════════
+//  BACKUP AUTOMÁTICO
+// ══════════════════════════════════════════════════════
+var BACKUP_PATH    = 'planilla_salarios/backups';
+var _lastBackupDay    = null;
+var _pendingBackupData= null;
+var _pendingBackupDay = null;
+var _backupReminderTs = 0;
+var _backupReminderStarted = false;
+var BACKUP_REMIND_MS = 3*60*60*1000; // 3 horas
+
+function getBackupDayKey(){
+  // YYYY-MM-DD en hora Paraguay (UTC-4)
+  var pyMs=new Date().getTime()-(4*3600000);
+  var py=new Date(pyMs);
+  return py.getUTCFullYear()+'-'+('0'+(py.getUTCMonth()+1)).slice(-2)+'-'+('0'+py.getUTCDate()).slice(-2);
+}
+
+function buildBackupData(){
+  // Snapshot completo del estado actual
+  var snap={
+    _meta:{
+      version:'GDV_Planilla_v4',
+      exported:new Date().toISOString(),
+      day_paraguay:getBackupDayKey()
+    },
+    config_empleados:CFG,
+    feriados:FERIADOS,
+    adelantos:ADELS,
+    semanas_index:SEMANAS_INDEX,
+    historial:HIST,
+    ultima_sem:lsGet('ultima_sem')
+  };
+  // Guardar también las marcaciones de todas las semanas conocidas
+  snap.marcaciones={};
+  Object.keys(SEMANAS_INDEX).forEach(function(k){
+    var m=lsGet('marcaciones_'+k);
+    if(m)snap.marcaciones[k]=m;
+  });
+  // Incluir la semana actual si está cargada
+  if(Object.keys(EMPS).length){
+    var skSafe=sKey().replace(/[^a-zA-Z0-9_]/g,'_');
+    var mActual=lsGet('marcaciones_'+skSafe);
+    if(mActual&&!snap.marcaciones[skSafe])snap.marcaciones[skSafe]=mActual;
+  }
+  return snap;
+}
+
+function autoBackup(){
+  var dayKey=getBackupDayKey();
+  if(_lastBackupDay===dayKey)return; // ya se hizo hoy
+  _lastBackupDay=dayKey;
+  var snap=buildBackupData();
+  snap._backup_ts=new Date().toISOString();
+  snap._backup_day=dayKey;
+  // Siempre guardar local aunque no haya Firebase
+  saveLocalBackupSnapshot(dayKey,snap);
+  _pendingBackupData=snap;
+  _pendingBackupDay=dayKey;
+  backup_mostrarAviso();
+  backup_iniciarRecordatorio();
+  // Firebase si está disponible
+  if(DB){
+    try{
+      DB.ref(BACKUP_PATH+'/'+dayKey).set(snap)
+        .then(function(){console.log('Backup automático guardado:',dayKey);pruneOldBackups();})
+        .catch(function(e){console.warn('Backup Firebase error:',e);});
+    }catch(e){console.warn('Backup error:',e);}
+  }
+}
+
+function backup_mostrarAviso(){
+  var dot=document.getElementById('backup-dot');
+  if(dot)dot.style.display='block';
+  var toast=document.getElementById('backup-toast');
+  if(toast){
+    toast.style.display='flex';
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer=setTimeout(function(){toast.style.display='none';},12000);
+  }
+  _backupReminderTs=Date.now();
+}
+
+function backup_descargarAhora(){
+  var dot=document.getElementById('backup-dot');if(dot)dot.style.display='none';
+  var toast=document.getElementById('backup-toast');if(toast)toast.style.display='none';
+  if(_pendingBackupData&&_pendingBackupDay){
+    downloadBackupFile(_pendingBackupData,'GDV_Planilla_backup_'+_pendingBackupDay+'.json');
+    _pendingBackupData=null;_pendingBackupDay=null;
+  } else {
+    manualBackup();
+  }
+}
+
+function backup_iniciarRecordatorio(){
+  if(_backupReminderStarted)return;
+  _backupReminderStarted=true;
+  setInterval(function(){
+    if(!DB)return;
+    if(Date.now()-_backupReminderTs<BACKUP_REMIND_MS)return;
+    var snap=buildBackupData();
+    var dayKey=getBackupDayKey();
+    snap._backup_ts=new Date().toISOString();
+    snap._backup_day=dayKey;
+    _pendingBackupData=snap;_pendingBackupDay=dayKey;
+    saveLocalBackupSnapshot(dayKey,snap);
+    try{DB.ref(BACKUP_PATH+'/'+dayKey).set(snap).catch(function(){});}catch(e){}
+    backup_mostrarAviso();
+  },30*60*1000);
+}
+
+function saveLocalBackupSnapshot(dayKey,snap){
+  try{
+    var idx=JSON.parse(localStorage.getItem('gdlv_sal_backups_index')||'[]');
+    localStorage.setItem('gdlv_sal_backup_'+dayKey,JSON.stringify(snap));
+    if(idx.indexOf(dayKey)===-1)idx.push(dayKey);
+    idx.sort().reverse();
+    while(idx.length>5){var old=idx.pop();localStorage.removeItem('gdlv_sal_backup_'+old);}
+    localStorage.setItem('gdlv_sal_backups_index',JSON.stringify(idx));
+  }catch(e){console.warn('Local backup snapshot error:',e);}
+}
+
+function pruneOldBackups(){
+  if(!DB)return;
+  var pyMs=new Date().getTime()-(4*3600000);
+  var cutoff=new Date(pyMs-30*86400000);
+  var cutoffKey=cutoff.getUTCFullYear()+'-'+('0'+(cutoff.getUTCMonth()+1)).slice(-2)+'-'+('0'+cutoff.getUTCDate()).slice(-2);
+  DB.ref(BACKUP_PATH).orderByKey().endAt(cutoffKey).once('value',function(snap){
+    if(!snap.exists())return;
+    var updates={};
+    snap.forEach(function(child){updates[child.key]=null;});
+    if(Object.keys(updates).length)DB.ref(BACKUP_PATH).update(updates)
+      .then(function(){console.log('Backups antiguos eliminados:',Object.keys(updates).length);});
+  });
+}
+
+function downloadBackupFile(data,filename){
+  var json=JSON.stringify(data,null,2);
+  var blob=new Blob([json],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+}
+
+function manualBackup(){
+  var dayKey=getBackupDayKey();
+  var snap=buildBackupData();
+  snap._backup_ts=new Date().toISOString();
+  snap._backup_day=dayKey;
+  snap._backup_manual=true;
+  downloadBackupFile(snap,'GDV_Planilla_backup_'+dayKey+'.json');
+  if(DB){
+    DB.ref(BACKUP_PATH+'/'+dayKey).set(snap)
+      .then(function(){saveLocalBackupSnapshot(dayKey,snap);renderBackups();showSaveIndicator();})
+      .catch(function(e){console.warn('Firebase backup error:',e);});
+  }
+  saveLocalBackupSnapshot(dayKey,snap);
+}
+
+function showSaveIndicator(){
+  var el=document.getElementById('save-indicator');if(!el)return;
+  el.style.opacity='1';
+  clearTimeout(el._t);
+  el._t=setTimeout(function(){el.style.opacity='0';},2500);
+}
+
+function renderBackups(){
+  var container=document.getElementById('backups-lista');if(!container)return;
+  container.innerHTML='<div style="padding:12px;color:var(--t3)">Cargando backups...</div>';
+  if(DB){
+    try{
+      DB.ref(BACKUP_PATH).orderByKey().limitToLast(30).once('value',function(snap){
+        var backups=[];
+        if(snap.exists())snap.forEach(function(child){backups.unshift({key:child.key,data:child.val()});});
+        renderBackupsList(container,backups);
+      }).catch(function(){renderBackupsList(container,getLocalBackups());});
+    }catch(e){renderBackupsList(container,getLocalBackups());}
+  } else {
+    renderBackupsList(container,getLocalBackups());
+  }
+}
+
+function getLocalBackups(){
+  var idx=JSON.parse(localStorage.getItem('gdlv_sal_backups_index')||'[]');
+  return idx.map(function(k){
+    try{var d=JSON.parse(localStorage.getItem('gdlv_sal_backup_'+k)||'null');return{key:k,data:d,local:true};}
+    catch(e){return null;}
+  }).filter(Boolean);
+}
+
+function renderBackupsList(container,backups){
+  if(!backups.length){
+    container.innerHTML='<div style="padding:20px;color:var(--t3);text-align:center">No hay backups disponibles todavía.<br>El sistema guarda uno automáticamente cada día al importar un Excel.</div>';
+    return;
+  }
+  var h='';
+  backups.forEach(function(b){
+    var meta=b.data||{};
+    var ts=meta._backup_ts?new Date(meta._backup_ts).toLocaleString('es-PY'):b.key;
+    var isManual=meta._backup_manual;
+    var sems=meta.semanas_index?Object.keys(meta.semanas_index).length:0;
+    var emps=meta.config_empleados?Object.keys(meta.config_empleados).length:0;
+    h+='<div style="border:1px solid var(--bor);border-radius:8px;padding:12px 16px;margin-bottom:8px;background:var(--sur);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">';
+    h+='<div>';
+    h+='<div style="font-weight:700;font-size:13px">'+b.key+(isManual?' <span style="font-size:9px;background:var(--tx);color:#fff;border-radius:4px;padding:1px 6px">Manual</span>':'')+(b.local?' <span style="font-size:9px;background:var(--abg);color:var(--am);border-radius:4px;border:1px solid var(--abr);padding:1px 6px">Local</span>':'')+'</div>';
+    h+='<div style="font-size:11px;color:var(--t3);margin-top:3px">'+ts+'</div>';
+    h+='<div style="font-size:11px;color:var(--t3);margin-top:3px">👥 '+emps+' empleados · 📅 '+sems+' semanas guardadas</div>';
+    h+='</div>';
+    h+='<div style="display:flex;gap:7px">';
+    h+='<button class="btn" style="font-size:11px;padding:4px 10px" onclick="downloadBackupEntry(\''+b.key+'\')">⬇ Descargar</button>';
+    h+='<button class="btn" style="font-size:11px;padding:4px 10px;background:var(--rbg);color:var(--re);border-color:var(--rbr)" onclick="restoreBackup(\''+b.key+'\')">↩ Restaurar</button>';
+    h+='</div>';
+    h+='</div>';
+  });
+  container.innerHTML=h;
+}
+
+function downloadBackupEntry(key){
+  function doDownload(data){
+    if(!data){alert('No se pudo leer el backup '+key);return;}
+    downloadBackupFile(data,'GDV_Planilla_backup_'+key+'.json');
+  }
+  if(DB){
+    try{DB.ref(BACKUP_PATH+'/'+key).once('value',function(snap){doDownload(snap.val());});}
+    catch(e){try{doDownload(JSON.parse(localStorage.getItem('gdlv_sal_backup_'+key)||'null'));}catch(e2){alert('Error al leer backup.');}}
+  } else {
+    try{doDownload(JSON.parse(localStorage.getItem('gdlv_sal_backup_'+key)||'null'));}
+    catch(e){alert('Error al leer backup local.');}
+  }
+}
+
+function restoreBackup(key){
+  if(!confirm('ATENCIÓN: Restaurar el backup del '+key+'\n\nEsto reemplazará los datos actuales de marcaciones, configuración y adelantos.\n\n¿Estás seguro?'))return;
+  function doRestore(data){
+    if(!data){alert('No se pudo leer el backup.');return;}
+    // Guardar estado actual antes de restaurar
+    var safeKey=getBackupDayKey()+'_pre_restore';
+    if(DB)DB.ref(BACKUP_PATH+'/'+safeKey).set(buildBackupData()).catch(function(){});
+    // Aplicar backup
+    if(data.config_empleados&&Object.keys(data.config_empleados).length){
+      CFG=data.config_empleados;
+      lsSet('config_empleados',CFG);
+      if(DB)DB.ref('planilla_salarios/config_empleados').set(CFG).catch(function(){});
+    }
+    if(data.feriados){FERIADOS=data.feriados;lsSet('feriados',FERIADOS);}
+    if(data.adelantos){ADELS=data.adelantos;lsSet('adelantos',ADELS);}
+    if(data.semanas_index){
+      SEMANAS_INDEX=data.semanas_index;
+      lsSet('semanas_index',SEMANAS_INDEX);
+      if(DB)DB.ref('planilla_salarios/semanas_index').set(SEMANAS_INDEX).catch(function(){});
+    }
+    // Restaurar marcaciones
+    if(data.marcaciones){
+      Object.keys(data.marcaciones).forEach(function(k){
+        var m=data.marcaciones[k];
+        lsSet('marcaciones_'+k,m);
+        if(DB)DB.ref('planilla_salarios/marcaciones/'+k).set(m,null).catch(function(){});
+      });
+    }
+    // Restaurar última semana
+    var ultima=data.ultima_sem;
+    if(ultima){
+      lsSet('ultima_sem',ultima);
+      var marcData=data.marcaciones&&data.marcaciones[ultima];
+      if(marcData)restaurarSemana(marcData,ultima);
+    }
+    renderCfgGrid();renderFeriados();renderSelector();
+    alert('Backup restaurado correctamente.\nSe guardó una copia del estado anterior.');
+  }
+  if(DB){
+    try{DB.ref(BACKUP_PATH+'/'+key).once('value',function(snap){doRestore(snap.val());});}
+    catch(e){try{doRestore(JSON.parse(localStorage.getItem('gdlv_sal_backup_'+key)||'null'));}catch(e2){alert('Error al restaurar.');}}
+  } else {
+    try{doRestore(JSON.parse(localStorage.getItem('gdlv_sal_backup_'+key)||'null'));}
+    catch(e){alert('Error al restaurar backup local.');}
+  }
+}
+
 // ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
@@ -1342,7 +1653,7 @@ function initData(){
               var dat3=lsGet('marcaciones_'+sk2);
               if(dat3){restaurarSemana(dat3,sk2);}
               else{
-                DB.ref('planilla_salarios/marcaciones/'+sk2).once('value').then(function(s){
+                if(DB)DB.ref('planilla_salarios/marcaciones/'+sk2).once('value').then(function(s){
                   var dv=s.val();
                   if(dv){lsSet('marcaciones_'+sk2,dv);restaurarSemana(dv,sk2);}
                 }).catch(function(){});
