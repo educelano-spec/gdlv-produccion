@@ -3125,6 +3125,7 @@ function initDBFromFirebase() {
     FB_CONNECTED = true;
     updateOnlineIndicator(true);
     setTimeout(autoBackup, 5000);
+    setTimeout(backup_iniciarRecordatorio, 6000);
     var extra = snap.val();
     if(extra) {
       applyExtra(extra);
