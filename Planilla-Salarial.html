@@ -390,8 +390,8 @@ td.tot{background:var(--s2);color:var(--tx);font-weight:700}
     <div class="mbdy">
       <div class="fg" style="margin-bottom:12px">
         <div class="fld fg2"><label>Empleado</label><select class="fi" id="a-emp"></select></div>
-        <div class="fld"><label>Tipo</label><select class="fi" id="a-tipo"><option value="adelanto">Adelanto de sueldo</option><option value="descuento">Descuento</option><option value="bonus">Bonus / Premio</option></select></div>
-        <div class="fld"><label>Monto (Gs.)</label><input class="fi" type="number" id="a-monto" placeholder="500000"></div>
+        <div class="fld"><label>Tipo</label><select class="fi" id="a-tipo" onchange="var v=this.value;var lbl=document.getElementById('a-monto-lbl');var inp=document.getElementById('a-monto');if(v==='vacaciones'){lbl.textContent='Días de vacaciones';inp.placeholder='Ej: 5';}else{lbl.textContent='Monto (Gs.)';inp.placeholder='500000';}"><option value="adelanto">Adelanto de sueldo</option><option value="descuento">Descuento</option><option value="bonus">Bonus / Premio</option><option value="vacaciones">Vacaciones (días)</option></select></div>
+        <div class="fld"><label id="a-monto-lbl">Monto (Gs.)</label><input class="fi" type="number" id="a-monto" placeholder="500000"></div>
         <div class="fld"><label>Fecha</label><input class="fi" type="date" id="a-fecha"></div>
         <div class="fld fg2"><label>Concepto / Motivo</label><input class="fi" type="text" id="a-conc" placeholder="Ej: Adelanto quincenal"></div>
       </div>
@@ -620,6 +620,14 @@ function calcPago(id,c,marc){
     else{hsNormD+=m.hsNorm;hsNoctD+=m.hsNoct;}
     if(m.hs>0)diasTrab++;
   });
+
+  // ── Vacaciones: días registrados en ADELS para esta semana ──────────
+  var ads_sem=(ADELS[id]||[]).filter(function(a){return a.sk===sk;});
+  var vacs=ads_sem.filter(function(a){return a.tp==='vacaciones';});
+  var diasVac=vacs.reduce(function(s,a){return s+(+a.mo||0);},0);
+
+  // ── Horas de feriados/domingos NO trabajados (para mensuales) ───────
+  // Calcular qué días de la semana son feriados o domingos y el empleado no asistió
   var hsTot=hsNormD+hsNoctD+hsNormE+hsNoctE;
   var hsBase=hsNormD+hsNoctD;
   var hsExt=Math.max(0,hsBase-TOPE);
@@ -644,49 +652,99 @@ function calcPago(id,c,marc){
     var ph2N=Math.round(ph*2.3),b5=Math.round(hsNoctE*ph2N);if(hsNoctE>0)det.push({c:'Dom./Feriado nocturno (+130%)',q:hsNoctE.toFixed(2)+' hs',t:gs(ph2N)+'/h',s:b5,tipo:'esp'});bruto+=b5;
 
   } else {
-    // Tipo Mes: proporcional por horas trabajadas
-    // ph = tarifa hora = (sueldo_mensual ÷ semanas_mes) ÷ horas_esperadas_semana
+    // ── TIPO MES ────────────────────────────────────────────────────────
+    // Lógica: el sueldo mensual ya INCLUYE feriados y vacaciones.
+    // El proporcional semanal debe reflejar TODAS las horas que debería
+    // haber trabajado (trabajadas + feriados no trabajados + vacaciones).
+    //
+    // ph = sueldo_mensual ÷ (semanas_mes × tope_horas)
     var DIV=semanasDelMes(SEM_INI);
-    var ph=c.pm/(DIV*TOPE); // tarifa hora base
+    var ph=c.pm/(DIV*TOPE);
 
-    // Horas normales diurnas trabajadas (sin extras, sin esp)
+    // Calcular horas esperadas por día según horario configurado
+    var entM=t2m(c.ent||'07:00'),salM=t2m(c.sal||'17:00');
+    var almHsCfg=0;
+    if(c.salm&&c.ralm){almHsCfg=(t2m(c.ralm)-t2m(c.salm))/60;if(almHsCfg<0)almHsCfg=0;}
+    var hsDiaNormal=Math.max(0,(salM-entM)/60-almHsCfg); // hs por día laboral normal
+    var hsSabado=c.sab?hsDiaNormal:0; // sábado solo si laborable
+
+    // Días que caen en la semana
+    var dSem=[];
+    var d0=new Date(SEM_INI+'T00:00:00'),d1=new Date(SEM_FIN+'T00:00:00');
+    for(var dd=new Date(d0);dd<=d1;dd=new Date(dd.getTime()+86400000)){
+      var iso=dd.getFullYear()+'-'+('0'+(dd.getMonth()+1)).slice(-2)+'-'+('0'+dd.getDate()).slice(-2);
+      dSem.push(iso);
+    }
+
+    // Detectar feriados/domingos no trabajados → horas que ya están en el sueldo base
+    var hsFerNoTrab=0; // horas de feriado/domingo NO trabajado (ya incluidas en sueldo)
+    var ferNoTrabDias=[]; // para mostrar en la tabla
+    dSem.forEach(function(iso){
+      var diaSem=new Date(iso+'T00:00:00').getDay(); // 0=dom,6=sab
+      var isDom=diaSem===0;
+      var isFer=esFeriado(iso);
+      if(!isDom&&!isFer)return; // día normal → no aplica
+      // Ver si el empleado trabajó ese día
+      var trab=marc.find(function(m){return m.fe===iso;});
+      if(!trab||trab.hs===0){
+        // No trabajó → esas horas ya están incluidas en el sueldo, sumar al proporcional base
+        var hsEseDia=isDom?0:(diaSem===6?hsSabado:hsDiaNormal);
+        // Sábados: solo si es laborable
+        if(diaSem===6&&!c.sab)hsEseDia=0;
+        if(hsEseDia>0){
+          hsFerNoTrab+=hsEseDia;
+          ferNoTrabDias.push({fe:iso,isDom:isDom,isFer:isFer,hs:hsEseDia});
+        }
+      }
+    });
+
+    // Horas de vacaciones → se pagan igual que horas normales (ya en el sueldo)
+    var hsVacaciones=diasVac*hsDiaNormal;
+
+    // Horas normales trabajadas (sin extras, sin esp, sin las ya pagadas como feriado especial)
     var hsNormTrab=Math.max(0,hsNormD-extN);
     var hsNoctTrab=Math.max(0,hsNoctD-extNo);
 
-    // Base proporcional: horas normales diurnas × tarifa
-    if(hsNormTrab>0){
-      var bBase=Math.round(hsNormTrab*ph);
-      det.push({c:'Salario proporcional ('+hsNormTrab.toFixed(2)+'hs × Gs.'+Math.round(ph).toLocaleString('es-PY')+')',q:hsNormTrab.toFixed(2)+' hs',t:gs(Math.round(ph))+'/h',s:bBase,tipo:'normal'});
+    // BASE PROPORCIONAL = horas trabajadas normales + feriados no trabajados + vacaciones
+    var hsBaseTotal=hsNormTrab+hsFerNoTrab+hsVacaciones;
+    if(hsBaseTotal>0){
+      var bBase=Math.round(hsBaseTotal*ph);
+      var detLabel='Salario proporcional ('+hsNormTrab.toFixed(1)+'hs trab.';
+      if(hsFerNoTrab>0)detLabel+='+'+hsFerNoTrab.toFixed(1)+'hs feriado';
+      if(hsVacaciones>0)detLabel+='+'+hsVacaciones.toFixed(1)+'hs vac.';
+      detLabel+=')';
+      det.push({c:detLabel,q:hsBaseTotal.toFixed(2)+' hs',t:gs(Math.round(ph))+'/h',s:bBase,tipo:'normal'});
       bruto+=bBase;
     }
-    // Nocturno diurno: adicional 30% sobre tarifa
+    // Nocturno: +30%
     if(hsNoctTrab>0){
       var phN=Math.round(ph*1.3),bN=Math.round(hsNoctTrab*phN);
       det.push({c:'Horas nocturnas (+30%)',q:hsNoctTrab.toFixed(2)+' hs',t:gs(phN)+'/h',s:bN,tipo:'noct'});
       bruto+=bN;
     }
-    // Extras diurnas: 50% sobre tarifa
+    // Extras diurnas: +50%
     if(extN>0){
       var phE=Math.round(ph*1.5),bE=Math.round(extN*phE);
       det.push({c:'Horas extras diurnas (+50%)',q:extN.toFixed(2)+' hs',t:gs(phE)+'/h',s:bE,tipo:'extra'});
       bruto+=bE;
     }
-    // Extras nocturnas: 80%
+    // Extras nocturnas: +80%
     if(extNo>0){
       var phEN=Math.round(ph*1.8),bEN=Math.round(extNo*phEN);
       det.push({c:'Horas extras nocturnas (+80%)',q:extNo.toFixed(2)+' hs',t:gs(phEN)+'/h',s:bEN,tipo:'extra'});
       bruto+=bEN;
     }
-    // Dom/Feriado: 100% adicional (paga doble = 2×ph)
+    // Trabajó en feriado/domingo: ya cobró en base → solo el ADICIONAL (+100% diurno, +130% noct)
+    // Es decir: 1×ph ya está en base, se agrega otro 1×ph como recargo
     if(hsNormE>0){
-      var phD=Math.round(ph*2),bD=Math.round(hsNormE*phD);
-      det.push({c:'Dom./Feriado diurno (+100%)',q:hsNormE.toFixed(2)+' hs',t:gs(phD)+'/h',s:bD,tipo:'esp'});
-      bruto+=bD;
+      var phFR=Math.round(ph),bFR=Math.round(hsNormE*phFR);
+      det.push({c:'Recargo feriado/dom. trabajado (+100%)',q:hsNormE.toFixed(2)+' hs',t:gs(phFR)+'/h',s:bFR,tipo:'esp'});
+      bruto+=bFR;
     }
     if(hsNoctE>0){
-      var phDN=Math.round(ph*2.3),bDN=Math.round(hsNoctE*phDN);
-      det.push({c:'Dom./Feriado nocturno (+130%)',q:hsNoctE.toFixed(2)+' hs',t:gs(phDN)+'/h',s:bDN,tipo:'esp'});
-      bruto+=bDN;
+      var phFRN=Math.round(ph*1.3),bFRN=Math.round(hsNoctE*phFRN);
+      det.push({c:'Recargo feriado/dom. nocturno (+130%)',q:hsNoctE.toFixed(2)+' hs',t:gs(phFRN)+'/h',s:bFRN,tipo:'esp'});
+      bruto+=bFRN;
     }
   }
 
@@ -696,9 +754,19 @@ function calcPago(id,c,marc){
   var tAde=ads.filter(function(a){return a.tp==='adelanto';}).reduce(function(s,a){return s+a.mo;},0);
   var tDes=ads.filter(function(a){return a.tp==='descuento';}).reduce(function(s,a){return s+a.mo;},0);
   var tBon=ads.filter(function(a){return a.tp==='bonus';}).reduce(function(s,a){return s+a.mo;},0);
+  // Las vacaciones NO se descuentan ni suman al neto directamente — ya están en el bruto proporcional
+  // diasVac y tVac son solo para mostrar en la liquidación
+  var _diasVac=c.tp==='Mes'?diasVac:0;
+  var _ferNoTrab=c.tp==='Mes'?(typeof ferNoTrabDias!=='undefined'?ferNoTrabDias:[]):[];
+  // tVac = valor en Gs de los días de vacaciones (para mostrar desglose)
+  var _DIV=semanasDelMes(SEM_INI),_ph=c.tp==='Mes'?c.pm/(_DIV*(c.tope||48)):0;
+  var _entM=t2m(c.ent||'07:00'),_salM=t2m(c.sal||'17:00');
+  var _almH=0;if(c.salm&&c.ralm){_almH=(t2m(c.ralm)-t2m(c.salm))/60;if(_almH<0)_almH=0;}
+  var _hsDia=Math.max(0,(_salM-_entM)/60-_almH);
+  var tVac=Math.round(_diasVac*_hsDia*_ph);
   var neto=bruto-dIPS-tAde-tDes+tBon;
   var tards=marc.filter(function(m){return m.tard>0;});
-  EMPS[id]={c:c,marc:marc,hsTot:Math.round(hsTot*100)/100,hsNorm:Math.round(hsNormD*100)/100,hsNoct:Math.round(hsNoctD*100)/100,hsExt:Math.round(hsExt*100)/100,hsEsp:Math.round((hsNormE+hsNoctE)*100)/100,diasTrab:diasTrab,bruto:bruto,det:det,dIPS:dIPS,bIPS:bIPS,ads:ads,tAde:tAde,tDes:tDes,tBon:tBon,neto:neto,tards:tards,totTard:tards.reduce(function(s,m){return s+m.tard;},0)};
+  EMPS[id]={c:c,marc:marc,ferNoTrab:_ferNoTrab,diasVac:_diasVac,tVac:tVac,hsTot:Math.round(hsTot*100)/100,hsNorm:Math.round(hsNormD*100)/100,hsNoct:Math.round(hsNoctD*100)/100,hsExt:Math.round(hsExt*100)/100,hsEsp:Math.round((hsNormE+hsNoctE)*100)/100,diasTrab:diasTrab,bruto:bruto,det:det,dIPS:dIPS,bIPS:bIPS,ads:ads,tAde:tAde,tDes:tDes,tBon:tBon,neto:neto,tards:tards,totTard:tards.reduce(function(s,m){return s+m.tard;},0)};
 }
 
 // ══════════════════════════════════════════════════════
@@ -737,7 +805,7 @@ function aplicar(fname){
   var marcData={ini:SEM_INI,fin:SEM_FIN,per:SEM_PER,emps:{}};
   Object.keys(EMPS).forEach(function(id){
     var e=EMPS[id];
-    marcData.emps[id]={cfg:e.c,marc:e.marc,det:e.det,hsTot:e.hsTot,hsNorm:e.hsNorm,hsNoct:e.hsNoct,hsExt:e.hsExt,hsEsp:e.hsEsp,diasTrab:e.diasTrab,bruto:e.bruto,dIPS:e.dIPS,bIPS:e.bIPS,neto:e.neto,tards:e.tards,totTard:e.totTard};
+    marcData.emps[id]={cfg:e.c,marc:e.marc,ferNoTrab:e.ferNoTrab||[],diasVac:e.diasVac||0,tVac:e.tVac||0,det:e.det,hsTot:e.hsTot,hsNorm:e.hsNorm,hsNoct:e.hsNoct,hsExt:e.hsExt,hsEsp:e.hsEsp,diasTrab:e.diasTrab,bruto:e.bruto,dIPS:e.dIPS,bIPS:e.bIPS,neto:e.neto,tards:e.tards,totTard:e.totTard};
   });
   var skSafe=sk.replace(/[^a-zA-Z0-9_]/g,'_');
   fbWrite('marcaciones/'+skSafe,marcData,null);
@@ -831,7 +899,7 @@ function restaurarSemana(dat,skSafe){
     var bIPS=cfg.ips?Math.round(cfg.ips/DIV2):0;
     var dIPS=cfg.ips?Math.round(bIPS*(cfg.ipsp||9)/100):0;
     var neto=ed.bruto-dIPS-tAde-tDes+tBon;
-    EMPS[id]={c:cfg,marc:ed.marc,hsTot:ed.hsTot,hsNorm:ed.hsNorm||0,hsNoct:ed.hsNoct||0,hsExt:ed.hsExt||0,hsEsp:ed.hsEsp||0,diasTrab:ed.diasTrab||0,bruto:ed.bruto,det:ed.det||[],dIPS:dIPS,bIPS:bIPS,ads:ads,tAde:tAde,tDes:tDes,tBon:tBon,neto:neto,tards:ed.tards||[],totTard:ed.totTard||0};
+    EMPS[id]={c:cfg,marc:ed.marc,ferNoTrab:ed.ferNoTrab||[],diasVac:ed.diasVac||0,tVac:ed.tVac||0,hsTot:ed.hsTot,hsNorm:ed.hsNorm||0,hsNoct:ed.hsNoct||0,hsExt:ed.hsExt||0,hsEsp:ed.hsEsp||0,diasTrab:ed.diasTrab||0,bruto:ed.bruto,det:ed.det||[],dIPS:dIPS,bIPS:bIPS,ads:ads,tAde:tAde,tDes:tDes,tBon:tBon,neto:neto,tards:ed.tards||[],totTard:ed.totTard||0};
   });
   lsSet('ultima_sem',skSafe);
   document.getElementById('sem-sel').value=skSafe;
@@ -948,16 +1016,52 @@ function renderEmp(id){
 // ══════════════════════════════════════════════════════
 function buildMarcTable(e){
   var rows='';
-  e.marc.forEach(function(m){
-    var b=m.tard>0?'<span class="badge btd">⏱ '+m.est+'</span>':m.isDom?'<span class="badge bfn">🌅 Dom.</span>':m.isFer?'<span class="badge bno">📅 Feriado</span>':'<span class="badge bok">✓ OK</span>';
-    rows+='<tr style="'+(m.esEsp?'background:#e8f2fc':'')+'">'
-      +'<td class="s">'+fd(m.fe)+'</td><td>'+m.di+'</td><td class="m">'+m.en+'</td>'
-      +'<td class="m">'+m.slam+'</td><td class="m">'+m.rlam+'</td><td class="m">'+m.sa+'</td>'
-      +'<td class="m s">'+m.hs.toFixed(2)+'</td>'
-      +(m.hsNoct>0?'<td class="m" style="color:#6040a0">'+m.hsNoct.toFixed(2)+'</td>':'<td>—</td>')
-      +'<td>'+b+'</td></tr>';
+  // Combinar marcaciones reales + feriados no trabajados + vacaciones para mostrar completo
+  var allRows=[];
+  e.marc.forEach(function(m){allRows.push({type:'marc',data:m});});
+  // Feriados no trabajados (solo mensuales)
+  (e.ferNoTrab||[]).forEach(function(f){allRows.push({type:'fer',data:f});});
+  // Días de vacaciones registrados
+  (e.ads||[]).filter(function(a){return a.tp==='vacaciones';}).forEach(function(a){
+    // Generar una fila por cada día de vacaciones (a.mo días desde a.fe)
+    for(var d=0;d<(+a.mo||1);d++){
+      var dt=new Date(a.fe+'T00:00:00');dt.setDate(dt.getDate()+d);
+      var iso=dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2);
+      allRows.push({type:'vac',data:{fe:iso,conc:a.conc}});
+    }
   });
-  rows+='<tr><td colspan="5" class="tot" style="text-align:right;font-size:8.5px">TOTAL</td><td class="tot m">'+e.hsTot.toFixed(2)+'</td><td class="tot m">'+(e.hsNoct>0?e.hsNoct.toFixed(2):'—')+'</td><td class="tot"></td></tr>';
+  // Ordenar por fecha desc
+  allRows.sort(function(a,b){return (b.data.fe||'').localeCompare(a.data.fe||'');});
+
+  allRows.forEach(function(row){
+    if(row.type==='marc'){
+      var m=row.data;
+      var b=m.tard>0?'<span class="badge btd">⏱ '+m.est+'</span>':m.isDom?'<span class="badge bfn">🌅 Dom.</span>':m.isFer?'<span class="badge bno">📅 Feriado</span>':'<span class="badge bok">✓ OK</span>';
+      rows+='<tr style="'+(m.esEsp?'background:#e8f2fc':'')+'">'
+        +'<td class="s">'+fd(m.fe)+'</td><td>'+m.di+'</td><td class="m">'+m.en+'</td>'
+        +'<td class="m">'+m.slam+'</td><td class="m">'+m.rlam+'</td><td class="m">'+m.sa+'</td>'
+        +'<td class="m s">'+m.hs.toFixed(2)+'</td>'
+        +(m.hsNoct>0?'<td class="m" style="color:#6040a0">'+m.hsNoct.toFixed(2)+'</td>':'<td>—</td>')
+        +'<td>'+b+'</td></tr>';
+    } else if(row.type==='fer'){
+      var f=row.data;
+      var nomDia=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(f.fe+'T00:00:00').getDay()];
+      rows+='<tr style="background:#e8f2fc;opacity:.75">'
+        +'<td class="s">'+fd(f.fe)+'</td><td>'+nomDia+'</td>'
+        +'<td colspan="4" style="color:var(--t3);font-style:italic">'+(f.isDom?'Domingo':'Feriado')+' — no trabajó (incluido en sueldo)</td>'
+        +'<td class="m" style="color:var(--t3)">'+f.hs.toFixed(2)+'</td><td>—</td>'
+        +'<td><span class="badge bfn">'+(f.isDom?'🌅 Dom.':'📅 Feriado')+'</span></td></tr>';
+    } else if(row.type==='vac'){
+      var v=row.data;
+      var nomDiaV=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(v.fe+'T00:00:00').getDay()];
+      rows+='<tr style="background:#e8f4fc">'
+        +'<td class="s">'+fd(v.fe)+'</td><td>'+nomDiaV+'</td>'
+        +'<td colspan="4" style="color:var(--bl);font-style:italic">🏖 Vacaciones'+(v.conc?' — '+v.conc:'')+'</td>'
+        +'<td class="m" style="color:var(--bl)">—</td><td>—</td>'
+        +'<td><span class="badge bfn" style="background:var(--bbg);color:var(--bl);border-color:var(--bbr)">🏖 Vac.</span></td></tr>';
+    }
+  });
+  rows+='<tr><td colspan="5" class="tot" style="text-align:right;font-size:8.5px">TOTAL TRABAJADO</td><td class="tot m">'+e.hsTot.toFixed(2)+'</td><td class="tot m">'+(e.hsNoct>0?e.hsNoct.toFixed(2):'—')+'</td><td class="tot"></td></tr>';
   return '<div class="tw"><div class="ct"><table><thead><tr><th>Fecha</th><th>Día</th><th>Entrada</th><th>Sal.Alm</th><th>Reg.Alm</th><th>Salida</th><th>Hs.Total</th><th>Hs.Noct</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 
@@ -968,12 +1072,17 @@ function buildLiqTable(e,c){
   rows+='<tr><td colspan="3" class="tot" style="text-align:right;font-size:8.5px">SUBTOTAL BRUTO</td><td class="tot m">'+gs(e.bruto)+'</td></tr>';
   if(e.dIPS>0)rows+='<tr><td style="color:var(--re)">Descuento IPS ('+c.ipsp+'%)</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--re)">- '+gs(e.dIPS)+'</td></tr>';
   if(e.tAde>0)rows+='<tr><td style="color:var(--am)">Adelantos</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--am)">- '+gs(e.tAde)+'</td></tr>';
+  if(e.tVac>0)rows+='<tr><td style="color:var(--bl)">🏖 Vacaciones ('+e.diasVac+' día'+(e.diasVac!==1?'s':'')+')</td><td class="m" colspan="2">'+e.diasVac+' día'+(e.diasVac!==1?'s':'')+'</td><td class="m s" style="color:var(--bl)">+ '+gs(e.tVac)+'</td></tr>';
   if(e.tDes>0)rows+='<tr><td style="color:var(--re)">Descuentos</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--re)">- '+gs(e.tDes)+'</td></tr>';
   if(e.tBon>0)rows+='<tr><td style="color:var(--gr)">Bonus / Premio</td><td class="m" colspan="2"></td><td class="m s" style="color:var(--gr)">+ '+gs(e.tBon)+'</td></tr>';
   rows+='<tr><td colspan="3" class="tot" style="text-align:right;color:var(--g2);font-size:9.5px">TOTAL NETO A COBRAR</td><td class="tot m" style="color:var(--g2);font-size:13px">'+gs(e.neto)+'</td></tr>';
   var html='<div class="tw"><div class="ct"><table><thead><tr><th>Concepto</th><th>Cantidad</th><th>Tarifa</th><th>Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   if(e.ads.length>0){
-    var ar='';e.ads.forEach(function(a){ar+='<tr><td><span class="badge '+(a.tp==='bonus'?'bok':a.tp==='adelanto'?'btd':'bfa')+'">'+a.tp+'</span></td><td class="m">'+a.fe+'</td><td>'+a.conc+'</td><td class="m s">'+gs(a.mo)+'</td></tr>';});
+    var ar='';e.ads.forEach(function(a){
+      var bdg=a.tp==='bonus'?'bok':a.tp==='vacaciones'?'bfn':a.tp==='adelanto'?'btd':'bfa';
+      var moStr=a.tp==='vacaciones'?(a.mo+' día'+(a.mo!==1?'s':'')):gs(a.mo);
+      ar+='<tr><td><span class="badge '+bdg+'">'+a.tp+'</span></td><td class="m">'+a.fe+'</td><td>'+a.conc+'</td><td class="m s">'+moStr+'</td></tr>';
+    });
     html+='<div class="sttitle">Adelantos y descuentos</div><div class="tw"><div class="ct"><table><thead><tr><th>Tipo</th><th>Fecha</th><th>Concepto</th><th>Monto</th></tr></thead><tbody>'+ar+'</tbody></table></div></div>';
   }
   return html;
@@ -992,6 +1101,7 @@ function buildRecibo(id,e,c){
     tr+='<tr class="rsubt"><td colspan="3" style="text-align:right">Subtotal bruto :</td><td>'+gs(e.bruto)+'</td></tr>';
     if(e.dIPS>0)tr+='<tr class="rdesc"><td colspan="3" style="text-align:right">Descuento IPS ('+c.ipsp+'%) :</td><td>- '+gs(e.dIPS)+'</td></tr>';
     if(e.tAde>0)tr+='<tr class="rdesc"><td colspan="3" style="text-align:right">Adelantos :</td><td>- '+gs(e.tAde)+'</td></tr>';
+    if(e.tVac>0)tr+='<tr class="rbon"><td colspan="3" style="text-align:right">Vacaciones ('+e.diasVac+' día'+(e.diasVac!==1?'s':'')+') :</td><td>+ '+gs(e.tVac)+'</td></tr>';
     if(e.tDes>0)tr+='<tr class="rdesc"><td colspan="3" style="text-align:right">Descuentos :</td><td>- '+gs(e.tDes)+'</td></tr>';
     if(e.tBon>0)tr+='<tr class="rbon"><td colspan="3" style="text-align:right">Bonus / Premio :</td><td>+ '+gs(e.tBon)+'</td></tr>';
     tr+='<tr class="rtot"><td colspan="3" style="text-align:right">TOTAL NETO :</td><td>'+gs(e.neto)+'</td></tr>';
@@ -1267,7 +1377,11 @@ function renderAdelList(){
   var c=document.getElementById('adel-list'),sk=sKey(),all=[];
   for(var id in ADELS){ADELS[id].filter(function(a){return a.sk===sk;}).forEach(function(a,i){all.push({id:id,i:i,nm:CFG[id]?CFG[id].nm:id,tp:a.tp,mo:a.mo,fe:a.fe,conc:a.conc});});}
   if(!all.length){c.innerHTML='<div style="text-align:center;color:var(--t3);padding:14px;font-size:12px">Sin registros para esta semana.</div>';return;}
-  var h='';all.forEach(function(a){var col=a.tp==='bonus'?'var(--gr)':a.tp==='adelanto'?'var(--am)':'var(--re)';h+='<div class="ai"><div class="ai-inf"><div class="ai-nm">'+a.nm+'</div><div class="ai-dt">'+a.fe+' · '+a.conc+'</div></div><span style="font-family:monospace;font-weight:700;color:'+col+'">'+gs(a.mo)+'</span><span class="chip cm" style="font-size:9px">'+a.tp+'</span><button class="delbtn" onclick="delAdel(\''+a.id+'\','+a.i+')">🗑</button></div>';});
+  var h='';all.forEach(function(a){
+    var col=a.tp==='bonus'?'var(--gr)':a.tp==='vacaciones'?'var(--bl)':a.tp==='adelanto'?'var(--am)':'var(--re)';
+    var montoStr=a.tp==='vacaciones'?(a.mo+' día'+(a.mo!==1?'s':'')):gs(a.mo);
+    h+='<div class="ai"><div class="ai-inf"><div class="ai-nm">'+a.nm+'</div><div class="ai-dt">'+a.fe+' · '+a.conc+'</div></div><span style="font-family:monospace;font-weight:700;color:'+col+'">'+montoStr+'</span><span class="chip cm" style="font-size:9px">'+a.tp+'</span><button class="delbtn" onclick="delAdel(\''+a.id+'\','+a.i+')">🗑</button></div>';
+  });
   c.innerHTML=h;
 }
 
