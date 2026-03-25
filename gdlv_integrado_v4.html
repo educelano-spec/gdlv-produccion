@@ -4250,7 +4250,9 @@ function renderTabla(mod) {
       var idx = origData.indexOf(r);
       var esPed = !!r.pedidoId;
       var btnPagos = esPed ? '<button class="btn btn-g btn-sm" onclick="cob_abrirPagosParciales('+idx+')" title="Pagos parciales">&#x1F4B0;</button>' : '';
-      var btnEdit  = esPed ? '<button class="btn btn-g btn-sm" onclick="cob_abrirPedidoModal('+idx+')" title="Editar">&#x270F;</button>' : '';
+      var btnEdit  = esPed
+        ? '<button class="btn btn-g btn-sm" onclick="cob_abrirPedidoModal('+idx+')" title="Editar pedido">&#x270F;</button>'
+        : '<button class="btn btn-acc btn-sm" onclick="cob_editarSimple('+idx+')" title="Editar cobro">&#x270F;</button>';
       html += '<tr>' +
         '<td class="mn">'+xlToDate(r.fechaCobro)+'</td>' +
         '<td><strong>'+r.cliente+'</strong>'+(esPed?'<br><span style="background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:3px;font-size:10px">Pedido</span>':'')+'</td>' +
