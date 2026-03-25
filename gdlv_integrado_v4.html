@@ -9951,6 +9951,53 @@ window.cob_quitarPago = function cob_quitarPago(btn){
   guardarEstado(); closeModal('m-costos-gen'); renderTabla('cobros');
 }
 
+
+window.cob_editarSimple = function(idx) {
+  var r = DB.cobros[idx]; if (!r) return;
+  window._editCobroIdx = idx;
+  document.getElementById('m-cobro').classList.add('open');
+  var titleEl = document.querySelector('#m-cobro .modal-title');
+  if (titleEl) titleEl.textContent = 'Editar Cobro';
+  var btnEl = document.querySelector('#m-cobro .btn-p');
+  if (btnEl) { btnEl.textContent = 'Guardar Cambios'; btnEl.onclick = cob_guardarEdicionSimple; }
+  setTimeout(function() {
+    var xl = parseFloat(r.fechaCobro);
+    var fechaISO = new Date().toISOString().slice(0,10);
+    if (xl > 40000) {
+      var d = new Date(Math.round((xl-25569)*86400000));
+      fechaISO = d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+    }
+    document.getElementById('mc-fecha').value = fechaISO;
+    var me = document.getElementById('mc-monto'); if(me){me.value=r.monto||'';fmtMoney(me);}
+    document.getElementById('mc-cliente').value  = r.cliente||'';
+    document.getElementById('mc-concepto').value = r.concepto||'';
+    var te = document.getElementById('mc-tipo');   if(te) te.value = r.tipoCobro||r.tipo||'Cheque';
+    var ee = document.getElementById('mc-estado'); if(ee) ee.value = r.estado||'PENDIENTE';
+    var fe = document.getElementById('mc-factura');if(fe) fe.value = r.factura||'';
+  }, 60);
+};
+
+window.cob_guardarEdicionSimple = function() {
+  var idx = window._editCobroIdx;
+  if (idx===undefined||idx===null) return;
+  var r = DB.cobros[idx]; if (!r) return;
+  var fv = document.getElementById('mc-fecha').value;
+  if (fv) r.fechaCobro = dateToXl(fv);
+  r.monto    = String(getMoneyVal('mc-monto'));
+  r.cliente  = (document.getElementById('mc-cliente') ||{}).value||r.cliente;
+  r.concepto = (document.getElementById('mc-concepto')||{}).value||'';
+  r.tipoCobro= (document.getElementById('mc-tipo')    ||{}).value||r.tipoCobro;
+  r.tipo     = r.tipoCobro;
+  r.estado   = (document.getElementById('mc-estado')  ||{}).value||r.estado;
+  r.factura  = (document.getElementById('mc-factura') ||{}).value||'';
+  window._editCobroIdx = null;
+  var titleEl = document.querySelector('#m-cobro .modal-title');
+  if (titleEl) titleEl.textContent = 'Nuevo Cobro';
+  var btnEl = document.querySelector('#m-cobro .btn-p');
+  if (btnEl) { btnEl.textContent = 'Guardar'; btnEl.onclick = guardarCobro; }
+  guardarEstado(); closeModal('m-cobro'); renderTabla('cobros'); updateBadges();
+};
+
 </script>
 </body>
 </html>
