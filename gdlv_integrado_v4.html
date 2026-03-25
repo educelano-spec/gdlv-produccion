@@ -3778,6 +3778,15 @@ function renderDashboard() {
     if(isThisMes(xl)) totalCobrMes+=m;
     if(isPrevMes(xl)) totalCobrMesPrev+=m;
   });
+  // Sumar saldos de pedidos activos al total de cobros proyectados
+  ped_getFlows().forEach(function(f){
+    totalCobrPend+=f.monto;
+    // Verificar si cae en este mes
+    var d=new Date(f.fechaISO+'T00:00:00');
+    var xl2=String(f.xl);
+    if(isThisMes(xl2)) totalCobrMes+=f.monto;
+    if(isPrevMes(xl2)) totalCobrMesPrev+=f.monto;
+  });
 
   // Historical this month
   var realMes=0, realMesPrev=0;
@@ -4269,6 +4278,36 @@ function renderTabla(mod) {
 // ══════════════════════════════════════
 // BALANCE
 // ══════════════════════════════════════
+
+// ── Pedidos: obtener flows de ingreso para proyecciones ──────────
+function ped_getFlows() {
+  // Devuelve array de {xl, monto, concepto, cliente, fechaISO}
+  // para cada pedido activo con saldo pendiente y fecha de entrega
+  var flows = [];
+  if (!CDB || !CDB.pedidos) return flows;
+  var hoyISO = new Date().toISOString().slice(0,10);
+  (CDB.pedidos||[]).forEach(function(p) {
+    if (p.estado === 'cobrado' || p.estado === 'cancelado') return;
+    var saldo = ped_getSaldoPendiente(p);
+    if (saldo <= 0) return;
+    var fechaISO = p.fechaEntrega || '';
+    if (!fechaISO) return; // sin fecha no se puede proyectar
+    // Convertir YYYY-MM-DD a xl serial
+    var parts = fechaISO.split('-');
+    if (parts.length !== 3) return;
+    var xl = Math.round((Date.UTC(+parts[0],+parts[1]-1,+parts[2]) - Date.UTC(1899,11,30)) / 86400000);
+    if (!xl || xl < 40000) return;
+    flows.push({
+      xl: xl,
+      monto: saldo,
+      concepto: 'Pedido: ' + (p.cliente||'') + (p.descripcion?' — '+p.descripcion.substring(0,30):''),
+      cliente: p.cliente||'',
+      fechaISO: fechaISO,
+      esPedido: true
+    });
+  });
+  return flows;
+}
 function renderBalance() {
   // ── Fecha Paraguay: usar la misma que todayXl() ──
   var hoyXl = todayXl();
@@ -4339,6 +4378,10 @@ function renderBalance() {
       fc = String(Math.round((Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/86400000));
     }
     addFlow(fc, c.monto, 'ing');
+  });
+  // Saldos de Pedidos/Ventas → ingresos proyectados
+  ped_getFlows().forEach(function(f){
+    addFlow(String(f.xl), f.monto, 'ing');
   });
 
   // ── Iterar desde hoy hasta último pago ──
@@ -4694,6 +4737,10 @@ function renderProyecciones() {
     if(c.estado==='RECIBIDO') return;
     var xl=parseFloat(c.fechaCobro||c.fecha); if(!xl||isNaN(xl)) return;
     flows.push({xl:xl,concepto:(c.cliente||'')+(c.concepto?' — '+c.concepto:''),tipo:'INGRESO',monto:Math.abs(parseFloat(c.monto||0)),origen:'Cobro',estado:'PENDIENTE'});
+  });
+  // Saldos de Pedidos/Ventas → ingresos proyectados
+  ped_getFlows().forEach(function(f){
+    flows.push({xl:f.xl,concepto:f.concepto,tipo:'INGRESO',monto:f.monto,origen:'Pedido',estado:'PENDIENTE',esPedido:true});
   });
   flows.sort(function(a,b){return a.xl-b.xl;});
 
@@ -7061,6 +7108,8 @@ function analizarDeseos() {
     }
   });
   (DB.cobros||[]).forEach(function(c){ if(c.estado!=='RECIBIDO'){ var fc=c.fechaCobro||c.fecha; if(parseFloat(fc)>40000) addF(fc,parseFloat(c.monto)||0,'ing'); } });
+  // Saldos de Pedidos/Ventas en el calendario
+  ped_getFlows().forEach(function(f){ addF(String(f.xl), f.monto, 'ing'); });
 
   // Calculate running balance for each day (next 365 days)
   var saldo = saldoInicial;
