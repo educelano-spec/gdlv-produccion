@@ -7719,15 +7719,17 @@ function costos_init() {
   FBDB.ref(C_PATH).on('value',function(snap){
     var d=snap.val();
     if(d){
-      if(d.conf)         CDB.conf=Object.assign(CDB.conf,d.conf);
-      if(d.empleados)    CDB.empleados=d.empleados;
-      if(d.areas)        CDB.areas=d.areas;
-      if(d.insumos)      CDB.insumos=d.insumos;
-      if(d.productos)    CDB.productos=d.productos;
-      if(d.gastosFijos)  CDB.gastosFijos=d.gastosFijos;
-      if(d.esporadicos)  CDB.esporadicos=d.esporadicos;
-      if(d.gastosDiarios)CDB.gastosDiarios=d.gastosDiarios;
-      if(d.snapshots)    CDB.snapshots=d.snapshots;
+      if(d.conf)           CDB.conf=Object.assign(CDB.conf,d.conf);
+      if(d.empleados)      CDB.empleados=d.empleados;
+      if(d.areas)          CDB.areas=d.areas;
+      if(d.insumos)        CDB.insumos=d.insumos;
+      if(d.productos)      CDB.productos=d.productos;
+      if(d.gastosFijos)    CDB.gastosFijos=d.gastosFijos;
+      if(d.esporadicos)    CDB.esporadicos=d.esporadicos;
+      if(d.gastosDiarios)  CDB.gastosDiarios=d.gastosDiarios;
+      if(d.snapshots)      CDB.snapshots=d.snapshots;
+      if(d.pedidos)        CDB.pedidos=d.pedidos;
+      if(d.feriadosCostos) CDB.feriadosCostos=d.feriadosCostos;
     }
     // Sync config al DOM
     ['horas','dias','ips','he','mtess'].forEach(function(k){
@@ -7736,6 +7738,23 @@ function costos_init() {
     });
     // Guardar snapshot diario automático
     costos_autoSnapshot();
+    // Re-sincronizar cobros pendientes de pedidos con Tesorería
+    // (por si hay pedidos activos que no tienen cobro en DB.cobros todavía)
+    setTimeout(function(){
+      (CDB.pedidos||[]).forEach(function(p){
+        if(p.estado==='cobrado'||p.estado==='cancelado') return;
+        var saldo=ped_getSaldoPendiente(p);
+        if(saldo<=0) return;
+        // Solo crear si no existe ya
+        var yaExiste=DB.cobros&&DB.cobros.some(function(c){return c.pedidoId===p.id;});
+        if(!yaExiste) ped_syncCobro(p);
+      });
+      if(document.getElementById('view-pedidos')&&
+         document.getElementById('view-pedidos').classList.contains('active')){
+        ped_render();
+      }
+      updateBadges();
+    }, 800);
   });
 
   // ── 2. Cargar historial de la Planilla Salarial (solo lectura) ──
