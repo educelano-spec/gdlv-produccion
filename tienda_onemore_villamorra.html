@@ -638,6 +638,17 @@ table.data tbody tr.anulada td{opacity:.4;text-decoration:line-through;}
         <div onclick="filterCatSub('STOCK ALTO','MERCHANDISING')" class="dd-item">🎁 Merch</div>
       </div>
     </div>
+    <div style="position:relative;display:inline-block;">
+      <button class="chip" id="chip-CONSTOCK" onclick="toggleInvDropdown('constock',this)" style="display:inline-flex;align-items:center;gap:4px;">✅ Con Stock <span id="constock-arrow">▾</span></button>
+      <div id="dd-constock" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow);z-index:50;min-width:155px;padding:6px 0;">
+        <div onclick="filterCatSub('CON STOCK','TODOS')" class="dd-item">Todos</div>
+        <div onclick="filterCatSub('CON STOCK','CABALLEROS')" class="dd-item">Caballeros</div>
+        <div onclick="filterCatSub('CON STOCK','DAMAS')" class="dd-item">Damas</div>
+        <div onclick="filterCatSub('CON STOCK','NIÑOS')" class="dd-item">Niños</div>
+        <div onclick="filterCatSub('CON STOCK','BEBES')" class="dd-item">Bebés</div>
+        <div onclick="filterCatSub('CON STOCK','MERCHANDISING')" class="dd-item">🎁 Merch</div>
+      </div>
+    </div>
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
       <input type="text" id="buscar-prod" placeholder="Buscar producto…" oninput="renderInventario()">
@@ -1863,8 +1874,10 @@ var invSubCat = 'TODOS'; // category sub-filter for sin-stock / stock-alto modes
 
 function toggleInvDropdown(which, btn) {
   var dd = document.getElementById('dd-' + which);
-  var otherDd = document.getElementById('dd-' + (which === 'sinstock' ? 'stockalto' : 'sinstock'));
-  if (otherDd) otherDd.style.display = 'none';
+  // Close all other dropdowns
+  ['sinstock','stockalto','constock'].forEach(function(id){
+    if(id!==which){var d=document.getElementById('dd-'+id);if(d)d.style.display='none';}
+  });
   var isOpen = dd.style.display !== 'none';
   dd.style.display = isOpen ? 'none' : 'block';
   // Close on outside click
@@ -1880,23 +1893,19 @@ function toggleInvDropdown(which, btn) {
   }
 }
 
-function filterCatSub(mode, subcat) {
-  // mode = 'SIN STOCK' or 'STOCK ALTO', subcat = 'TODOS'/'CABALLEROS'/etc
-  catFilter = mode;
-  invSubCat = subcat;
-  // Update chip active state
-  document.querySelectorAll('#inv-filters .chip').forEach(function(c){ c.classList.remove('active'); });
-  var chipId = mode === 'SIN STOCK' ? 'chip-SINSTOCK' : 'chip-STOCKALTO';
-  var chip = document.getElementById(chipId);
-  if (chip) chip.classList.add('active');
-  // Close dropdowns
-  ['dd-sinstock','dd-stockalto'].forEach(function(id){
-    var d = document.getElementById(id); if(d) d.style.display = 'none';
+function filterCatSub(mainFilter, subCat) {
+  catFilter = mainFilter;
+  _catSubFilter = mainFilter;
+  _catSubValue  = subCat === 'TODOS' ? '' : subCat;
+  // Close all dropdowns
+  ['sinstock','stockalto','constock'].forEach(function(id){
+    var d=document.getElementById('dd-'+id);if(d)d.style.display='none';
   });
-  // Update arrow label with subcat
-  var arrowId = mode === 'SIN STOCK' ? 'sinstock-arrow' : 'stockalto-arrow';
-  var arrowEl = document.getElementById(arrowId);
-  if (arrowEl) arrowEl.textContent = subcat === 'TODOS' ? '▾' : '· ' + subcat.charAt(0) + subcat.slice(1).toLowerCase() + ' ▾';
+  // Update active chip
+  document.querySelectorAll('.filters .chip').forEach(function(c){c.classList.remove('active');});
+  var chipId = mainFilter==='SIN STOCK'?'chip-SINSTOCK':mainFilter==='STOCK ALTO'?'chip-STOCKALTO':'chip-CONSTOCK';
+  var chip = document.getElementById(chipId);
+  if(chip) chip.classList.add('active');
   renderInventario();
 }
 
@@ -1915,6 +1924,8 @@ function renderInventario(){
       mCat = t===0 && (invSubCat==='TODOS' || pcat===invSubCat);
     } else if(catFilter==='STOCK ALTO'){
       mCat = t>10 && (invSubCat==='TODOS' || pcat===invSubCat);
+    } else if(catFilter==='CON STOCK'){
+      mCat = t>0 && (invSubCat==='TODOS' || pcat===invSubCat);
     } else {
       mCat = pcat===catFilter;
     }
