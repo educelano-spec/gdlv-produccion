@@ -2907,7 +2907,7 @@ function renderPesos(){
       <td class="td-num" style="color:var(--muted)">${totReg}</td>
       <td class="td-num" style="color:var(--muted)">${totUd}</td>
       <td>
-        <div class="pesos-row-actions emp-hidden">
+        <div class="pesos-row-actions">
           <button class="btn-pesos-edit" title="Editar nombre" onclick="event.stopPropagation();startEditPeso('${tipoEsc}',this)">✎</button>
           <button class="btn-pesos-del"  title="Eliminar todos los registros de esta prenda" onclick="event.stopPropagation();delPeso('${tipoEsc}')">✕</button>
         </div>
@@ -3017,8 +3017,8 @@ function openPesosModal(tipo){
               <td class="td-num" style="${pcls};font-weight:700">${pesoR!=null?pesoR.toFixed(3):'—'}</td>
               <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.obs||'—'}</td>
               <td style="white-space:nowrap">
-                <button class="btn-pesos-edit emp-hidden" title="Editar" onclick="editFromModal(${r.id},'${area}','${tipo.replace(/'/g,"\\'")}')">✎</button>
-                <button class="btn-pesos-del emp-hidden"  title="Eliminar" onclick="delFromModal(${r.id},'${tipo.replace(/'/g,"\\'")}')">✕</button>
+                <button class="btn-pesos-edit" title="Editar" onclick="editFromModal(${r.id},'${area}','${tipo.replace(/'/g,"\\'")}')">✎</button>
+                <button class="btn-pesos-del"  title="Eliminar" onclick="delFromModal(${r.id},'${tipo.replace(/'/g,"\\'")}')">✕</button>
               </td>
             </tr>`;
           }).join('')}
