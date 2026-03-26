@@ -625,12 +625,26 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
   background:var(--surface2); border:1px solid var(--border);
   border-radius:8px; padding:7px 10px;
 }
-.nombre-alt-empresa { font-size:11px; font-weight:700; color:var(--accent3); text-transform:uppercase; letter-spacing:.5px; min-width:90px; flex-shrink:0; }
+.nombre-alt-empresa { display:none; }
 .nombre-alt-nombre { font-size:13px; color:var(--text); flex:1; }
+.nombre-alt-precio { font-size:12px; font-weight:700; color:var(--accent2); white-space:nowrap; flex-shrink:0; }
 .nombre-alt-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:0 2px; line-height:1; flex-shrink:0; }
 .nombre-alt-del:hover { color:var(--danger); }
-.nombres-alt-add { display:grid; grid-template-columns:1fr 1fr auto; gap:6px; margin-top:8px; align-items:center; }
+.nombres-alt-add { display:grid; grid-template-columns:1fr 120px auto; gap:6px; margin-top:8px; align-items:center; }
 .nombres-alt-add input { font-size:12px; padding:7px 10px; }
+.card-alt-nombres {
+  margin: 2px 0 6px;
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding-right: 80px;
+}
+.card-alt-tag {
+  font-size: 10px; font-weight: 500;
+  color: #8878cc;
+  background: rgba(136,120,204,.1);
+  border: 1px solid rgba(136,120,204,.25);
+  border-radius: 4px; padding: 1px 7px;
+  white-space: nowrap;
+}
 .detail-actions { display:flex; gap:8px; margin-top:auto; padding-top:14px; border-top:1px solid var(--border); }
 .detail-actions button { flex:1; }
 .detail-historial { margin-top:12px; }
@@ -867,8 +881,8 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
         <label class="form-label">Nombres en otras empresas</label>
         <div id="f-nombres-alt-list" class="nombres-alt-list"></div>
         <div class="nombres-alt-add">
-          <input class="form-input" id="f-na-empresa" placeholder="Empresa">
-          <input class="form-input" id="f-na-nombre" placeholder="Nombre que usan">
+          <input class="form-input" id="f-na-nombre" placeholder="Nombre alternativo de la tela">
+          <input class="form-input" id="f-na-precio" type="number" placeholder="Precio/m (Gs.)">
           <button type="button" class="btn-success" style="padding:7px 12px;font-size:13px" onclick="addNombreAlt('f')">+ Agregar</button>
         </div>
       </div>
@@ -1145,8 +1159,8 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
         <label class="form-label">Nombres en otras empresas</label>
         <div id="m-nombres-alt-list" class="nombres-alt-list"></div>
         <div class="nombres-alt-add">
-          <input class="form-input" id="m-na-empresa" placeholder="Empresa">
-          <input class="form-input" id="m-na-nombre" placeholder="Nombre que usan">
+          <input class="form-input" id="m-na-nombre" placeholder="Nombre alternativo de la tela">
+          <input class="form-input" id="m-na-precio" type="number" placeholder="Precio/m (Gs.)">
           <button type="button" class="btn-success" style="padding:7px 12px;font-size:13px" onclick="addNombreAlt('m')">+ Agregar</button>
         </div>
       </div>
@@ -1360,8 +1374,8 @@ function renderNombresAlt(prefix, arr) {
   if(!arr.length) { list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0">Sin nombres alternativos cargados</div>'; return; }
   list.innerHTML = arr.map((n,i) => `
     <div class="nombre-alt-item">
-      <span class="nombre-alt-empresa">${n.empresa}</span>
       <span class="nombre-alt-nombre">${n.nombre}</span>
+      ${n.precio ? `<span class="nombre-alt-precio">${gs(n.precio)}/m</span>` : ''}
       <button class="nombre-alt-del" onclick="deleteNombreAlt('${prefix}',${i})" title="Eliminar">✕</button>
     </div>`).join('');
 }
@@ -1369,12 +1383,14 @@ function renderNombresAlt(prefix, arr) {
 function addNombreAlt(prefix) {
   const empresa = document.getElementById(prefix+'-na-empresa').value.trim();
   const nombre  = document.getElementById(prefix+'-na-nombre').value.trim();
+  const precio  = parseFloat(document.getElementById(prefix+'-na-precio').value)||null;
   if(!empresa || !nombre) { showToast('Ingresá empresa y nombre','error'); return; }
   const arr = prefix==='m' ? window._editNombresAlt : window._newNombresAlt;
-  arr.push({empresa, nombre});
+  arr.push({nombre, ...(precio ? {precio} : {})});
   renderNombresAlt(prefix, arr);
-  document.getElementById(prefix+'-na-empresa').value='';
+  const empEl = document.getElementById(prefix+'-na-empresa'); if(empEl) empEl.value='';
   document.getElementById(prefix+'-na-nombre').value='';
+  document.getElementById(prefix+'-na-precio').value='';
 }
 
 function deleteNombreAlt(prefix, idx) {
@@ -1724,6 +1740,7 @@ function cardHTML(t, maxPm) {
     </div>` : ''}
     <div class="card-proveedor">${t.proveedor}</div>
     <div class="card-tipo">${t.tipo}</div>
+    ${t.nombres_alt && t.nombres_alt.length ? `<div class="card-alt-nombres">${t.nombres_alt.map(n=>`<span class="card-alt-tag">${n.nombre}</span>`).join('')}</div>` : ''}
     <div class="card-codigo">${t.codigo||'Sin código'}</div>
     <div class="card-metrics">
       <div class="metric"><div class="metric-label">Precio x metro</div><div class="metric-val price">${gs(t.precio_metro)}</div></div>
@@ -1935,6 +1952,7 @@ function guardarTejido() {
   renderNombresAlt('f', []);
   document.getElementById('f-na-empresa').value='';
   document.getElementById('f-na-nombre').value='';
+  document.getElementById('f-na-precio').value='';
   showToast('✓ Tejido guardado correctamente');
 }
 
@@ -2336,8 +2354,8 @@ function openDetail(idx) {
     nombresAltWrap.style.display = 'block';
     document.getElementById('detail-nombres-alt').innerHTML = nombresAltList.map(n => `
       <div class="nombre-alt-item">
-        <span class="nombre-alt-empresa">${n.empresa}</span>
         <span class="nombre-alt-nombre">${n.nombre}</span>
+        ${n.precio ? `<span class="nombre-alt-precio">${gs(n.precio)}/m</span>` : ''}
       </div>`).join('');
   } else { nombresAltWrap.style.display = 'none'; }
 
