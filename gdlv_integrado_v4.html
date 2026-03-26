@@ -3377,6 +3377,9 @@ function buildExtra() {
   });
   if(pagadasChanged.length) extra.prestamos_pagadas = pagadasChanged.map(function(p){return {id:p.id,pagadas:p.pagadas};});
 
+  // Deseos / Lista de compras
+  if(DB.deseos && DB.deseos.length) extra.deseos = DB.deseos;
+
   return extra;
 }
 
