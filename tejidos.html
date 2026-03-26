@@ -619,6 +619,18 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
 .detail-section-val { font-size:13px; color:var(--text); line-height:1.5; }
 .detail-colores-list { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
 .color-pill { background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:12px; color:var(--text2); }
+.nombres-alt-list { display:flex; flex-direction:column; gap:5px; margin-top:4px; }
+.nombre-alt-item {
+  display:flex; align-items:center; gap:8px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; padding:7px 10px;
+}
+.nombre-alt-empresa { font-size:11px; font-weight:700; color:var(--accent3); text-transform:uppercase; letter-spacing:.5px; min-width:90px; flex-shrink:0; }
+.nombre-alt-nombre { font-size:13px; color:var(--text); flex:1; }
+.nombre-alt-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:0 2px; line-height:1; flex-shrink:0; }
+.nombre-alt-del:hover { color:var(--danger); }
+.nombres-alt-add { display:grid; grid-template-columns:1fr 1fr auto; gap:6px; margin-top:8px; align-items:center; }
+.nombres-alt-add input { font-size:12px; padding:7px 10px; }
 .detail-actions { display:flex; gap:8px; margin-top:auto; padding-top:14px; border-top:1px solid var(--border); }
 .detail-actions button { flex:1; }
 .detail-historial { margin-top:12px; }
@@ -850,6 +862,15 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="form-group full">
         <label class="form-label">Colores disponibles</label>
         <input class="form-input" id="f-colores" placeholder="Ej: blanco, negro, azul rey, rojo">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Nombres en otras empresas</label>
+        <div id="f-nombres-alt-list" class="nombres-alt-list"></div>
+        <div class="nombres-alt-add">
+          <input class="form-input" id="f-na-empresa" placeholder="Empresa">
+          <input class="form-input" id="f-na-nombre" placeholder="Nombre que usan">
+          <button type="button" class="btn-success" style="padding:7px 12px;font-size:13px" onclick="addNombreAlt('f')">+ Agregar</button>
+        </div>
       </div>
       <div class="form-group full">
         <label class="form-label">Notas / Observaciones</label>
@@ -1121,6 +1142,15 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
         <input class="form-input" id="m-colores" placeholder="Ej: blanco, negro, azul rey, rojo">
       </div>
       <div class="form-group full">
+        <label class="form-label">Nombres en otras empresas</label>
+        <div id="m-nombres-alt-list" class="nombres-alt-list"></div>
+        <div class="nombres-alt-add">
+          <input class="form-input" id="m-na-empresa" placeholder="Empresa">
+          <input class="form-input" id="m-na-nombre" placeholder="Nombre que usan">
+          <button type="button" class="btn-success" style="padding:7px 12px;font-size:13px" onclick="addNombreAlt('m')">+ Agregar</button>
+        </div>
+      </div>
+      <div class="form-group full">
         <label class="form-label">Notas / Observaciones</label>
         <textarea class="form-input" id="m-notas" rows="2" placeholder="Ej: ideal para ropa deportiva, textura suave..." style="resize:vertical"></textarea>
       </div>
@@ -1156,6 +1186,10 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="detail-section" id="detail-colores-wrap" style="display:none">
         <div class="detail-section-label">Colores disponibles</div>
         <div class="detail-colores-list" id="detail-colores"></div>
+      </div>
+      <div class="detail-section" id="detail-nombres-alt-wrap" style="display:none">
+        <div class="detail-section-label">También conocido como</div>
+        <div class="nombres-alt-list" id="detail-nombres-alt"></div>
       </div>
       <div class="detail-section" id="detail-notas-wrap" style="display:none">
         <div class="detail-section-label">Notas</div>
@@ -1314,6 +1348,41 @@ function detailGalNav(dir, forcIdx) {
 // ═══════════════════════════════════════════════════════
 //  FIREBASE SYNC
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  NOMBRES ALTERNATIVOS
+// ═══════════════════════════════════════════════════════
+window._newNombresAlt  = [];
+window._editNombresAlt = [];
+
+function renderNombresAlt(prefix, arr) {
+  const list = document.getElementById(prefix+'-nombres-alt-list');
+  if(!list) return;
+  if(!arr.length) { list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0">Sin nombres alternativos cargados</div>'; return; }
+  list.innerHTML = arr.map((n,i) => `
+    <div class="nombre-alt-item">
+      <span class="nombre-alt-empresa">${n.empresa}</span>
+      <span class="nombre-alt-nombre">${n.nombre}</span>
+      <button class="nombre-alt-del" onclick="deleteNombreAlt('${prefix}',${i})" title="Eliminar">✕</button>
+    </div>`).join('');
+}
+
+function addNombreAlt(prefix) {
+  const empresa = document.getElementById(prefix+'-na-empresa').value.trim();
+  const nombre  = document.getElementById(prefix+'-na-nombre').value.trim();
+  if(!empresa || !nombre) { showToast('Ingresá empresa y nombre','error'); return; }
+  const arr = prefix==='m' ? window._editNombresAlt : window._newNombresAlt;
+  arr.push({empresa, nombre});
+  renderNombresAlt(prefix, arr);
+  document.getElementById(prefix+'-na-empresa').value='';
+  document.getElementById(prefix+'-na-nombre').value='';
+}
+
+function deleteNombreAlt(prefix, idx) {
+  const arr = prefix==='m' ? window._editNombresAlt : window._newNombresAlt;
+  arr.splice(idx, 1);
+  renderNombresAlt(prefix, arr);
+}
+
 // ═══════════════════════════════════════════════════════
 //  BACKUP AUTOMÁTICO
 // ═══════════════════════════════════════════════════════
@@ -1584,6 +1653,7 @@ function init() {
   renderConsumos();
   initSimulator();
   renderFotosGrid('f', []);
+  renderNombresAlt('f', []);
   // fbListen() se llama desde el bloque Firebase al final del body
 }
 
@@ -1700,10 +1770,13 @@ function openEdit(idx) {
   document.getElementById('m-precio-rem').value = t.precio_rem||'';
   document.getElementById('m-consumo').value = t.consumo_rem||'';
   document.getElementById('m-colores').value = t.colores||'';
+  window._editNombresAlt = Array.isArray(t.nombres_alt) ? JSON.parse(JSON.stringify(t.nombres_alt)) : [];
+  renderNombresAlt('m', window._editNombresAlt);
   document.getElementById('m-notas').value = t.notas||'';
   window._editFotos = Array.isArray(t.fotos) ? [...t.fotos] : (t.foto ? [t.foto] : []);
   renderFotosGrid('m', window._editFotos);
   renderFotosGrid('m', window._editFotos);
+  renderNombresAlt('m', window._editNombresAlt);
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeModal() { document.getElementById('modal-edit').classList.remove('open'); }
@@ -1749,6 +1822,7 @@ function saveEdit() {
     precio_rem: parseFloat(document.getElementById('m-precio-rem').value)||null,
     consumo_rem: parseFloat(document.getElementById('m-consumo').value)||null,
     colores: document.getElementById('m-colores').value.trim()||null,
+    nombres_alt: window._editNombresAlt && window._editNombresAlt.length ? window._editNombresAlt : null,
     notas: document.getElementById('m-notas').value.trim()||null,
     fotos: window._editFotos||[],
     historial_precios: (() => {
@@ -1847,6 +1921,7 @@ function guardarTejido() {
     precio_rem: parseFloat(document.getElementById('f-precio-rem').value)||null,
     consumo_rem: parseFloat(document.getElementById('f-consumo').value)||null,
     colores: document.getElementById('f-colores').value.trim()||null,
+    nombres_alt: window._newNombresAlt && window._newNombresAlt.length ? window._newNombresAlt : null,
     notas: document.getElementById('f-notas').value.trim()||null,
     fotos: window._newFotos||[],
   });
@@ -1855,7 +1930,11 @@ function guardarTejido() {
   renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
   ['f-proveedor','f-tipo','f-codigo','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem','f-colores','f-consumo'].forEach(id=>document.getElementById(id).value='');
   window._newFotos = [];
+  window._newNombresAlt = [];
   renderFotosGrid('f', []);
+  renderNombresAlt('f', []);
+  document.getElementById('f-na-empresa').value='';
+  document.getElementById('f-na-nombre').value='';
   showToast('✓ Tejido guardado correctamente');
 }
 
@@ -2249,6 +2328,18 @@ function openDetail(idx) {
       `<span class="color-pill">${c.trim()}</span>`
     ).join('');
   } else { colorWrap.style.display = 'none'; }
+
+  // Nombres alternativos
+  const nombresAltWrap = document.getElementById('detail-nombres-alt-wrap');
+  const nombresAltList = Array.isArray(t.nombres_alt) ? t.nombres_alt : [];
+  if(nombresAltList.length) {
+    nombresAltWrap.style.display = 'block';
+    document.getElementById('detail-nombres-alt').innerHTML = nombresAltList.map(n => `
+      <div class="nombre-alt-item">
+        <span class="nombre-alt-empresa">${n.empresa}</span>
+        <span class="nombre-alt-nombre">${n.nombre}</span>
+      </div>`).join('');
+  } else { nombresAltWrap.style.display = 'none'; }
 
   // Notas
   const notasWrap = document.getElementById('detail-notas-wrap');
