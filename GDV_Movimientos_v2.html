@@ -1,0 +1,3130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDV — Movimientos Diarios</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+
+/* ═══ LOGIN ═══ */
+.login-screen {
+  position: fixed; inset: 0; background: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; flex-direction: column; gap: 0;
+}
+.login-box {
+  background: #232320; border: 1px solid #3a3a36;
+  border-radius: 14px; padding: 36px 40px; width: min(380px, 90vw);
+  box-shadow: 0 8px 48px rgba(0,0,0,0.5);
+}
+.login-logo {
+  width: 44px; height: 44px; background: var(--accent);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace; font-size: 14px; color: white;
+  font-weight: 600; margin: 0 auto 20px;
+}
+.login-title { color: white; font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+.login-sub { color: #888; font-size: 12px; text-align: center; margin-bottom: 28px; }
+.login-label { color: #aaa; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.login-input {
+  width: 100%; padding: 10px 13px; background: #1a1a18; border: 1px solid #3a3a36;
+  border-radius: 7px; color: white; font-family: 'Sora', sans-serif; font-size: 13px;
+  margin-bottom: 14px; transition: border-color 0.15s;
+}
+.login-input:focus { outline: none; border-color: var(--accent); }
+.login-btn {
+  width: 100%; padding: 11px; background: var(--accent); color: white;
+  border: none; border-radius: 7px; font-family: 'Sora', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; margin-top: 4px;
+}
+.login-btn:hover { background: var(--accent2); }
+.login-error { color: #f87171; font-size: 12px; text-align: center; margin-top: 10px; min-height: 18px; }
+.login-loading { color: #888; font-size: 12px; text-align: center; margin-top: 10px; }
+.user-badge {
+  display: flex; align-items: center; gap: 8px;
+  background: #2a2a28; border: 1px solid #444;
+  border-radius: 20px; padding: 4px 12px 4px 8px;
+  font-size: 11px; color: #ccc; cursor: pointer;
+}
+.user-badge:hover { background: #333; }
+.user-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+#app-container { display: none; }
+  --surface2: #f0efe9;
+  --border: #e2e0d8;
+  --border2: #ccc9be;
+  --text: #1a1916;
+  --text2: #6b6860;
+  --text3: #9b9890;
+  --accent: #1d5c3a;
+  --accent2: #2a7a50;
+  --accent-light: #e8f5ed;
+  --danger: #b84040;
+  --danger-light: #fdf0f0;
+  --warning: #c47c1a;
+  --warning-light: #fef7ec;
+  --info: #2563a8;
+  --info-light: #eff4fd;
+  --gold: #8a6c0a;
+  --gold-light: #fdf8ec;
+  --purple: #6b3fa0;
+  --purple-light: #f3eeff;
+  --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04);
+  --shadow2: 0 2px 8px rgba(0,0,0,0.10), 0 8px 32px rgba(0,0,0,0.06);
+  --radius: 10px;
+  --radius2: 6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+/* HEADER */
+.header {
+  background: var(--text); color: white;
+  padding: 0 28px; display: flex; align-items: center;
+  justify-content: space-between; height: 56px;
+  position: sticky; top: 0; z-index: 200;
+}
+.header-brand { display: flex; align-items: center; gap: 11px; }
+.header-logo {
+  width: 30px; height: 30px; background: var(--accent);
+  border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500; letter-spacing: 1px;
+}
+.header-title { font-size: 14px; font-weight: 600; }
+.header-sub { font-size: 10px; color: #999; font-weight: 300; margin-top: 1px; }
+.period-wrap { display: flex; align-items: center; gap: 8px; font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; }
+.period-select {
+  background: #2a2a28; border: 1px solid #444; color: white;
+  padding: 5px 9px; border-radius: 5px;
+  font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer;
+}
+
+/* TABS */
+.tabs-bar {
+  background: var(--surface); border-bottom: 2px solid var(--border);
+  padding: 0 28px; display: flex; overflow-x: auto; gap: 0;
+}
+.tab-btn {
+  padding: 13px 18px; border: none; background: none;
+  font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 500;
+  color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab-btn:hover { color: var(--text); background: var(--surface2); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* LAYOUT */
+.main { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+.tab-content { display: none; animation: fadeIn 0.15s ease; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.card-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2);
+}
+.card-title { font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px; display: flex; align-items: center; gap: 7px; }
+.card-body { padding: 18px; }
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 11px; margin-bottom: 18px; }
+.stat-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow);
+}
+.stat-box.green { border-left: 3px solid var(--accent); }
+.stat-box.red { border-left: 3px solid var(--danger); }
+.stat-box.gold { border-left: 3px solid var(--gold); }
+.stat-box.blue { border-left: 3px solid var(--info); }
+.stat-box.orange { border-left: 3px solid var(--warning); }
+.stat-box.purple { border-left: 3px solid var(--purple); }
+.stat-label { font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); margin-bottom: 5px; }
+.stat-value { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; }
+.stat-sub { font-size: 9.5px; color: var(--text3); margin-top: 3px; }
+
+/* FORM */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 11px; margin-bottom: 11px; }
+.form-group label { display: block; font-size: 10.5px; font-weight: 600; color: var(--text2); margin-bottom: 4px; letter-spacing: 0.2px; }
+.form-control {
+  width: 100%; padding: 7px 10px; border: 1px solid var(--border2);
+  border-radius: var(--radius2); font-family: 'Sora', sans-serif;
+  font-size: 12.5px; background: var(--surface); color: var(--text); transition: border-color 0.15s;
+}
+.form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+select.form-control { cursor: pointer; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: var(--radius2); font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-info { background: var(--info); color: white; }
+.btn-purple { background: var(--purple); color: white; }
+.btn-ghost { background: none; border: 1px solid var(--border2); color: var(--text2); }
+.btn-ghost:hover { background: var(--surface2); }
+.btn-sm { padding: 4px 9px; font-size: 11px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead tr { background: var(--surface2); }
+th { padding: 8px 11px; text-align: left; font-size: 9.5px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 8px 11px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+.empty-row td { text-align: center; color: var(--text3); padding: 28px; font-size: 12px; }
+.td-mono { font-family: 'DM Mono', monospace; font-size: 11.5px; }
+.td-right { text-align: right; }
+
+/* BADGES / PILLS */
+.pill { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px; }
+.pill-green { background: var(--accent-light); color: var(--accent); }
+.pill-red { background: var(--danger-light); color: var(--danger); }
+.pill-blue { background: var(--info-light); color: var(--info); }
+.pill-gold { background: var(--gold-light); color: var(--gold); }
+.pill-gray { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+
+/* TWO COL */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media(max-width:900px) { .two-col,.three-col { grid-template-columns:1fr; } }
+
+/* BANNER */
+.banner {
+  background: linear-gradient(135deg, #1a3528 0%, #1d5c3a 100%);
+  color: white; border-radius: var(--radius); padding: 18px 22px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 18px; flex-wrap: wrap; gap: 14px;
+}
+.banner-item {}
+.banner-label { font-size: 10px; opacity: 0.65; margin-bottom: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+.banner-val { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; }
+.banner-sub { font-size: 10px; opacity: 0.55; margin-top: 2px; }
+.banner.danger { background: linear-gradient(135deg, #3a1a1a 0%, #b84040 100%); }
+.banner.gold { background: linear-gradient(135deg, #2a2010 0%, #8a6c0a 100%); }
+
+/* IVA BLOCK */
+.iva-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+.iva-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.iva-row:last-child { border-bottom: none; }
+.iva-row.total { font-weight: 700; font-size: 14px; padding-top: 12px; margin-top: 2px; }
+.iva-lbl { color: var(--text2); }
+.iva-val { font-family: 'DM Mono', monospace; font-weight: 500; }
+
+/* DRAG & DROP ZONE */
+.drop-zone {
+  border: 2px dashed var(--border2); border-radius: var(--radius);
+  padding: 32px 20px; text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--surface2);
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.drop-zone-icon { font-size: 32px; margin-bottom: 8px; }
+.drop-zone-text { font-size: 13px; font-weight: 500; color: var(--text2); }
+.drop-zone-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: white; border-radius: var(--radius); box-shadow: var(--shadow2); width: min(700px, 96vw); max-height: 88vh; overflow-y: auto; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface2); }
+.modal-title { font-weight: 600; font-size: 13.5px; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text2); line-height: 1; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+/* AI LOADER */
+.ai-loading { display: flex; align-items: center; gap: 10px; padding: 14px; background: var(--info-light); border-radius: var(--radius2); font-size: 12px; color: var(--info); }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--info); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* IMPORT PREVIEW TABLE */
+.import-preview { max-height: 300px; overflow-y: auto; }
+
+/* CHART CONTAINER */
+.chart-wrap { position: relative; height: 240px; }
+.chart-wrap-tall { position: relative; height: 300px; }
+
+/* PAGE TITLE */
+.page-title { font-size: 19px; font-weight: 700; margin-bottom: 3px; }
+.page-sub { font-size: 11.5px; color: var(--text3); margin-bottom: 18px; }
+
+/* ALERT */
+.alert { padding: 11px 14px; border-radius: var(--radius2); font-size: 11.5px; margin-bottom: 12px; }
+.alert-info { background: var(--info-light); color: var(--info); border: 1px solid #c0d4f0; }
+.alert-warning { background: var(--warning-light); color: var(--warning); border: 1px solid #f0dcb0; }
+.alert-danger { background: var(--danger-light); color: var(--danger); border: 1px solid #f0c0c0; }
+
+/* TOAST */
+#toast { position: fixed; bottom: 22px; right: 22px; background: var(--text); color: white; padding: 11px 18px; border-radius: var(--radius); font-size: 12.5px; font-weight: 500; box-shadow: var(--shadow2); transform: translateY(70px); opacity: 0; transition: all 0.25s; z-index: 9999; }
+#toast.show { transform: translateY(0); opacity: 1; }
+
+/* PROGRESS BAR */
+.prog-bar { height: 5px; background: var(--border); border-radius: 10px; margin-top: 5px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 10px; transition: width 0.5s; }
+.prog-green { background: var(--accent); }
+.prog-red { background: var(--danger); }
+.prog-gold { background: var(--gold); }
+
+/* SECTION DIVIDER */
+.sec-div { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+/* UTILITY */
+.flex { display: flex; }
+.flex-end { justify-content: flex-end; }
+.items-center { align-items: center; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-18 { margin-bottom: 18px; }
+.mb-20 { margin-bottom: 20px; }
+.mt-10 { margin-top: 10px; }
+.fw-600 { font-weight: 600; }
+.fw-700 { font-weight: 700; }
+.text-right { text-align: right; }
+.text-danger { color: var(--danger); }
+.text-green { color: var(--accent); }
+.text-gold { color: var(--gold); }
+.text-blue { color: var(--info); }
+.text-muted { color: var(--text3); }
+.mono { font-family: 'DM Mono', monospace; }
+.fs-11 { font-size: 11px; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* INFORME SIN FACTURA */
+.sf-highlight { background: var(--danger-light); border: 1px solid #f0c0c0; border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+.sf-highlight .sf-title { font-size: 12px; font-weight: 700; color: var(--danger); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* COMPARISON CARD */
+.cmp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+.cmp-month { font-size: 11px; font-weight: 700; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cmp-row { display: flex; justify-content: space-between; font-size: 11.5px; padding: 3px 0; }
+.cmp-lbl { color: var(--text2); }
+.cmp-val { font-family: 'DM Mono', monospace; font-size: 11px; }
+
+/* LOCAL TAG */
+.local-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.local-tr { background: #dbeafe; color: #1d4ed8; }
+.local-om { background: #fce7f3; color: #be185d; }
+.local-manual { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+
+/* ═══ CUENTAS CORRIENTES ═══ */
+.cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.cc-cliente-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: box-shadow 0.15s; }
+.cc-cliente-card:hover { box-shadow: var(--shadow2); }
+.cc-cliente-card.vencida { border-left: 3px solid var(--danger); }
+.cc-cliente-card.al-dia { border-left: 3px solid var(--accent); }
+.cc-cliente-card.parcial { border-left: 3px solid var(--warning); }
+.cc-cliente-card.saldada { border-left: 3px solid var(--border2); opacity: 0.72; }
+.cc-card-header { padding: 13px 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+.cc-card-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.cc-card-meta { font-size: 10.5px; color: var(--text3); }
+.cc-card-saldo { text-align: right; }
+.cc-card-saldo-val { font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 600; }
+.cc-card-saldo-lbl { font-size: 9.5px; color: var(--text3); margin-top: 1px; }
+.cc-card-footer { padding: 9px 16px; background: var(--surface2); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text2); }
+.progreso-cobro { height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; margin: 6px 0 0; }
+.progreso-cobro-fill { height: 100%; border-radius: 10px; background: var(--accent); transition: width 0.4s; }
+.alerta-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: var(--radius2); margin-bottom: 7px; font-size: 11.5px; }
+.alerta-venc { background: var(--danger-light); border: 1px solid #f0c0c0; color: var(--danger); }
+.alerta-prox { background: var(--warning-light); border: 1px solid #f0dcb0; color: var(--warning); }
+.alerta-icon { font-size: 15px; flex-shrink: 0; }
+.pago-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius2); background: var(--surface2); border: 1px solid var(--border); margin-bottom: 5px; font-size: 11.5px; }
+.pago-item .pago-monto { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--accent); margin-left: auto; }
+.cheque-diferido { display: inline-flex; align-items: center; gap: 4px; background: var(--warning-light); color: var(--warning); border: 1px solid #f0dcb0; border-radius: 3px; padding: 1px 6px; font-size: 9.5px; font-weight: 600; }
+.cuota-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: var(--radius2); border: 1px solid var(--border); margin-bottom: 6px; font-size: 12px; }
+.cuota-row.vencida-c { background: var(--danger-light); border-color: #f0c0c0; }
+.cuota-row.cobrada-c { background: var(--accent-light); border-color: #b0dfc0; }
+.cuota-row.pendiente-c { background: var(--surface2); }
+.tab-mini { display: flex; gap: 4px; margin-bottom: 14px; }
+.tab-mini-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); background: none; font-size: 11px; font-weight: 500; cursor: pointer; color: var(--text2); transition: all 0.12s; }
+.tab-mini-btn.active { background: var(--text); color: white; border-color: var(--text); }
+.cc-fact-section { background: var(--surface2); border-radius: var(--radius2); padding: 13px 15px; margin-bottom: 12px; }
+.cc-fact-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid var(--border); }
+.cc-fact-row:last-child { border-bottom: none; font-weight: 700; font-size: 13px; padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ LOGIN SCREEN ══════════════════ -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">GDV</div>
+    <div class="login-title">Movimientos Diarios</div>
+    <div class="login-sub">Grupo de la Vida — Acceso interno</div>
+    <label class="login-label">EMAIL</label>
+    <input class="login-input" type="email" id="login-email" placeholder="usuario@gdv.com.py" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+    <label class="login-label">CONTRASEÑA</label>
+    <input class="login-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')hacerLogin()">
+    <button class="login-btn" id="login-btn" onclick="hacerLogin()">Ingresar →</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-loading" id="login-loading" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <div style="width:14px;height:14px;border:2px solid #444;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite"></div>
+        Verificando credenciales...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ APP ══════════════════ -->
+<div id="app-container">
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">GDV</div>
+    <div>
+      <div class="header-title">Movimientos Diarios</div>
+      <div class="header-sub">Grupo de la Vida</div>
+    </div>
+  </div>
+  <div class="period-wrap">
+    <span>Período:</span>
+    <select class="period-select" id="periodoSelect" onchange="cambiarPeriodo()"></select>
+  </div>
+  <div class="user-badge" onclick="cerrarSesion()" title="Cerrar sesión">
+    <div class="user-dot"></div>
+    <span id="header-user-label">—</span>
+    <span style="color:#666;font-size:10px">salir</span>
+  </div>
+</div>
+
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('resumen')" id="tab-resumen">📋 Resumen</button>
+  <button class="tab-btn" onclick="switchTab('caja')" id="tab-caja">💵 Caja Chica</button>
+  <button class="tab-btn" onclick="switchTab('compras')" id="tab-compras">🛒 Compras</button>
+  <button class="tab-btn" onclick="switchTab('ventas')" id="tab-ventas">🏷️ Ventas</button>
+  <button class="tab-btn" onclick="switchTab('sinfactura')" id="tab-sinfactura">⚠️ Sin Factura</button>
+  <button class="tab-btn" onclick="switchTab('informes')" id="tab-informes">📊 Informes</button>
+  <button class="tab-btn" onclick="switchTab('cuentas')" id="tab-cuentas">🧾 Cuentas Corrientes</button>
+  <button class="tab-btn" onclick="switchTab('historial')" id="tab-historial">📦 Historial Cerrados</button>
+</div>
+
+<div class="main">
+
+<!-- ══════════════════════════════ RESUMEN ══════════════════════════════ -->
+<div class="tab-content active" id="content-resumen">
+  <div class="page-title">Resumen del Período</div>
+  <div class="page-sub" id="resumen-sub-periodo">—</div>
+
+  <div class="banner" id="banner-main">
+    <div class="banner-item">
+      <div class="banner-label">Ventas totales</div>
+      <div class="banner-val" id="b-vt">₲ 0</div>
+      <div class="banner-sub" id="b-vt-sub">— con y sin factura</div>
+    </div>
+    <div class="banner-item">
+      <div class="banner-label">Compras totales</div>
+      <div class="banner-val" id="b-ct">₲ 0</div>
+      <div class="banner-sub">incluyendo caja chica</div>
+    </div>
+    <div class="banner-item">
+      <div class="banner-label">Saldo Caja Chica</div>
+      <div class="banner-val" id="b-saldo">₲ 0</div>
+      <div class="banner-sub">disponible</div>
+    </div>
+    <div class="banner-item">
+      <div class="banner-label">IVA estimado</div>
+      <div class="banner-val" id="b-iva">₲ 0</div>
+      <div class="banner-sub">débito − crédito</div>
+    </div>
+  </div>
+
+  <div class="two-col mb-18">
+    <div class="iva-block">
+      <div class="card-title mb-12">🏷️ Ventas</div>
+      <div class="iva-row"><span class="iva-lbl">Con factura</span><span class="iva-val text-green" id="r-vcf">₲ 0</span></div>
+      <div class="iva-row"><span class="iva-lbl">Sin factura</span><span class="iva-val text-danger" id="r-vsf">₲ 0</span></div>
+      <div class="iva-row"><span class="iva-lbl">% con factura</span><span class="iva-val" id="r-vpct">0%</span></div>
+      <div class="iva-row"><span class="iva-lbl">IVA débito</span><span class="iva-val text-danger" id="r-viva">₲ 0</span></div>
+      <div class="prog-bar mt-10"><div class="prog-fill prog-green" id="prog-vcf" style="width:0%"></div></div>
+      <div class="fs-11 text-muted mt-10" id="r-vsf-nota">—</div>
+    </div>
+    <div class="iva-block">
+      <div class="card-title mb-12">🛒 Compras + Caja</div>
+      <div class="iva-row"><span class="iva-lbl">Con factura</span><span class="iva-val text-green" id="r-ccf">₲ 0</span></div>
+      <div class="iva-row"><span class="iva-lbl">Sin factura</span><span class="iva-val text-danger" id="r-csf">₲ 0</span></div>
+      <div class="iva-row"><span class="iva-lbl">% con factura</span><span class="iva-val" id="r-cpct">0%</span></div>
+      <div class="iva-row"><span class="iva-lbl">IVA crédito</span><span class="iva-val text-green" id="r-civa">₲ 0</span></div>
+      <div class="prog-bar mt-10"><div class="prog-fill prog-green" id="prog-ccf" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL MENSUAL -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📅 Historial mensual</div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table id="tabla-historial">
+          <thead><tr>
+            <th>Mes</th>
+            <th class="td-right">Ventas c/F</th>
+            <th class="td-right">Ventas s/F</th>
+            <th class="td-right">% c/F</th>
+            <th class="td-right">Compras c/F</th>
+            <th class="td-right">Compras s/F</th>
+            <th class="td-right">% c/F</th>
+            <th class="td-right">IVA estimado</th>
+            <th class="td-right">Gastos caja</th>
+          </tr></thead>
+          <tbody id="tbody-historial">
+            <tr class="empty-row"><td colspan="9">Sin datos aún</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ CAJA CHICA ══════════════════════════════ -->
+<div class="tab-content" id="content-caja">
+  <div class="page-title">Caja Chica</div>
+  <div class="page-sub">Entradas de efectivo y gastos menores — con y sin factura</div>
+
+  <div class="stats-grid">
+    <div class="stat-box green"><div class="stat-label">Saldo actual</div><div class="stat-value" id="sc-saldo">₲ 0</div></div>
+    <div class="stat-box blue"><div class="stat-label">Entradas del período</div><div class="stat-value" id="sc-ent">₲ 0</div></div>
+    <div class="stat-box red"><div class="stat-label">Gastos totales</div><div class="stat-value" id="sc-gas">₲ 0</div></div>
+    <div class="stat-box green"><div class="stat-label">Gastos c/ factura</div><div class="stat-value" id="sc-gcf">₲ 0</div></div>
+    <div class="stat-box orange"><div class="stat-label">Gastos s/ factura</div><div class="stat-value" id="sc-gsf">₲ 0</div></div>
+    <div class="stat-box gold"><div class="stat-label">IVA crédito caja</div><div class="stat-value" id="sc-iva">₲ 0</div></div>
+  </div>
+
+  <div class="two-col mb-16">
+    <div class="card">
+      <div class="card-header"><div class="card-title">➕ Entrada de efectivo</div></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="caj-ent-fecha"></div>
+          <div class="form-group"><label>Monto (₲)</label><input type="number" class="form-control" id="caj-ent-monto" placeholder="0"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Concepto</label><input type="text" class="form-control" id="caj-ent-concepto" placeholder="Reposición caja, apertura..."></div>
+        </div>
+        <div class="flex flex-end"><button class="btn btn-primary" onclick="agregarEntradaCaja()">➕ Agregar</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">➖ Registrar Gasto</div></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="caj-gas-fecha"></div>
+          <div class="form-group"><label>Monto (₲)</label><input type="number" class="form-control" id="caj-gas-monto" placeholder="0"></div>
+          <div class="form-group"><label>Tipo</label>
+            <select class="form-control" id="caj-gas-factura" onchange="toggleField('caj-gas-nrofact-wrap', this.value==='cf')">
+              <option value="cf">✅ Con Factura</option>
+              <option value="sf">❌ Sin Factura</option>
+            </select>
+          </div>
+          <div class="form-group" id="caj-gas-nrofact-wrap"><label>Nº Factura</label><input type="text" class="form-control" id="caj-gas-nrofact" placeholder="001-001-XXXXXXX"></div>
+          <div class="form-group"><label>Categoría / Área</label>
+            <input type="text" class="form-control" id="caj-gas-cat" placeholder="Ej: Producción, Administración..." list="cat-caja-list">
+            <datalist id="cat-caja-list">
+              <option>Insumos / Materiales</option><option>Transporte / Flete</option>
+              <option>Servicios</option><option>Alimentación</option><option>Limpieza</option>
+              <option>Mantenimiento</option><option>Oficina / Papelería</option>
+              <option>Producción</option><option>Administración</option><option>Comercial</option>
+            </datalist>
+          </div>
+          <div class="form-group" style="grid-column:1/-1"><label>Concepto / Proveedor</label><input type="text" class="form-control" id="caj-gas-concepto" placeholder="Detalle del gasto..."></div>
+        </div>
+        <div class="flex flex-end"><button class="btn btn-danger" onclick="agregarGastoCaja()">➖ Registrar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Movimientos — <span id="caj-periodo-label"></span></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportarCSV('tabla-caja','Caja')">⬇ CSV</button>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table id="tabla-caja">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th>Factura</th><th>Nº Factura</th><th class="td-right">Monto</th><th class="td-right">Saldo</th><th></th></tr></thead>
+          <tbody id="tbody-caja"><tr class="empty-row"><td colspan="9">Sin movimientos</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ COMPRAS ══════════════════════════════ -->
+<div class="tab-content" id="content-compras">
+  <div class="page-title">Compras</div>
+  <div class="page-sub">Registro de compras con y sin factura — todos los medios de pago</div>
+
+  <div class="stats-grid">
+    <div class="stat-box blue"><div class="stat-label">Total compras</div><div class="stat-value" id="scp-total">₲ 0</div></div>
+    <div class="stat-box green"><div class="stat-label">Con factura</div><div class="stat-value" id="scp-cf">₲ 0</div></div>
+    <div class="stat-box orange"><div class="stat-label">Sin factura</div><div class="stat-value" id="scp-sf">₲ 0</div></div>
+    <div class="stat-box gold"><div class="stat-label">IVA crédito</div><div class="stat-value" id="scp-iva">₲ 0</div></div>
+    <div class="stat-box"><div class="stat-label">Efectivo</div><div class="stat-value" id="scp-efe">₲ 0</div></div>
+    <div class="stat-box"><div class="stat-label">Medios bancarios</div><div class="stat-value" id="scp-ban">₲ 0</div></div>
+  </div>
+
+  <div class="card mb-16">
+    <div class="card-header"><div class="card-title">🛒 Nueva Compra</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="cp-fecha"></div>
+        <div class="form-group"><label>Proveedor</label><input type="text" class="form-control" id="cp-prov" placeholder="Nombre proveedor"></div>
+        <div class="form-group"><label>Monto Total (₲)</label><input type="number" class="form-control" id="cp-monto" placeholder="0"></div>
+        <div class="form-group"><label>Medio de Pago</label>
+          <select class="form-control" id="cp-medio">
+            <option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option>
+            <option value="cheque">📄 Cheque</option><option value="tarjeta_debito">💳 T. Débito</option>
+            <option value="tarjeta_credito">💳 T. Crédito</option><option value="credito_proveedor">📋 Créd. Proveedor</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Tipo</label>
+          <select class="form-control" id="cp-factura" onchange="toggleField('cp-nrofact-wrap', this.value==='cf')">
+            <option value="cf">✅ Con Factura</option><option value="sf">❌ Sin Factura</option>
+          </select>
+        </div>
+        <div class="form-group" id="cp-nrofact-wrap"><label>Nº Factura</label><input type="text" class="form-control" id="cp-nrofact" placeholder="001-001-XXXXXXX"></div>
+        <div class="form-group"><label>Categoría / Área</label>
+          <input type="text" class="form-control" id="cp-cat" placeholder="Ej: Tela, Producción, Avíos..." list="cat-compras-list">
+          <datalist id="cat-compras-list">
+            <option>Tela / Materia Prima</option><option>Accesorios / Avíos</option>
+            <option>Maquinaria / Herramientas</option><option>Servicios Externos</option>
+            <option>Embalaje / Etiquetas</option><option>Insumos Generales</option>
+            <option>Producción</option><option>Administración</option><option>Comercial</option>
+            <option>Corte</option><option>Confección</option><option>Estampado</option><option>Bordado</option>
+          </datalist>
+        </div>
+        <div class="form-group" style="grid-column:1/-1"><label>Detalle</label><input type="text" class="form-control" id="cp-detalle" placeholder="Descripción..."></div>
+      </div>
+      <div class="flex flex-end"><button class="btn btn-primary" onclick="agregarCompra()">➕ Registrar</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Compras — <span id="cp-periodo-label"></span></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportarCSV('tabla-compras','Compras')">⬇ CSV</button>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table id="tabla-compras">
+          <thead><tr><th>Fecha</th><th>Proveedor</th><th>Categoría</th><th>Detalle</th><th>Medio</th><th>Factura</th><th>Nº Factura</th><th class="td-right">Monto</th><th class="td-right">IVA</th><th></th></tr></thead>
+          <tbody id="tbody-compras"><tr class="empty-row"><td colspan="10">Sin compras</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ VENTAS ══════════════════════════════ -->
+<div class="tab-content" id="content-ventas">
+  <div class="page-title">Ventas</div>
+  <div class="page-sub">Registro de ventas con y sin factura — local propio, Tienda Rey y One More</div>
+
+  <div class="stats-grid">
+    <div class="stat-box blue"><div class="stat-label">Total ventas</div><div class="stat-value" id="sv-total">₲ 0</div></div>
+    <div class="stat-box green"><div class="stat-label">Con factura</div><div class="stat-value" id="sv-cf">₲ 0</div></div>
+    <div class="stat-box red"><div class="stat-label">Sin factura</div><div class="stat-value" id="sv-sf">₲ 0</div></div>
+    <div class="stat-box gold"><div class="stat-label">IVA débito</div><div class="stat-value" id="sv-iva">₲ 0</div></div>
+    <div class="stat-box purple"><div class="stat-label">Tienda Rey</div><div class="stat-value" id="sv-tr">₲ 0</div></div>
+    <div class="stat-box purple"><div class="stat-label">One More</div><div class="stat-value" id="sv-om">₲ 0</div></div>
+  </div>
+
+  <!-- IMPORTAR PDF -->
+  <div class="card mb-16">
+    <div class="card-header">
+      <div class="card-title">📄 Importar reporte de ventas (PDF)</div>
+      <div class="flex gap-8">
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalImport('tienda_rey')">📥 Tienda Rey</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalImport('one_more')">📥 One More</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        📌 Arrastrá o seleccioná el PDF del reporte diario de ventas del shopping. La IA extrae automáticamente fecha, montos, medios de pago y números de ticket/factura.
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="drop-zone" id="drop-tr" onclick="document.getElementById('file-tr').click()" ondragover="dragOver(event,'drop-tr')" ondragleave="dragLeave('drop-tr')" ondrop="dropFile(event,'tienda_rey')">
+            <div class="drop-zone-icon">🏬</div>
+            <div class="drop-zone-text">Tienda Rey</div>
+            <div class="drop-zone-sub">Arrastrá el PDF diario aquí</div>
+          </div>
+          <input type="file" id="file-tr" accept=".pdf" style="display:none" onchange="procesarPDF(this.files[0],'tienda_rey')">
+        </div>
+        <div>
+          <div class="drop-zone" id="drop-om" onclick="document.getElementById('file-om').click()" ondragover="dragOver(event,'drop-om')" ondragleave="dragLeave('drop-om')" ondrop="dropFile(event,'one_more')">
+            <div class="drop-zone-icon">🏪</div>
+            <div class="drop-zone-text">One More</div>
+            <div class="drop-zone-sub">Arrastrá el PDF diario aquí</div>
+          </div>
+          <input type="file" id="file-om" accept=".pdf" style="display:none" onchange="procesarPDF(this.files[0],'one_more')">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM MANUAL -->
+  <div class="card mb-16">
+    <div class="card-header"><div class="card-title">✏️ Carga manual de venta</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="vt-fecha"></div>
+        <div class="form-group"><label>Local</label>
+          <select class="form-control" id="vt-local">
+            <option value="propio">🏭 Local Propio</option>
+            <option value="tienda_rey">🏬 Tienda Rey</option>
+            <option value="one_more">🏪 One More</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Cliente</label><input type="text" class="form-control" id="vt-cliente" placeholder="Nombre / Descripción"></div>
+        <div class="form-group"><label>Monto Total (₲)</label><input type="number" class="form-control" id="vt-monto" placeholder="0"></div>
+        <div class="form-group"><label>Medio de Pago</label>
+          <select class="form-control" id="vt-medio">
+            <option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option>
+            <option value="cheque">📄 Cheque</option><option value="tarjeta_debito">💳 T. Débito</option>
+            <option value="tarjeta_credito">💳 T. Crédito</option><option value="credito_cliente">📋 Créd. Cliente</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Tipo</label>
+          <select class="form-control" id="vt-factura" onchange="toggleField('vt-nrofact-wrap', this.value==='cf')">
+            <option value="cf">✅ Con Factura</option><option value="sf">❌ Sin Factura</option>
+          </select>
+        </div>
+        <div class="form-group" id="vt-nrofact-wrap"><label>Nº Factura / Ticket</label><input type="text" class="form-control" id="vt-nrofact" placeholder="001-001-XXXXXXX"></div>
+        <div class="form-group"><label>Tipo de cobro</label>
+          <select class="form-control" id="vt-tipo-cobro" onchange="toggleVtCredito()">
+            <option value="contado">💵 Contado</option>
+            <option value="credito">📋 Crédito (va a Cuentas Corrientes)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Categoría / Producto</label>
+          <input type="text" class="form-control" id="vt-cat" placeholder="Ej: Uniformes, Remeras, Buzos..." list="cat-ventas-list">
+          <datalist id="cat-ventas-list">
+            <option>Remeras / Camisetas</option><option>Pantalones</option>
+            <option>Buzos / Abrigos</option><option>Conjuntos</option>
+            <option>Ropa Interior</option><option>Uniformes</option>
+            <option>Camisetas Corporativas</option><option>Indumentaria Deportiva</option>
+            <option>Gorras / Accesorios</option>
+          </datalist>
+        </div>
+        <div class="form-group" style="grid-column:1/-1"><label>Detalle</label><input type="text" class="form-control" id="vt-detalle" placeholder="Descripción..."></div>
+      </div>
+      <div class="flex flex-end"><button class="btn btn-primary" onclick="agregarVenta()">➕ Registrar</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Ventas — <span id="vt-periodo-label"></span></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportarCSV('tabla-ventas','Ventas')">⬇ CSV</button>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table id="tabla-ventas">
+          <thead><tr><th>Fecha</th><th>Local</th><th>Cliente</th><th>Categoría</th><th>Medio</th><th>Factura</th><th>Nº Fact/Ticket</th><th class="td-right">Monto</th><th class="td-right">IVA</th><th></th></tr></thead>
+          <tbody id="tbody-ventas"><tr class="empty-row"><td colspan="10">Sin ventas</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ SIN FACTURA ══════════════════════════════ -->
+<div class="tab-content" id="content-sinfactura">
+  <div class="page-title">⚠️ Operaciones Sin Factura</div>
+  <div class="page-sub">Detalle completo de compras y ventas sin respaldo de factura</div>
+
+  <div class="stats-grid mb-18">
+    <div class="stat-box red"><div class="stat-label">Ventas s/F período</div><div class="stat-value" id="sf-vsf">₲ 0</div><div class="stat-sub" id="sf-vsf-pct">0% del total ventas</div></div>
+    <div class="stat-box orange"><div class="stat-label">Compras s/F período</div><div class="stat-value" id="sf-csf">₲ 0</div><div class="stat-sub" id="sf-csf-pct">0% del total compras</div></div>
+    <div class="stat-box orange"><div class="stat-label">Gastos caja s/F</div><div class="stat-value" id="sf-cajsf">₲ 0</div></div>
+    <div class="stat-box red"><div class="stat-label">Total s/F período</div><div class="stat-value" id="sf-total">₲ 0</div><div class="stat-sub">ventas + compras + caja</div></div>
+  </div>
+
+  <div class="sf-highlight mb-16">
+    <div class="sf-title">⚠ Impacto estimado</div>
+    <div class="two-col">
+      <div>
+        <div class="iva-row"><span class="iva-lbl">IVA no cobrado s/ ventas s/F</span><span class="iva-val text-danger" id="sf-iva-perdido">₲ 0</span></div>
+        <div class="iva-row"><span class="iva-lbl">IVA no acreditado s/ compras s/F</span><span class="iva-val text-danger" id="sf-iva-noacred">₲ 0</span></div>
+      </div>
+      <div>
+        <div class="iva-row"><span class="iva-lbl">Total monto operado s/F</span><span class="iva-val text-danger fw-700" id="sf-total2">₲ 0</span></div>
+        <div class="iva-row"><span class="iva-lbl">Diferencia IVA por falta de factura</span><span class="iva-val text-danger" id="sf-dif-iva">₲ 0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col mb-16">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏷️ Ventas sin factura</div></div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Local</th><th>Detalle</th><th class="td-right">Monto</th><th class="td-right">IVA perdido</th></tr></thead>
+            <tbody id="tbody-vsf"><tr class="empty-row"><td colspan="5">Sin registros</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🛒 Compras y gastos sin factura</div></div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Origen</th><th>Detalle</th><th class="td-right">Monto</th><th class="td-right">IVA no acred.</th></tr></thead>
+            <tbody id="tbody-csf"><tr class="empty-row"><td colspan="5">Sin registros</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARATIVO MESES SIN FACTURA -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">📊 Evolución mensual — operaciones sin factura</div></div>
+    <div class="card-body">
+      <div class="chart-wrap"><canvas id="chart-sf-evol"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ INFORMES ══════════════════════════════ -->
+<div class="tab-content" id="content-informes">
+  <div class="page-title">Informes y Comparativas</div>
+  <div class="page-sub">Evolución mensual — ventas, compras, IVA y facturación</div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="two-col mb-16">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 Ventas: Con vs Sin factura</div></div>
+      <div class="card-body"><div class="chart-wrap-tall"><canvas id="chart-ventas-cf-sf"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📉 Compras: Con vs Sin factura</div></div>
+      <div class="card-body"><div class="chart-wrap-tall"><canvas id="chart-compras-cf-sf"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="two-col mb-16">
+    <div class="card">
+      <div class="card-header"><div class="card-title">💹 Evolución de ventas totales</div></div>
+      <div class="card-body"><div class="chart-wrap-tall"><canvas id="chart-ventas-total"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 % Facturado por mes</div></div>
+      <div class="card-body"><div class="chart-wrap-tall"><canvas id="chart-pct-fact"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- TABLA COMPARATIVA DETALLADA -->
+  <div class="card mb-16">
+    <div class="card-header"><div class="card-title">🗂 Comparativa mensual detallada</div></div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Mes</th>
+            <th class="td-right">Ventas total</th><th class="td-right">V. c/F</th><th class="td-right">V. s/F</th><th class="td-right">% V c/F</th>
+            <th class="td-right">Compras total</th><th class="td-right">C. c/F</th><th class="td-right">C. s/F</th><th class="td-right">% C c/F</th>
+            <th class="td-right">IVA est.</th>
+          </tr></thead>
+          <tbody id="tbody-comparativa"><tr class="empty-row"><td colspan="10">Sin datos</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MES A MES CARDS -->
+  <div id="cmp-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap:12px;"></div>
+</div>
+
+</div><!-- /main -->
+
+<!-- ══════════════════════════ MODAL IMPORTAR PDF ══════════════════════════ -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-import-title">Importar PDF de ventas</div>
+      <button class="modal-close" onclick="cerrarModal('modal-import')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="import-ai-loading" class="ai-loading mb-12" style="display:none">
+        <div class="spinner"></div>
+        <span id="import-loading-text">Procesando con IA...</span>
+      </div>
+      <div id="import-result-area">
+        <div class="alert alert-info mb-12">Seleccioná el archivo PDF del reporte del shopping para pre-cargar las ventas automáticamente.</div>
+        <div class="drop-zone" id="drop-modal" onclick="document.getElementById('file-modal').click()">
+          <div class="drop-zone-icon">📄</div>
+          <div class="drop-zone-text">Hacé clic o arrastrá el PDF aquí</div>
+          <div class="drop-zone-sub">Se extraerán ventas, medios de pago y tickets automáticamente</div>
+        </div>
+        <input type="file" id="file-modal" accept=".pdf" style="display:none" onchange="procesarPDFModal(this.files[0])">
+      </div>
+      <div id="import-preview-area" style="display:none">
+        <div class="alert alert-info mb-12" id="import-preview-msg"></div>
+        <div class="import-preview">
+          <table id="tabla-import-preview" style="width:100%; font-size:12px; border-collapse:collapse;">
+            <thead><tr>
+              <th style="padding:7px; text-align:left; font-size:10px; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border);">Fecha</th>
+              <th style="padding:7px; text-align:left; font-size:10px; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border);">Descripción</th>
+              <th style="padding:7px; text-align:left; font-size:10px; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border);">Medio</th>
+              <th style="padding:7px; text-align:left; font-size:10px; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border);">Ticket/Fact.</th>
+              <th style="padding:7px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border);">Monto</th>
+              <th style="padding:7px; text-align:center; font-size:10px; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border);">Incluir</th>
+            </tr></thead>
+            <tbody id="tbody-import-preview"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-import')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-import" style="display:none" onclick="confirmarImport()">✅ Importar seleccionados</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══════════════════════ CC TAB ══════════════════════ -->
+<div class="tab-content" id="content-cuentas">
+  <div class="page-title">Cuentas Corrientes</div>
+  <div class="page-sub">Estado de cuenta por cliente — pedidos, cobros, notas de crédito y saldo</div>
+
+  <!-- ALERTAS -->
+  <div id="cc-alertas-wrap" class="mb-16"></div>
+
+  <!-- STATS GLOBALES -->
+  <div class="stats-grid mb-16">
+    <div class="stat-box red"><div class="stat-label">Total a cobrar</div><div class="stat-value" id="cc-stat-total">₲ 0</div><div class="stat-sub">saldo real (fact. − cobros − NC)</div></div>
+    <div class="stat-box orange"><div class="stat-label">Entregado sin cobrar</div><div class="stat-value" id="cc-stat-pendiente">₲ 0</div><div class="stat-sub">ya entregado, saldo pendiente</div></div>
+    <div class="stat-box gold"><div class="stat-label">Cheques por acreditar</div><div class="stat-value" id="cc-stat-cheques">₲ 0</div><div class="stat-sub">cheques diferidos en cartera</div></div>
+    <div class="stat-box green"><div class="stat-label">Cobrado este mes</div><div class="stat-value" id="cc-stat-cobrado">₲ 0</div><div class="stat-sub" id="cc-stat-cobrado-sub">período activo</div></div>
+    <div class="stat-box blue"><div class="stat-label">Clientes con deuda</div><div class="stat-value" id="cc-stat-clientes">0</div><div class="stat-sub">con saldo > 0</div></div>
+    <div class="stat-box purple"><div class="stat-label">Pendiente de entrega</div><div class="stat-value" id="cc-stat-pendent">₲ 0</div><div class="stat-sub">señas / pedidos no entregados</div></div>
+  </div>
+
+  <!-- BARRA ACCION + FILTROS -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+    <div class="tab-mini" style="margin-bottom:0">
+      <button class="tab-mini-btn active" onclick="ccFiltroCliente('todos',this)">Todos</button>
+      <button class="tab-mini-btn" onclick="ccFiltroCliente('deuda',this)">🔴 Con deuda</button>
+      <button class="tab-mini-btn" onclick="ccFiltroCliente('parcial',this)">🟡 Parciales</button>
+      <button class="tab-mini-btn" onclick="ccFiltroCliente('saldado',this)">✅ Saldados</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="exportarEstadoCuentaGlobal()">⬇ Exportar global</button>
+      <button class="btn btn-primary" onclick="abrirModalNuevoPedido()">+ Nuevo Pedido / Factura</button>
+    </div>
+  </div>
+
+  <!-- GRILLA DE CLIENTES -->
+  <div class="cc-grid" id="cc-clientes-grid">
+    <div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--text3);font-size:13px;">Sin registros. Hacé clic en <b>+ Nuevo Pedido / Factura</b> para empezar.</div>
+  </div>
+
+  <!-- TABLA RESUMEN GLOBAL -->
+  <div class="card mt-10">
+    <div class="card-header">
+      <div class="card-title">📊 Resumen global — todos los clientes</div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table id="tabla-cc-global">
+          <thead><tr>
+            <th>Cliente</th>
+            <th class="td-right">Total facturado</th>
+            <th class="td-right">Cobrado</th>
+            <th class="td-right">Notas crédito</th>
+            <th class="td-right">Saldo total</th>
+            <th class="td-right">Entregado s/cobrar</th>
+            <th class="td-right">Pend. entrega</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-cc-global"><tr class="empty-row"><td colspan="8">Sin datos</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ HISTORIAL CERRADOS ══════════════════════════════ -->
+<div class="tab-content" id="content-historial">
+  <div class="page-title">📦 Historial de Cuentas Cerradas</div>
+  <div class="page-sub">Clientes con cuentas saldadas y archivadas — registro permanente</div>
+  <div class="stats-grid mb-16">
+    <div class="stat-box green"><div class="stat-label">Cuentas cerradas</div><div class="stat-value" id="hist-count">0</div></div>
+    <div class="stat-box blue"><div class="stat-label">Total facturado histórico</div><div class="stat-value" id="hist-total-fact">₲ 0</div></div>
+    <div class="stat-box green"><div class="stat-label">Total cobrado histórico</div><div class="stat-value" id="hist-total-cob">₲ 0</div></div>
+    <div class="stat-box gold"><div class="stat-label">Tiempo promedio cobro</div><div class="stat-value" id="hist-dias-prom">— días</div></div>
+  </div>
+  <div id="historial-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px">
+    <div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--text3);font-size:13px;">Sin cuentas cerradas aún. Cuando una cuenta quede saldada, podés cerrarla desde el estado de cuenta del cliente.</div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE CUENTA CERRADA -->
+<div class="modal-overlay" id="modal-historial-detalle">
+  <div class="modal" style="width:min(860px,96vw);max-height:92vh">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="hist-det-titulo">—</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:2px" id="hist-det-sub"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" style="color:var(--warning);border-color:var(--warning)" onclick="reabrirCuenta()">↩ Reabrir cuenta</button>
+        <button class="modal-close" onclick="cerrarModal('modal-historial-detalle')">×</button>
+      </div>
+    </div>
+    <div class="modal-body" id="hist-det-body"></div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL NUEVO PEDIDO / FACTURA ══════════ -->
+<div class="modal-overlay" id="modal-nuevo-pedido">
+  <div class="modal" style="width:min(680px,96vw)">
+    <div class="modal-header">
+      <div class="modal-title">📋 Nuevo Pedido / Factura</div>
+      <button class="modal-close" onclick="cerrarModal('modal-nuevo-pedido')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="np-fecha"></div>
+        <div class="form-group"><label>Cliente</label>
+          <input type="text" class="form-control" id="np-cliente" placeholder="Nombre del cliente" list="cc-clientes-list">
+          <datalist id="cc-clientes-list"></datalist>
+        </div>
+        <div class="form-group"><label>Nº Factura</label><input type="text" class="form-control" id="np-nrofact" placeholder="9351"></div>
+        <div class="form-group"><label>Monto total (₲)</label><input type="number" class="form-control" id="np-monto" placeholder="0"></div>
+        <div class="form-group"><label>Estado entrega</label>
+          <select class="form-control" id="np-estado-entrega">
+            <option value="ENTREGADO">✅ ENTREGADO</option>
+            <option value="PENDIENTE DE ENTREGA">⏳ PENDIENTE DE ENTREGA</option>
+            <option value="EN PROCESO">🔄 EN PROCESO</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Estado pago</label>
+          <select class="form-control" id="np-estado-pago">
+            <option value="Pendiente">⏳ Pendiente</option>
+            <option value="PAGO PARCIAL">🟡 Pago Parcial</option>
+            <option value="PAGADO">✅ Pagado</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1"><label>Descripción del pedido</label>
+          <input type="text" class="form-control" id="np-pedido" placeholder="Ej: 200 Camisetas ASICS RUN CLUB">
+        </div>
+        <div class="form-group"><label>Observaciones</label><input type="text" class="form-control" id="np-obs" placeholder="Señas, notas..."></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-nuevo-pedido')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNuevoPedido()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL ESTADO DE CUENTA CLIENTE ══════════ -->
+<div class="modal-overlay" id="modal-cuenta-cliente">
+  <div class="modal" style="width:min(900px,96vw);max-height:92vh">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-cc-titulo">—</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:2px" id="modal-cc-subtitulo"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="exportarEstadoCuenta(ccClienteActual)">⬇ Exportar</button>
+        <button class="btn btn-ghost btn-sm" id="btn-cerrar-cuenta" style="border-color:var(--accent);color:var(--accent)" onclick="confirmarCerrarCuenta()">✅ Cerrar cuenta</button>
+        <button class="modal-close" onclick="cerrarModal('modal-cuenta-cliente')">×</button>
+      </div>
+    </div>
+    <div class="modal-body">
+
+      <!-- RESUMEN CABECERA -->
+      <div id="cc-det-resumen" style="margin-bottom:16px"></div>
+
+      <!-- TABLA DE PEDIDOS/FACTURAS DEL CLIENTE -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title">📄 Pedidos y Facturas</div>
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalNuevoPedidoParaCliente(ccClienteActual)">+ Agregar pedido</button>
+      </div>
+      <div class="table-wrap mb-16" style="border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden">
+        <table id="tabla-pedidos-cliente">
+          <thead><tr>
+            <th>Fecha</th><th>Descripción</th><th>Factura</th>
+            <th>Estado entrega</th><th>Estado pago</th>
+            <th class="td-right">Monto</th><th></th>
+          </tr></thead>
+          <tbody id="tbody-pedidos-cliente"><tr class="empty-row"><td colspan="7">Sin pedidos</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- COBROS / PAGOS -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title">💳 Cobros registrados</div>
+        <button class="btn btn-primary btn-sm" onclick="toggleFormPago()">+ Registrar cobro</button>
+      </div>
+
+      <!-- FORM COBRO (colapsable) -->
+      <div id="form-pago-wrap" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px;margin-bottom:14px">
+        <div class="form-grid">
+          <div class="form-group"><label>Fecha cobro</label><input type="date" class="form-control" id="pago-fecha"></div>
+          <div class="form-group"><label>Monto cobrado (₲)</label><input type="number" class="form-control" id="pago-monto" placeholder="0"></div>
+          <div class="form-group"><label>Medio de pago</label>
+            <select class="form-control" id="pago-medio" onchange="toggleChequeDif()">
+              <option value="efectivo">💵 Efectivo</option>
+              <option value="transferencia">🏦 Transferencia</option>
+              <option value="cheque">📄 Cheque al día</option>
+              <option value="cheque_diferido">📄 Cheque diferido</option>
+              <option value="tarjeta_debito">💳 T. Débito</option>
+              <option value="tarjeta_credito">💳 T. Crédito</option>
+            </select>
+          </div>
+          <div class="form-group" id="pago-cant-chq-wrap" style="display:none"><label>Cantidad de cheques</label><input type="number" class="form-control" id="pago-cant-chq" placeholder="ej: 4"></div>
+          <div class="form-group" id="pago-fecha-acred-wrap" style="display:none"><label>Fecha acreditación</label><input type="date" class="form-control" id="pago-fecha-acred"></div>
+          <div class="form-group" id="pago-nrochk-wrap" style="display:none"><label>Nº Cheque / Banco</label><input type="text" class="form-control" id="pago-nrochk" placeholder="Nº cheque / banco"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Observaciones (ej: "4 cheques", "depósito BCP")</label><input type="text" class="form-control" id="pago-obs" placeholder="Opcional..."></div>
+        </div>
+        <div class="flex flex-end gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="toggleFormPago()">Cancelar</button>
+          <button class="btn btn-primary" onclick="registrarPago()">💳 Confirmar cobro</button>
+        </div>
+      </div>
+
+      <!-- TABLA DE COBROS -->
+      <div class="table-wrap mb-16" style="border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden">
+        <table id="tabla-cobros-cliente">
+          <thead><tr>
+            <th>Fecha</th><th>Detalle / Medio</th><th>Info cheque</th>
+            <th class="td-right">Monto</th><th></th>
+          </tr></thead>
+          <tbody id="tbody-cobros-cliente"><tr class="empty-row"><td colspan="5">Sin cobros</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- NOTAS DE CRÉDITO -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title">📝 Notas de Crédito</div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleFormNC()">+ Agregar nota</button>
+      </div>
+      <div id="form-nc-wrap" style="display:none;background:var(--info-light);border:1px solid #c0d4f0;border-radius:var(--radius2);padding:14px;margin-bottom:12px">
+        <div class="form-grid">
+          <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="nc-fecha"></div>
+          <div class="form-group"><label>Monto (₲)</label><input type="number" class="form-control" id="nc-monto" placeholder="0"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Concepto</label><input type="text" class="form-control" id="nc-concepto" placeholder="Ej: Nota de crédito por SIL a favor"></div>
+        </div>
+        <div class="flex flex-end gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="toggleFormNC()">Cancelar</button>
+          <button class="btn btn-info btn-sm" onclick="registrarNC()">💾 Guardar nota</button>
+        </div>
+      </div>
+      <div id="lista-nc-cliente" class="mb-16"></div>
+
+      <!-- RESUMEN FINAL TIPO EXCEL -->
+      <div id="cc-resumen-final" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR REGISTRO GENÉRICO -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal" style="width:min(620px,96vw)">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-editar-titulo">✏️ Editar registro</div>
+      <button class="modal-close" onclick="cerrarModal('modal-editar')">×</button>
+    </div>
+    <div class="modal-body" id="modal-editar-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-edicion" onclick="guardarEdicion()">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+
+</div><!-- /app-container -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+// FIREBASE CONFIG — gdlv-produccion
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// FIREBASE CONFIG — gdlv-produccion
+// Reemplazá los valores con los de tu consola Firebase
+// ═══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAlBy8V0Xh4F9qoYanlyTlo3AkCIjfs2fY",
+  authDomain: "gdlv-produccion.firebaseapp.com",
+  databaseURL: "https://gdlv-produccion-default-rtdb.firebaseio.com",
+  projectId: "gdlv-produccion",
+  storageBucket: "gdlv-produccion.firebasestorage.app",
+  messagingSenderId: "495597476558",
+  appId: "1:495597476558:web:664d4ec0ca882dea044e9f",
+  measurementId: "G-NRK4PMPG2V"
+};
+
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDB   = firebase.database();
+const FB_PATH = 'movimientos_diarios/gdv_v1';
+
+// ═══════════════════════════════════════════════════════
+// ROLES — asignados por email en Firebase
+// Agregar emails en la consola de Firebase Authentication
+// ═══════════════════════════════════════════════════════
+// administrador@gdv.com.py  → ve todo
+// administracion@gdv.com.py → solo Caja, Compras, Ventas, Cuentas, Historial
+
+const ROLES_EMAIL = {
+  // Formato: 'email': 'rol'
+  // Podés agregar más filas sin tocar el resto del código
+  'admin@gdv.com.py':          'administrador',
+  'administracion@gdv.com.py': 'administracion',
+};
+
+const TABS_ROL = {
+  administrador:  ['resumen','caja','compras','ventas','sinfactura','informes','cuentas','historial'],
+  administracion: ['caja','compras','ventas','cuentas','historial'],
+};
+
+const LABELS_ROL = {
+  administrador:  'Administrador',
+  administracion: 'Administración',
+};
+
+let usuarioActual = null;
+
+// ═══════════════════════════════════════════════════════
+// LOGIN — Firebase Authentication
+// ═══════════════════════════════════════════════════════
+function hacerLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl  = document.getElementById('login-error');
+  const loadEl = document.getElementById('login-loading');
+  const btnEl  = document.getElementById('login-btn');
+
+  if (!email) { errEl.textContent = 'Ingresá tu email.'; return; }
+  if (!pass)  { errEl.textContent = 'Ingresá tu contraseña.'; return; }
+
+  errEl.textContent = '';
+  loadEl.style.display = 'block';
+  btnEl.disabled = true;
+
+  fbAuth.signInWithEmailAndPassword(email, pass)
+    .then(cred => {
+      const userEmail = cred.user.email.toLowerCase();
+      const rol = ROLES_EMAIL[userEmail];
+
+      if (!rol) {
+        // Email válido en Auth pero sin rol asignado en el sistema
+        fbAuth.signOut();
+        loadEl.style.display = 'none';
+        btnEl.disabled = false;
+        errEl.textContent = 'Tu cuenta no tiene acceso a este sistema.';
+        return;
+      }
+
+      usuarioActual = { email: userEmail, rol, label: LABELS_ROL[rol] || rol };
+      return cargarDatosFirebase();
+    })
+    .catch(err => {
+      loadEl.style.display = 'none';
+      btnEl.disabled = false;
+      switch(err.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          errEl.textContent = 'Email o contraseña incorrectos.'; break;
+        case 'auth/invalid-email':
+          errEl.textContent = 'Email inválido.'; break;
+        case 'auth/too-many-requests':
+          errEl.textContent = 'Demasiados intentos. Esperá unos minutos.'; break;
+        default:
+          errEl.textContent = 'Error de conexión. Verificá tu internet.';
+          console.error(err);
+      }
+    });
+}
+
+function cargarDatosFirebase() {
+  return fbDB.ref(FB_PATH).once('value').then(snap => {
+    const datos = snap.val() || {};
+    const fromObj = v => v ? Object.values(v) : [];
+    db = {
+      caja:            fromObj(datos.caja),
+      compras:         fromObj(datos.compras),
+      ventas:          fromObj(datos.ventas),
+      pedidos:         fromObj(datos.pedidos),
+      cobros:          fromObj(datos.cobros),
+      notascredito:    fromObj(datos.notascredito),
+      cuentasCerradas: fromObj(datos.cuentasCerradas),
+      facturas:        fromObj(datos.facturas),
+      pagos:           fromObj(datos.pagos),
+    };
+
+    aplicarRol(usuarioActual.rol);
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    document.getElementById('header-user-label').textContent = usuarioActual.email;
+    document.getElementById('login-loading').style.display = 'none';
+    document.getElementById('login-btn').disabled = false;
+
+    generarPeriodos();
+    setDefaultDates();
+    migrarDBVieja();
+    renderTodo();
+    switchTab(TABS_ROL[usuarioActual.rol][0]);
+  });
+}
+
+function aplicarRol(rol) {
+  const permitidas = TABS_ROL[rol] || [];
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const m = btn.getAttribute('onclick')?.match(/switchTab\('(\w+)'\)/);
+    const tabId = m ? m[1] : null;
+    if (tabId && !permitidas.includes(tabId)) {
+      btn.style.display = 'none';
+    } else {
+      btn.style.display = '';
+    }
+  });
+}
+
+function cerrarSesion() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  fbAuth.signOut().then(() => {
+    usuarioActual = null;
+    db = { caja:[], compras:[], ventas:[], pedidos:[], cobros:[], notascredito:[], cuentasCerradas:[], facturas:[], pagos:[] };
+    document.getElementById('app-container').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-error').textContent = '';
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.style.display = '');
+    setTimeout(() => document.getElementById('login-email').focus(), 100);
+  });
+}
+
+// Auth state observer — si ya hay sesión activa al recargar, re-loguea automáticamente
+fbAuth.onAuthStateChanged(user => {
+  if (user && !usuarioActual) {
+    const email = user.email.toLowerCase();
+    const rol = ROLES_EMAIL[email];
+    if (rol) {
+      usuarioActual = { email, rol, label: LABELS_ROL[rol] || rol };
+      document.getElementById('login-loading').style.display = 'block';
+      cargarDatosFirebase().catch(err => {
+        console.error('Auto-login error:', err);
+        fbAuth.signOut();
+      });
+    } else {
+      fbAuth.signOut();
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// DB — Firebase Realtime Database
+// ═══════════════════════════════════════════════════════
+let db = { caja:[], compras:[], ventas:[], pedidos:[], cobros:[], notascredito:[], cuentasCerradas:[], facturas:[], pagos:[] };
+
+function arrayToObj(arr) {
+  const obj = {};
+  (arr||[]).forEach(r => { if(r && r.id) obj[r.id] = r; });
+  return obj;
+}
+
+function guardarDB() {
+  if (!usuarioActual) return;
+  const data = {
+    caja:            arrayToObj(db.caja),
+    compras:         arrayToObj(db.compras),
+    ventas:          arrayToObj(db.ventas),
+    pedidos:         arrayToObj(db.pedidos),
+    cobros:          arrayToObj(db.cobros),
+    notascredito:    arrayToObj(db.notascredito),
+    cuentasCerradas: arrayToObj(db.cuentasCerradas),
+    facturas:        arrayToObj(db.facturas),
+    pagos:           arrayToObj(db.pagos),
+  };
+  fbDB.ref(FB_PATH).set(data).catch(err => {
+    console.error('Firebase save error:', err);
+    toast('⚠ Error al guardar. Verificá tu conexión.');
+  });
+}
+let periodoActual = '';
+let localImportActual = '';
+let importRows = [];
+let chartInstances = {};
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function fmt(n) { return '₲ ' + Math.round(n||0).toLocaleString('es-PY'); }
+function pct(a,b) { return b===0 ? '0%' : Math.round(a/b*100) + '%'; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function today() { const d = new Date(Date.now() - 4*3600000); return d.toISOString().split('T')[0]; }
+function ivaInc(m) { return (m||0)*10/110; }
+function esBancario(m) { return ['transferencia','cheque','tarjeta_debito','tarjeta_credito','credito_proveedor','credito_cliente'].includes(m); }
+function setText(id, v) { const el=document.getElementById(id); if(el) el.textContent=v; }
+function toggleField(id, show) { const el=document.getElementById(id); if(el) el.style.display=show?'':'none'; }
+function medioLabel(m) {
+  return {efectivo:'💵 Efectivo',transferencia:'🏦 Transf.',cheque:'📄 Cheque',
+    tarjeta_debito:'💳 Débito',tarjeta_credito:'💳 Crédito',
+    credito_proveedor:'📋 Cr.Prov.',credito_cliente:'📋 Cr.Cli.'}[m]||m;
+}
+function localLabel(l) {
+  return {propio:'🏭 Propio',tienda_rey:'🏬 Tienda Rey',one_more:'🏪 One More'}[l]||l;
+}
+function localTag(l) {
+  if(l==='tienda_rey') return '<span class="local-tag local-tr">T.Rey</span>';
+  if(l==='one_more') return '<span class="local-tag local-om">One More</span>';
+  return '<span class="local-tag local-manual">Propio</span>';
+}
+
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ═══════════════════════════════════════════════════════
+// PERÍODOS
+// ═══════════════════════════════════════════════════════
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function labelPeriodo(p) { const [y,m]=p.split('-'); return `${MESES[parseInt(m)-1]} ${y}`; }
+
+function generarPeriodos() {
+  const sel = document.getElementById('periodoSelect');
+  const hoy = new Date();
+  const lista = [];
+  for(let i=0;i<18;i++){
+    const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
+    const v = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    lista.push(v);
+  }
+  sel.innerHTML = lista.map(v=>`<option value="${v}">${labelPeriodo(v)}</option>`).join('');
+  periodoActual = lista[0];
+}
+
+function cambiarPeriodo() {
+  periodoActual = document.getElementById('periodoSelect').value;
+  renderTodo();
+}
+
+// ═══════════════════════════════════════════════════════
+// CÁLCULOS
+// ═══════════════════════════════════════════════════════
+function calcPeriodo(p) {
+  const enP = r => r.fecha && r.fecha.startsWith(p);
+  const cajaP = db.caja.filter(enP);
+  const cajEnt = cajaP.filter(r=>r.tipo==='entrada').reduce((a,r)=>a+r.monto,0);
+  const cajGas = cajaP.filter(r=>r.tipo==='gasto').reduce((a,r)=>a+r.monto,0);
+  const cajGcf = cajaP.filter(r=>r.tipo==='gasto'&&r.factura==='cf').reduce((a,r)=>a+r.monto,0);
+  const cajGsf = cajaP.filter(r=>r.tipo==='gasto'&&r.factura==='sf').reduce((a,r)=>a+r.monto,0);
+  const cajIva = ivaInc(cajGcf);
+  const cajSaldo = cajEnt - cajGas;
+
+  const compP = db.compras.filter(enP);
+  const cpTotal = compP.reduce((a,r)=>a+r.monto,0);
+  const cpCf = compP.filter(r=>r.factura==='cf').reduce((a,r)=>a+r.monto,0);
+  const cpSf = compP.filter(r=>r.factura==='sf').reduce((a,r)=>a+r.monto,0);
+  const cpIva = ivaInc(cpCf);
+  const cpEfe = compP.filter(r=>r.medio==='efectivo').reduce((a,r)=>a+r.monto,0);
+  const cpBan = compP.filter(r=>esBancario(r.medio)).reduce((a,r)=>a+r.monto,0);
+
+  const ventP = db.ventas.filter(enP);
+  const vtTotal = ventP.reduce((a,r)=>a+r.monto,0);
+  const vtCf = ventP.filter(r=>r.factura==='cf').reduce((a,r)=>a+r.monto,0);
+  const vtSf = ventP.filter(r=>r.factura==='sf').reduce((a,r)=>a+r.monto,0);
+  const vtIva = ivaInc(vtCf);
+  const vtEfe = ventP.filter(r=>r.medio==='efectivo').reduce((a,r)=>a+r.monto,0);
+  const vtBan = ventP.filter(r=>esBancario(r.medio)).reduce((a,r)=>a+r.monto,0);
+  const vtTR = ventP.filter(r=>r.local==='tienda_rey').reduce((a,r)=>a+r.monto,0);
+  const vtOM = ventP.filter(r=>r.local==='one_more').reduce((a,r)=>a+r.monto,0);
+
+  const credIva = cpIva + cajIva;
+  const debitoIva = vtIva;
+  const ivaPagar = Math.max(0, debitoIva - credIva);
+  const totalCf = cpCf + cajGcf;
+  const totalSf = cpSf + cajGsf;
+  const totalComp = cpTotal + cajGas;
+
+  return {
+    cajEnt, cajGas, cajGcf, cajGsf, cajIva, cajSaldo,
+    cpTotal, cpCf, cpSf, cpIva, cpEfe, cpBan,
+    vtTotal, vtCf, vtSf, vtIva, vtEfe, vtBan, vtTR, vtOM,
+    credIva, debitoIva, ivaPagar, totalCf, totalSf, totalComp
+  };
+}
+
+function getPeriodosConDatos() {
+  const s = new Set([...(db.caja||[]),...(db.compras||[]),...(db.ventas||[])].map(r=>r.fecha&&r.fecha.slice(0,7)).filter(Boolean));
+  return [...s].sort().reverse();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER TODO
+// ═══════════════════════════════════════════════════════
+function renderTodo() {
+  const c = calcPeriodo(periodoActual);
+  renderResumen(c);
+  renderStatsCaja(c);
+  renderStatsCompras(c);
+  renderStatsVentas(c);
+  renderTablaCaja();
+  renderTablaCompras();
+  renderTablaVentas();
+  renderSinFactura(c);
+  renderInformes();
+  const lbl = labelPeriodo(periodoActual);
+  ['caj-periodo-label','cp-periodo-label','vt-periodo-label'].forEach(id=>setText(id,lbl));
+}
+
+// ── RESUMEN ──
+function renderResumen(c) {
+  setText('resumen-sub-periodo', `Período: ${labelPeriodo(periodoActual)}`);
+  setText('b-vt', fmt(c.vtTotal));
+  setText('b-ct', fmt(c.totalComp));
+  setText('b-saldo', fmt(c.cajSaldo));
+  setText('b-iva', fmt(c.ivaPagar));
+  setText('r-vcf', fmt(c.vtCf));
+  setText('r-vsf', fmt(c.vtSf));
+  setText('r-viva', fmt(c.debitoIva));
+  setText('r-ccf', fmt(c.totalCf));
+  setText('r-csf', fmt(c.totalSf));
+  setText('r-civa', fmt(c.credIva));
+  const vpct = c.vtTotal>0 ? Math.round(c.vtCf/c.vtTotal*100) : 0;
+  const cpct = c.totalComp>0 ? Math.round(c.totalCf/c.totalComp*100) : 0;
+  setText('r-vpct', vpct+'%');
+  setText('r-cpct', cpct+'%');
+  const pfv = document.getElementById('prog-vcf');
+  const pfc = document.getElementById('prog-ccf');
+  if(pfv) pfv.style.width = vpct+'%';
+  if(pfc) pfc.style.width = cpct+'%';
+  const sfNota = c.vtSf>0 ? `⚠ ${fmt(c.vtSf)} en ventas sin factura este mes` : '✅ Sin ventas sin factura este período';
+  setText('r-vsf-nota', sfNota);
+
+  // Historial
+  const periodos = getPeriodosConDatos();
+  const tbody = document.getElementById('tbody-historial');
+  if(!periodos.length) { tbody.innerHTML='<tr class="empty-row"><td colspan="9">Sin datos aún</td></tr>'; return; }
+  tbody.innerHTML = periodos.map(p=>{
+    const d = calcPeriodo(p);
+    const vpct2 = d.vtTotal>0?Math.round(d.vtCf/d.vtTotal*100):0;
+    const cpct2 = d.totalComp>0?Math.round(d.totalCf/d.totalComp*100):0;
+    const ivaCls = d.ivaPagar>0?'text-danger':'text-green';
+    return `<tr>
+      <td class="fw-600">${labelPeriodo(p)}</td>
+      <td class="td-right td-mono">${fmt(d.vtCf)}</td>
+      <td class="td-right td-mono text-danger">${fmt(d.vtSf)}</td>
+      <td class="td-right"><span class="pill ${vpct2>=80?'pill-green':vpct2>=50?'pill-gold':'pill-red'}">${vpct2}%</span></td>
+      <td class="td-right td-mono">${fmt(d.totalCf)}</td>
+      <td class="td-right td-mono text-danger">${fmt(d.totalSf)}</td>
+      <td class="td-right"><span class="pill ${cpct2>=80?'pill-green':cpct2>=50?'pill-gold':'pill-red'}">${cpct2}%</span></td>
+      <td class="td-right td-mono fw-600 ${ivaCls}">${fmt(d.ivaPagar)}</td>
+      <td class="td-right td-mono">${fmt(d.cajGas)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── STATS ──
+function renderStatsCaja(c) {
+  setText('sc-saldo',fmt(c.cajSaldo)); setText('sc-ent',fmt(c.cajEnt));
+  setText('sc-gas',fmt(c.cajGas)); setText('sc-gcf',fmt(c.cajGcf));
+  setText('sc-gsf',fmt(c.cajGsf)); setText('sc-iva',fmt(c.cajIva));
+}
+function renderStatsCompras(c) {
+  setText('scp-total',fmt(c.cpTotal)); setText('scp-cf',fmt(c.cpCf));
+  setText('scp-sf',fmt(c.cpSf)); setText('scp-iva',fmt(c.cpIva));
+  setText('scp-efe',fmt(c.cpEfe)); setText('scp-ban',fmt(c.cpBan));
+}
+function renderStatsVentas(c) {
+  setText('sv-total',fmt(c.vtTotal)); setText('sv-cf',fmt(c.vtCf));
+  setText('sv-sf',fmt(c.vtSf)); setText('sv-iva',fmt(c.vtIva));
+  setText('sv-tr',fmt(c.vtTR)); setText('sv-om',fmt(c.vtOM));
+}
+
+// ── TABLAS ──
+function renderTablaCaja() {
+  const rows = db.caja.filter(r=>r.fecha&&r.fecha.startsWith(periodoActual)).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const tbody = document.getElementById('tbody-caja');
+  if(!rows.length){tbody.innerHTML='<tr class="empty-row"><td colspan="10">Sin movimientos</td></tr>';return;}
+  let saldo=0;
+  tbody.innerHTML = rows.map(r=>{
+    saldo += r.tipo==='entrada'?r.monto:-r.monto;
+    const tipoT = r.tipo==='entrada'?'<span class="pill pill-green">ENTRADA</span>':'<span class="pill pill-red">GASTO</span>';
+    const factT = r.factura==='cf'?'<span class="pill pill-green">c/F</span>':r.factura==='sf'?'<span class="pill pill-red">s/F</span>':'—';
+    const mc = r.tipo==='entrada'?'text-green':'text-danger';
+    const sg = r.tipo==='entrada'?'+':'−';
+    return `<tr>
+      <td class="td-mono">${r.fecha}</td><td>${tipoT}</td><td>${r.concepto||'—'}</td>
+      <td class="fs-11 text-muted">${r.cat||'—'}</td><td>${factT}</td>
+      <td class="td-mono fs-11">${r.nroFact||'—'}</td>
+      <td class="td-right td-mono fw-600 ${mc}">${sg} ${fmt(r.monto)}</td>
+      <td class="td-right td-mono">${fmt(saldo)}</td>
+      <td style="display:flex;gap:4px;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" title="Editar" onclick="editarRegistro('caja','${r.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminar('caja','${r.id}')">✕</button>
+      </td></tr>`;
+  }).join('');
+}
+
+function renderTablaCompras() {
+  const rows = db.compras.filter(r=>r.fecha&&r.fecha.startsWith(periodoActual)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const tbody = document.getElementById('tbody-compras');
+  if(!rows.length){tbody.innerHTML='<tr class="empty-row"><td colspan="11">Sin compras</td></tr>';return;}
+  tbody.innerHTML = rows.map(r=>{
+    const fT = r.factura==='cf'?'<span class="pill pill-green">c/F</span>':'<span class="pill pill-red">s/F</span>';
+    const iva = r.factura==='cf'?fmt(ivaInc(r.monto)):'—';
+    return `<tr>
+      <td class="td-mono">${r.fecha}</td><td>${r.prov||'—'}</td>
+      <td class="fs-11 text-muted">${r.cat||'—'}</td><td class="fs-11">${r.detalle||'—'}</td>
+      <td class="fs-11">${medioLabel(r.medio)}</td><td>${fT}</td>
+      <td class="td-mono fs-11">${r.nroFact||'—'}</td>
+      <td class="td-right td-mono fw-600">${fmt(r.monto)}</td>
+      <td class="td-right td-mono text-green">${iva}</td>
+      <td style="display:flex;gap:4px;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" title="Editar" onclick="editarRegistro('compras','${r.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminar('compras','${r.id}')">✕</button>
+      </td></tr>`;
+  }).join('');
+}
+
+function renderTablaVentas() {
+  const rows = db.ventas.filter(r=>r.fecha&&r.fecha.startsWith(periodoActual)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const tbody = document.getElementById('tbody-ventas');
+  if(!rows.length){tbody.innerHTML='<tr class="empty-row"><td colspan="11">Sin ventas</td></tr>';return;}
+  tbody.innerHTML = rows.map(r=>{
+    const fT = r.factura==='cf'?'<span class="pill pill-green">c/F</span>':'<span class="pill pill-red">s/F</span>';
+    const iva = r.factura==='cf'?fmt(ivaInc(r.monto)):'—';
+    return `<tr>
+      <td class="td-mono">${r.fecha}</td><td>${localTag(r.local||'propio')}</td>
+      <td>${r.cliente||'—'}</td><td class="fs-11 text-muted">${r.cat||'—'}</td>
+      <td class="fs-11">${medioLabel(r.medio)}</td><td>${fT}</td>
+      <td class="td-mono fs-11">${r.nroFact||'—'}</td>
+      <td class="td-right td-mono fw-600">${fmt(r.monto)}</td>
+      <td class="td-right td-mono text-danger">${iva}</td>
+      <td style="display:flex;gap:4px;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" title="Editar" onclick="editarRegistro('ventas','${r.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminar('ventas','${r.id}')">✕</button>
+      </td></tr>`;
+  }).join('');
+}
+
+// ── SIN FACTURA ──
+function renderSinFactura(c) {
+  setText('sf-vsf', fmt(c.vtSf));
+  setText('sf-csf', fmt(c.cpSf));
+  setText('sf-cajsf', fmt(c.cajGsf));
+  const totalSF = c.vtSf + c.cpSf + c.cajGsf;
+  setText('sf-total', fmt(totalSF));
+  setText('sf-total2', fmt(totalSF));
+  setText('sf-vsf-pct', c.vtTotal>0?pct(c.vtSf,c.vtTotal)+' del total ventas':'sin ventas registradas');
+  setText('sf-csf-pct', c.cpTotal>0?pct(c.cpSf,c.cpTotal)+' del total compras':'sin compras registradas');
+  const ivaPercVentas = ivaInc(c.vtSf);
+  const ivaPercCompras = ivaInc(c.cpSf + c.cajGsf);
+  setText('sf-iva-perdido', fmt(ivaPercVentas));
+  setText('sf-iva-noacred', fmt(ivaPercCompras));
+  setText('sf-dif-iva', fmt(ivaPercVentas + ivaPercCompras));
+
+  // Tabla VSF
+  const enP = r=>r.fecha&&r.fecha.startsWith(periodoActual);
+  const vsf = db.ventas.filter(r=>enP(r)&&r.factura==='sf').sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const tvs = document.getElementById('tbody-vsf');
+  if(!vsf.length){tvs.innerHTML='<tr class="empty-row"><td colspan="5">Sin registros</td></tr>';}
+  else tvs.innerHTML = vsf.map(r=>`<tr>
+    <td class="td-mono">${r.fecha}</td><td>${localTag(r.local||'propio')}</td>
+    <td class="fs-11">${r.detalle||r.cliente||'—'}</td>
+    <td class="td-right td-mono text-danger">${fmt(r.monto)}</td>
+    <td class="td-right td-mono text-danger">${fmt(ivaInc(r.monto))}</td></tr>`).join('');
+
+  // Tabla CSF
+  const csf = db.compras.filter(r=>enP(r)&&r.factura==='sf').sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const cajsf = db.caja.filter(r=>enP(r)&&r.tipo==='gasto'&&r.factura==='sf').sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const allCSF = [...csf.map(r=>({...r,_origen:'Compra'})), ...cajsf.map(r=>({...r,_origen:'Caja'}))].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const tcs = document.getElementById('tbody-csf');
+  if(!allCSF.length){tcs.innerHTML='<tr class="empty-row"><td colspan="5">Sin registros</td></tr>';}
+  else tcs.innerHTML = allCSF.map(r=>`<tr>
+    <td class="td-mono">${r.fecha}</td>
+    <td><span class="pill ${r._origen==='Caja'?'pill-gold':'pill-blue'}">${r._origen}</span></td>
+    <td class="fs-11">${r.detalle||r.concepto||r.prov||'—'}</td>
+    <td class="td-right td-mono text-danger">${fmt(r.monto)}</td>
+    <td class="td-right td-mono text-danger">${fmt(ivaInc(r.monto))}</td></tr>`).join('');
+
+  // Chart SF evolución
+  renderChartSF();
+}
+
+// ═══════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════
+function destroyChart(id) {
+  if(chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function renderInformes() {
+  const periodos = getPeriodosConDatos().slice(0,12).reverse();
+  const labels = periodos.map(p=>labelPeriodo(p).replace(' 20',"'"));
+  const data = periodos.map(p=>calcPeriodo(p));
+
+  // Chart 1: Ventas CF vs SF
+  destroyChart('chart-ventas-cf-sf');
+  const ctx1 = document.getElementById('chart-ventas-cf-sf');
+  if(ctx1) chartInstances['chart-ventas-cf-sf'] = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Con Factura', data:data.map(d=>d.vtCf), backgroundColor:'rgba(29,92,58,0.75)', borderRadius:4 },
+        { label:'Sin Factura', data:data.map(d=>d.vtSf), backgroundColor:'rgba(184,64,64,0.65)', borderRadius:4 }
+      ]
+    },
+    options: chartOpts('Guaraníes')
+  });
+
+  // Chart 2: Compras CF vs SF
+  destroyChart('chart-compras-cf-sf');
+  const ctx2 = document.getElementById('chart-compras-cf-sf');
+  if(ctx2) chartInstances['chart-compras-cf-sf'] = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Con Factura', data:data.map(d=>d.totalCf), backgroundColor:'rgba(37,99,168,0.7)', borderRadius:4 },
+        { label:'Sin Factura', data:data.map(d=>d.totalSf), backgroundColor:'rgba(196,124,26,0.7)', borderRadius:4 }
+      ]
+    },
+    options: chartOpts('Guaraníes')
+  });
+
+  // Chart 3: Ventas totales línea
+  destroyChart('chart-ventas-total');
+  const ctx3 = document.getElementById('chart-ventas-total');
+  if(ctx3) chartInstances['chart-ventas-total'] = new Chart(ctx3, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Ventas Totales', data:data.map(d=>d.vtTotal), borderColor:'#1d5c3a', backgroundColor:'rgba(29,92,58,0.08)', borderWidth:2, tension:0.3, fill:true, pointRadius:4 },
+        { label:'Compras Totales', data:data.map(d=>d.totalComp), borderColor:'#2563a8', backgroundColor:'rgba(37,99,168,0.06)', borderWidth:2, tension:0.3, fill:true, pointRadius:4 }
+      ]
+    },
+    options: chartOpts('Guaraníes')
+  });
+
+  // Chart 4: % facturado
+  destroyChart('chart-pct-fact');
+  const ctx4 = document.getElementById('chart-pct-fact');
+  if(ctx4) chartInstances['chart-pct-fact'] = new Chart(ctx4, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'% Ventas c/F', data:data.map(d=>d.vtTotal>0?Math.round(d.vtCf/d.vtTotal*100):0), backgroundColor:'rgba(29,92,58,0.7)', borderRadius:4 },
+        { label:'% Compras c/F', data:data.map(d=>d.totalComp>0?Math.round(d.totalCf/d.totalComp*100):0), backgroundColor:'rgba(37,99,168,0.6)', borderRadius:4 }
+      ]
+    },
+    options: {
+      ...chartOpts('%'),
+      scales: { y:{ min:0, max:100, ticks:{ callback:v=>v+'%', font:{size:10,family:'DM Mono'} }, grid:{color:'rgba(0,0,0,0.05)'} }, x:{ ticks:{font:{size:10,family:'DM Mono'}}, grid:{display:false} } }
+    }
+  });
+
+  // Tabla comparativa
+  const tbody = document.getElementById('tbody-comparativa');
+  const allP = getPeriodosConDatos().slice(0,12);
+  if(!allP.length){tbody.innerHTML='<tr class="empty-row"><td colspan="10">Sin datos</td></tr>';return;}
+  tbody.innerHTML = allP.map(p=>{
+    const d=calcPeriodo(p);
+    const vp=d.vtTotal>0?Math.round(d.vtCf/d.vtTotal*100):0;
+    const cp=d.totalComp>0?Math.round(d.totalCf/d.totalComp*100):0;
+    return `<tr>
+      <td class="fw-600">${labelPeriodo(p)}</td>
+      <td class="td-right td-mono">${fmt(d.vtTotal)}</td>
+      <td class="td-right td-mono text-green">${fmt(d.vtCf)}</td>
+      <td class="td-right td-mono text-danger">${fmt(d.vtSf)}</td>
+      <td class="td-right"><span class="pill ${vp>=80?'pill-green':vp>=50?'pill-gold':'pill-red'}">${vp}%</span></td>
+      <td class="td-right td-mono">${fmt(d.totalComp)}</td>
+      <td class="td-right td-mono text-green">${fmt(d.totalCf)}</td>
+      <td class="td-right td-mono text-danger">${fmt(d.totalSf)}</td>
+      <td class="td-right"><span class="pill ${cp>=80?'pill-green':cp>=50?'pill-gold':'pill-red'}">${cp}%</span></td>
+      <td class="td-right td-mono fw-600 ${d.ivaPagar>0?'text-danger':'text-green'}">${fmt(d.ivaPagar)}</td>
+    </tr>`;
+  }).join('');
+
+  // Cards comparativas
+  renderCmpCards(allP);
+}
+
+function renderChartSF() {
+  const periodos = getPeriodosConDatos().slice(0,12).reverse();
+  const labels = periodos.map(p=>labelPeriodo(p).replace(' 20',"'"));
+  const data = periodos.map(p=>calcPeriodo(p));
+  destroyChart('chart-sf-evol');
+  const ctx = document.getElementById('chart-sf-evol');
+  if(!ctx) return;
+  chartInstances['chart-sf-evol'] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Ventas s/F', data:data.map(d=>d.vtSf), backgroundColor:'rgba(184,64,64,0.7)', borderRadius:4},
+        {label:'Compras s/F', data:data.map(d=>d.cpSf), backgroundColor:'rgba(196,124,26,0.65)', borderRadius:4},
+        {label:'Caja s/F', data:data.map(d=>d.cajGsf), backgroundColor:'rgba(107,63,160,0.55)', borderRadius:4}
+      ]
+    },
+    options: chartOpts('Guaraníes')
+  });
+}
+
+function chartOpts(ylabel) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ labels:{font:{size:11,family:'Sora'}, boxWidth:10, padding:14} } },
+    scales:{
+      y:{ ticks:{callback:v=>v>=1000000?'₲'+(v/1000000).toFixed(1)+'M':v>=1000?'₲'+(v/1000).toFixed(0)+'K':'₲'+v, font:{size:9.5,family:'DM Mono'}}, grid:{color:'rgba(0,0,0,0.05)'}},
+      x:{ ticks:{font:{size:10,family:'DM Mono'}}, grid:{display:false}}
+    }
+  };
+}
+
+function renderCmpCards(periodos) {
+  const grid = document.getElementById('cmp-cards-grid');
+  if(!grid) return;
+  if(!periodos.length){grid.innerHTML='';return;}
+  grid.innerHTML = periodos.map(p=>{
+    const d=calcPeriodo(p);
+    const vp=d.vtTotal>0?Math.round(d.vtCf/d.vtTotal*100):0;
+    return `<div class="cmp-card">
+      <div class="cmp-month">${labelPeriodo(p)}</div>
+      <div class="cmp-row"><span class="cmp-lbl">Ventas totales</span><span class="cmp-val">${fmt(d.vtTotal)}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">Ventas c/F</span><span class="cmp-val text-green">${fmt(d.vtCf)}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">Ventas s/F</span><span class="cmp-val text-danger">${fmt(d.vtSf)}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">% Fact.</span><span class="cmp-val"><b>${vp}%</b></span></div>
+      <div class="prog-bar mt-10"><div class="prog-fill ${vp>=80?'prog-green':vp>=50?'prog-gold':'prog-red'}" style="width:${vp}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// CRUD
+// ═══════════════════════════════════════════════════════
+function agregarEntradaCaja() {
+  const fecha = document.getElementById('caj-ent-fecha').value||today();
+  const monto = parseFloat(document.getElementById('caj-ent-monto').value);
+  const concepto = document.getElementById('caj-ent-concepto').value.trim();
+  if(!monto||monto<=0){toast('⚠ Ingresá un monto válido');return;}
+  db.caja.push({id:uid(),fecha,tipo:'entrada',monto,concepto,factura:'-',nroFact:'',cat:''});
+  guardarDB(); renderTodo();
+  document.getElementById('caj-ent-monto').value='';
+  document.getElementById('caj-ent-concepto').value='';
+  toast('✅ Entrada registrada');
+}
+
+function agregarGastoCaja() {
+  const fecha = document.getElementById('caj-gas-fecha').value||today();
+  const monto = parseFloat(document.getElementById('caj-gas-monto').value);
+  const concepto = document.getElementById('caj-gas-concepto').value.trim();
+  const factura = document.getElementById('caj-gas-factura').value;
+  const nroFact = document.getElementById('caj-gas-nrofact').value.trim();
+  const cat = document.getElementById('caj-gas-cat').value;
+  if(!monto||monto<=0){toast('⚠ Ingresá un monto válido');return;}
+  if(!concepto){toast('⚠ Completá el concepto');return;}
+  db.caja.push({id:uid(),fecha,tipo:'gasto',monto,concepto,factura,nroFact,cat});
+  guardarDB(); renderTodo();
+  document.getElementById('caj-gas-monto').value='';
+  document.getElementById('caj-gas-concepto').value='';
+  document.getElementById('caj-gas-nrofact').value='';
+  toast('✅ Gasto registrado');
+}
+
+function agregarCompra() {
+  const fecha=document.getElementById('cp-fecha').value||today();
+  const prov=document.getElementById('cp-prov').value.trim();
+  const monto=parseFloat(document.getElementById('cp-monto').value);
+  const medio=document.getElementById('cp-medio').value;
+  const factura=document.getElementById('cp-factura').value;
+  const nroFact=document.getElementById('cp-nrofact').value.trim();
+  const cat=document.getElementById('cp-cat').value;
+  const detalle=document.getElementById('cp-detalle').value.trim();
+  if(!monto||monto<=0){toast('⚠ Monto inválido');return;}
+  if(!prov){toast('⚠ Indicá el proveedor');return;}
+  db.compras.push({id:uid(),fecha,prov,monto,medio,factura,nroFact,cat,detalle});
+  guardarDB(); renderTodo();
+  ['cp-monto','cp-prov','cp-detalle','cp-nrofact'].forEach(id=>document.getElementById(id).value='');
+  toast('✅ Compra registrada');
+}
+
+
+function eliminar(tabla, id) {
+  if(!confirm('¿Eliminar este registro?')) return;
+  db[tabla] = db[tabla].filter(r=>r.id!==id);
+  guardarDB(); renderTodo();
+  toast('🗑 Eliminado');
+}
+
+// ═══════════════════════════════════════════════════════
+// IMPORTAR PDF CON IA
+// ═══════════════════════════════════════════════════════
+function abrirModalImport(local) {
+  localImportActual = local;
+  const titulo = local==='tienda_rey' ? '📄 Importar — Tienda Rey' : '📄 Importar — One More';
+  document.getElementById('modal-import-title').textContent = titulo;
+  document.getElementById('import-result-area').style.display='';
+  document.getElementById('import-preview-area').style.display='none';
+  document.getElementById('btn-confirmar-import').style.display='none';
+  document.getElementById('import-ai-loading').style.display='none';
+  document.getElementById('file-modal').value='';
+  importRows=[];
+  document.getElementById('modal-import').classList.add('open');
+}
+
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function dragOver(e,id) { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+function dragLeave(id) { document.getElementById(id).classList.remove('drag-over'); }
+function dropFile(e, local) {
+  e.preventDefault(); dragLeave('drop-'+( local==='tienda_rey'?'tr':'om'));
+  const f = e.dataTransfer.files[0];
+  if(f) procesarPDF(f, local);
+}
+
+async function procesarPDF(file, local) {
+  if(!file) return;
+  localImportActual = local;
+  abrirModalImport(local);
+
+  const loading = document.getElementById('import-ai-loading');
+  const loadingText = document.getElementById('import-loading-text');
+  const resultArea = document.getElementById('import-result-area');
+  loading.style.display='flex'; resultArea.style.display='none';
+  loadingText.textContent = 'Leyendo PDF...';
+
+  try {
+    // Convert PDF to base64
+    const b64 = await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=()=>res(r.result.split(',')[1]);
+      r.onerror=()=>rej(new Error('Error al leer'));
+      r.readAsDataURL(file);
+    });
+
+    loadingText.textContent = 'Extrayendo datos con IA...';
+
+    const localName = local==='tienda_rey' ? 'Tienda Rey' : 'One More';
+    const prompt = `Sos un asistente de contabilidad. Analizá este reporte de ventas del shopping "${localName}" y extraé TODAS las ventas individuales.
+
+Para cada venta devolvé un JSON array con objetos así:
+{
+  "fecha": "YYYY-MM-DD",
+  "descripcion": "descripción del producto/venta",
+  "medio": "efectivo|transferencia|tarjeta_debito|tarjeta_credito|cheque",
+  "nroFact": "número de factura o ticket si está disponible, sino vacío",
+  "monto": número (solo el número, sin símbolos),
+  "tieneFact": true si hay número de factura/ticket, false si no
+}
+
+Si hay un resumen del día en lugar de ventas individuales, creá una entrada por cada medio de pago con el monto correspondiente.
+Devolvé SOLO el JSON array, sin texto adicional ni markdown.`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:2000,
+        messages:[{
+          role:"user",
+          content:[
+            { type:"document", source:{ type:"base64", media_type:"application/pdf", data:b64 } },
+            { type:"text", text:prompt }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.map(c=>c.text||'').join('') || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const rows = JSON.parse(clean);
+
+    importRows = rows;
+    renderImportPreview(rows);
+    loading.style.display='none';
+    document.getElementById('import-preview-area').style.display='';
+    document.getElementById('btn-confirmar-import').style.display='';
+    document.getElementById('import-preview-msg').textContent = `✅ Se encontraron ${rows.length} registros en el PDF. Revisá y confirmá los que querés importar.`;
+
+  } catch(err) {
+    loading.style.display='none';
+    resultArea.style.display='';
+    toast('❌ Error al procesar PDF: '+err.message);
+    console.error(err);
+  }
+}
+
+async function procesarPDFModal(file) {
+  if(!file) return;
+  await procesarPDF(file, localImportActual);
+}
+
+function renderImportPreview(rows) {
+  const tbody = document.getElementById('tbody-import-preview');
+  tbody.innerHTML = rows.map((r,i)=>`<tr>
+    <td style="padding:6px 7px; border-bottom:1px solid var(--border); font-family:'DM Mono',monospace; font-size:11px;">${r.fecha||periodoActual+'-01'}</td>
+    <td style="padding:6px 7px; border-bottom:1px solid var(--border); font-size:11px;">${r.descripcion||'—'}</td>
+    <td style="padding:6px 7px; border-bottom:1px solid var(--border); font-size:11px;">${medioLabel(r.medio||'efectivo')}</td>
+    <td style="padding:6px 7px; border-bottom:1px solid var(--border); font-family:'DM Mono',monospace; font-size:11px;">${r.nroFact||'—'}</td>
+    <td style="padding:6px 7px; border-bottom:1px solid var(--border); text-align:right; font-family:'DM Mono',monospace; font-size:11px; font-weight:600;">${fmt(r.monto)}</td>
+    <td style="padding:6px 7px; border-bottom:1px solid var(--border); text-align:center;">
+      <input type="checkbox" id="imp-chk-${i}" checked style="width:14px;height:14px;cursor:pointer;">
+    </td>
+  </tr>`).join('');
+}
+
+function confirmarImport() {
+  let count=0;
+  importRows.forEach((r,i)=>{
+    const chk = document.getElementById('imp-chk-'+i);
+    if(!chk||!chk.checked) return;
+    const venta = {
+      fecha: r.fecha || periodoActual+'-01',
+      local: localImportActual,
+      cliente: r.descripcion || 'Venta ' + (localImportActual==='tienda_rey'?'Tienda Rey':'One More'),
+      monto: parseFloat(r.monto)||0,
+      medio: r.medio || 'efectivo',
+      factura: r.tieneFact ? 'cf' : 'sf',
+      nroFact: r.nroFact || '',
+      cat: 'Otros',
+      detalle: r.descripcion || ''
+    };
+    if(venta.monto>0){ db.ventas.push({id:uid(),...venta}); count++; }
+  });
+  guardarDB(); renderTodo();
+  cerrarModal('modal-import');
+  toast(`✅ ${count} ventas importadas desde PDF`);
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════════════════════════
+function exportarCSV(tableId, nombre) {
+  const t = document.getElementById(tableId);
+  let csv='';
+  for(const row of t.rows){
+    csv += [...row.cells].map(td=>`"${td.textContent.replace(/"/g,'""').trim()}"`).join(',')+'\n';
+  }
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`GDV_${nombre}_${periodoActual}.csv`;
+  a.click();
+  toast('⬇ Exportado como CSV');
+}
+
+// ═══════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('content-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='informes'||tab==='sinfactura') setTimeout(()=>renderInformes(),50);
+  if(tab==='cuentas') setTimeout(()=>renderCuentasCorrientes(),50);
+  if(tab==='historial') setTimeout(()=>renderHistorialCerrados(),50);
+}
+
+// ═══════════════════════════════════════════════════════
+// CUENTAS CORRIENTES — Modelo real GDV
+// db.pedidos[], db.cobros[], db.notascredito[]
+// ═══════════════════════════════════════════════════════
+
+let ccClienteActual = null;
+let ccFiltroCC = 'todos';
+const SALDO_ALTO_UMBRAL = 50000000;
+
+function medioLabelCC(m) {
+  return {efectivo:'💵 Efectivo',transferencia:'🏦 Transferencia',
+    cheque:'📄 Cheque al día',cheque_diferido:'📄 Cheque dif.',
+    tarjeta_debito:'💳 Débito',tarjeta_credito:'💳 Crédito'}[m]||m;
+}
+
+function totalFacturadoCliente(n){ return (db.pedidos||[]).filter(p=>p.cliente===n).reduce((a,p)=>a+p.monto,0); }
+function totalEntregadoCliente(n){ return (db.pedidos||[]).filter(p=>p.cliente===n&&p.estadoEntrega==='ENTREGADO').reduce((a,p)=>a+p.monto,0); }
+function totalCobradoCliente(n)  { return (db.cobros||[]).filter(c=>c.cliente===n).reduce((a,c)=>a+c.monto,0); }
+function totalNCCliente(n)       { return (db.notascredito||[]).filter(x=>x.cliente===n).reduce((a,x)=>a+x.monto,0); }
+function saldoCliente(n)         { return Math.max(0, totalFacturadoCliente(n)-totalCobradoCliente(n)-totalNCCliente(n)); }
+
+// Saldo real de un pedido individual usando cobrosAplicados (FIFO)
+function saldoPedidoReal(p) {
+  const aplicado = (p.cobrosAplicados||[]).reduce((a,c)=>a+c.monto,0);
+  return Math.max(0, p.monto - aplicado);
+}
+
+// Monto pendiente de cobro = pedidos ENTREGADOS con saldo real > 0
+function pendienteCobrarCliente(n) {
+  return (db.pedidos||[])
+    .filter(p=>p.cliente===n && p.estadoEntrega==='ENTREGADO' && p.estadoPago!=='PAGADO')
+    .reduce((a,p)=>a+saldoPedidoReal(p), 0);
+}
+
+// Monto pendiente de entrega = pedidos aún no entregados (señas, en proceso)
+function pendienteEntregaCliente(n){ return (db.pedidos||[]).filter(p=>p.cliente===n&&p.estadoEntrega==='PENDIENTE DE ENTREGA').reduce((a,p)=>a+p.monto,0); }
+
+function estadoGlobalCliente(n)  {
+  const saldo=saldoCliente(n);
+  if(saldo<=0) return 'saldado';
+  if(totalCobradoCliente(n)+totalNCCliente(n)>0) return 'parcial';
+  return 'deuda';
+}
+
+function renderCuentasCorrientes() {
+  if(!db.pedidos) db.pedidos=[];
+  if(!db.cobros)  db.cobros=[];
+  if(!db.notascredito) db.notascredito=[];
+  const hoy=today();
+  const clientes=[...new Set(db.pedidos.map(p=>p.cliente))];
+
+  // TOTAL A COBRAR = saldo vivo real (total facturado - cobros - NC)
+  setText('cc-stat-total', fmt(clientes.reduce((a,c)=>a+saldoCliente(c),0)));
+
+  // PENDIENTE DE COBRO = solo pedidos ENTREGADOS con saldo real sin cobrar
+  const pendCobrar = clientes.reduce((a,c)=>a+pendienteCobrarCliente(c), 0);
+  setText('cc-stat-pendiente', fmt(pendCobrar));
+
+  // CHEQUES POR ACREDITAR
+  setText('cc-stat-cheques', fmt(db.cobros.filter(c=>c.medio==='cheque_diferido'&&c.fechaAcred&&c.fechaAcred>hoy).reduce((a,c)=>a+c.monto,0)));
+
+  // COBRADO ESTE MES
+  setText('cc-stat-cobrado', fmt(db.cobros.filter(c=>c.fecha&&c.fecha.startsWith(periodoActual)).reduce((a,c)=>a+c.monto,0)));
+
+  // CLIENTES CON DEUDA
+  setText('cc-stat-clientes', clientes.filter(c=>saldoCliente(c)>0).length);
+
+  // PENDIENTE DE ENTREGA = pedidos no entregados aún (señas, 50%, etc.)
+  const pendEnt = db.pedidos.filter(p=>p.estadoEntrega==='PENDIENTE DE ENTREGA').reduce((a,p)=>a+p.monto,0);
+  setText('cc-stat-pendent', fmt(pendEnt));
+
+  renderAlertasCC(clientes, hoy);
+
+  const filtrados=clientes.filter(c=>ccFiltroCC==='todos'||estadoGlobalCliente(c)===ccFiltroCC)
+    .sort((a,b)=>{const o={deuda:0,parcial:1,saldado:2};return (o[estadoGlobalCliente(a)]||1)-(o[estadoGlobalCliente(b)]||1)||saldoCliente(b)-saldoCliente(a);});
+  const grid=document.getElementById('cc-clientes-grid');
+  grid.innerHTML=filtrados.length
+    ?filtrados.map(c=>renderCardCliente(c)).join('')
+    :`<div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--text3);font-size:13px;">${clientes.length?'Sin clientes para este filtro.':'Sin registros. Hacé clic en <b>+ Nuevo Pedido / Factura</b> para empezar.'}</div>`;
+
+  renderTablaGlobal(clientes);
+  const dl=document.getElementById('cc-clientes-list');
+  if(dl) dl.innerHTML=clientes.map(c=>`<option value="${c}">`).join('');
+}
+
+function renderAlertasCC(clientes, hoy) {
+  const wrap=document.getElementById('cc-alertas-wrap');
+  if(!wrap) return;
+  let html='';
+  const sinCobro=clientes.filter(c=>saldoCliente(c)>0&&totalCobradoCliente(c)===0&&totalNCCliente(c)===0);
+  if(sinCobro.length) html+=`<div class="alerta-row alerta-venc"><span class="alerta-icon">🔴</span><div><b>${sinCobro.length} cliente${sinCobro.length>1?'s':''} sin ningún cobro</b><br><span style="font-size:11px">${sinCobro.slice(0,4).map(c=>`<b>${c}</b> ${fmt(saldoCliente(c))}`).join(' · ')}</span></div></div>`;
+  const altos=clientes.filter(c=>saldoCliente(c)>SALDO_ALTO_UMBRAL);
+  if(altos.length) html+=`<div class="alerta-row alerta-prox"><span class="alerta-icon">⚠️</span><div><b>Saldo alto — ${altos.length} cliente${altos.length>1?'s':''}</b><br><span style="font-size:11px">${altos.slice(0,3).map(c=>`<b>${c}</b> ${fmt(saldoCliente(c))}`).join(' · ')}</span></div></div>`;
+  const en7=new Date(hoy); en7.setDate(en7.getDate()+7); const en7s=en7.toISOString().split('T')[0];
+  const chqP=(db.cobros||[]).filter(c=>c.medio==='cheque_diferido'&&c.fechaAcred&&c.fechaAcred>=hoy&&c.fechaAcred<=en7s);
+  if(chqP.length) html+=`<div class="alerta-row" style="background:#eff6ff;border:1px solid #b0d0f0;color:#1d4ed8"><span class="alerta-icon">📄</span><div><b>${chqP.length} cheque${chqP.length>1?'s':''} se acreditan esta semana — ${fmt(chqP.reduce((a,c)=>a+c.monto,0))}</b><br><span style="font-size:11px">${chqP.slice(0,3).map(c=>`<b>${c.cliente}</b> ${fmt(c.monto)} (${c.fechaAcred})`).join(' · ')}</span></div></div>`;
+  wrap.innerHTML=html;
+}
+
+function renderCardCliente(nombre) {
+  const totalFact  = totalFacturadoCliente(nombre);
+  const totalEnt   = totalEntregadoCliente(nombre);
+  const cobrado    = totalCobradoCliente(nombre);
+  const nc         = totalNCCliente(nombre);
+  const saldo      = saldoCliente(nombre);
+  const pendEnt    = pendienteEntregaCliente(nombre);  // No entregado aún
+  const pendCob    = pendienteCobrarCliente(nombre);   // Entregado sin cobrar (saldo real)
+
+  // Progreso = qué % del total entregado ya fue cobrado+NC
+  const pct = totalEnt > 0 ? Math.round(Math.min(100,(cobrado+nc)/totalEnt*100)) : (saldo<=0?100:0);
+
+  const estado  = estadoGlobalCliente(nombre);
+  const pedidos = (db.pedidos||[]).filter(p=>p.cliente===nombre);
+  const nPend   = pedidos.filter(p=>p.estadoPago!=='PAGADO').length;
+  const etiq    = {deuda:'🔴 Con deuda', parcial:'🟡 Pago parcial', saldado:'✅ Saldado'}[estado]||estado;
+  const clsCls  = estado==='saldado'?'saldada':estado==='parcial'?'parcial':'vencida';
+  const chqsPend= (db.cobros||[]).filter(c=>c.cliente===nombre&&c.medio==='cheque_diferido'&&c.fechaAcred&&c.fechaAcred>today());
+  const totalChqs= chqsPend.reduce((a,c)=>a+c.monto,0);
+  const esAlto  = saldo>SALDO_ALTO_UMBRAL;
+  const safeNombre = nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  // Meta line: muestra lo relevante según el estado
+  let metaExtra = '';
+  if (pendEnt > 0) metaExtra += ` · ⏳ ${fmt(pendEnt)} s/entregar`;
+  if (totalChqs > 0) metaExtra += ` · 📄 ${fmt(totalChqs)} chqs`;
+  if (nc > 0) metaExtra += ` · NC ${fmt(nc)}`;
+
+  return `<div class="cc-cliente-card ${clsCls}" onclick="abrirCuentaCliente('${safeNombre}')">
+    <div class="cc-card-header">
+      <div style="flex:1;min-width:0">
+        <div class="cc-card-name">${nombre}${esAlto?'&nbsp;<span style="font-size:9px;background:#fef7ec;color:#8a6c0a;border:1px solid #f0dcb0;border-radius:3px;padding:1px 5px;font-weight:700">SALDO ALTO</span>':''}</div>
+        <div class="cc-card-meta">${pedidos.length} pedidos · ${nPend} pendiente${nPend!==1?'s':''}${metaExtra}</div>
+      </div>
+      <div class="cc-card-saldo">
+        <div class="cc-card-saldo-val ${saldo>0?'text-danger':'text-green'}">${fmt(saldo)}</div>
+        <div class="cc-card-saldo-lbl">saldo total</div>
+      </div>
+    </div>
+    <div style="padding:4px 16px 2px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
+        <span>Cobrado sobre entregado</span>
+        <span class="mono">${fmt(cobrado+nc)} / ${fmt(totalEnt)}</span>
+      </div>
+      <div class="progreso-cobro"><div class="progreso-cobro-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="cc-card-footer">
+      <span>${etiq}</span>
+      <span class="mono">${pct}% cobrado · pend. cobrar ${fmt(pendCob)}</span>
+    </div>
+  </div>`;
+}
+
+function renderTablaGlobal(clientes) {
+  const tbody=document.getElementById('tbody-cc-global');
+  if(!tbody) return;
+  if(!clientes.length){tbody.innerHTML='<tr class="empty-row"><td colspan="7">Sin datos</td></tr>';return;}
+  tbody.innerHTML=[...clientes].sort((a,b)=>saldoCliente(b)-saldoCliente(a)).map(c=>{
+    const totalFact=totalFacturadoCliente(c);
+    const cobrado=totalCobradoCliente(c);
+    const nc=totalNCCliente(c);
+    const saldo=saldoCliente(c);
+    const pendEnt=pendienteEntregaCliente(c);
+    const pendCob=pendienteCobrarCliente(c);
+    const est=estadoGlobalCliente(c);
+    const tag={deuda:'<span class="pill pill-red">Con deuda</span>',parcial:'<span class="pill pill-gold">Parcial</span>',saldado:'<span class="pill pill-green">Saldado</span>'}[est]||'';
+    return `<tr onclick="abrirCuentaCliente('${c.replace(/'/g,"\\'")}')" style="cursor:pointer">
+      <td class="fw-600">${c}</td>
+      <td class="td-right td-mono">${fmt(totalFact)}</td>
+      <td class="td-right td-mono text-green">${fmt(cobrado)}</td>
+      <td class="td-right td-mono text-blue">${nc>0?fmt(nc):'—'}</td>
+      <td class="td-right td-mono fw-600 ${saldo>0?'text-danger':'text-green'}">${fmt(saldo)}</td>
+      <td class="td-right td-mono" title="Entregado sin cobrar (saldo real)">${pendCob>0?`<span class="text-danger">${fmt(pendCob)}</span>`:'—'}</td>
+      <td class="td-right td-mono text-muted" title="No entregado aún (señas)">${pendEnt>0?fmt(pendEnt):'—'}</td>
+      <td>${tag}</td>
+    </tr>`;
+  }).join('');
+}
+
+function ccFiltroCliente(f,btn) {
+  ccFiltroCC=f;
+  document.querySelectorAll('.tab-mini-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCuentasCorrientes();
+}
+
+// ── Nuevo pedido ──
+function abrirModalNuevoPedido() {
+  ['np-cliente','np-nrofact','np-pedido','np-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('np-fecha').value=today();
+  document.getElementById('np-monto').value='';
+  document.getElementById('np-estado-entrega').value='ENTREGADO';
+  document.getElementById('np-estado-pago').value='Pendiente';
+  document.getElementById('modal-nuevo-pedido').classList.add('open');
+}
+function abrirModalNuevoPedidoParaCliente(nombre) {
+  abrirModalNuevoPedido();
+  document.getElementById('np-cliente').value=nombre;
+}
+function guardarNuevoPedido() {
+  const cliente=document.getElementById('np-cliente').value.trim();
+  const fecha=document.getElementById('np-fecha').value||today();
+  const nroFact=document.getElementById('np-nrofact').value.trim();
+  const monto=parseFloat(document.getElementById('np-monto').value);
+  const pedido=document.getElementById('np-pedido').value.trim();
+  const obs=document.getElementById('np-obs').value.trim();
+  const estadoEntrega=document.getElementById('np-estado-entrega').value;
+  const estadoPago=document.getElementById('np-estado-pago').value;
+  if(!cliente){toast('⚠ Ingresá el cliente');return;}
+  if(!monto||monto<=0){toast('⚠ Ingresá el monto');return;}
+  if(!pedido){toast('⚠ Describí el pedido');return;}
+  if(!db.pedidos) db.pedidos=[];
+  db.pedidos.push({id:uid(),cliente,fecha,nroFact,monto,pedido,obs,estadoEntrega,estadoPago});
+  guardarDB();
+  cerrarModal('modal-nuevo-pedido');
+  renderCuentasCorrientes();
+  if(ccClienteActual===cliente) abrirCuentaCliente(cliente);
+  toast('✅ Pedido registrado');
+}
+
+// ── Cuenta cliente ──
+function abrirCuentaCliente(nombre) {
+  ccClienteActual=nombre;
+  document.getElementById('modal-cc-titulo').textContent='📂 '+nombre;
+  const total   = totalFacturadoCliente(nombre);
+  const totalEnt= totalEntregadoCliente(nombre);
+  const cobrado = totalCobradoCliente(nombre);
+  const nc      = totalNCCliente(nombre);
+  const saldo   = saldoCliente(nombre);
+  const pendCob = pendienteCobrarCliente(nombre);
+  const pendEnt = pendienteEntregaCliente(nombre);
+  // % sobre lo ya entregado
+  const pct = totalEnt > 0 ? Math.round(Math.min(100,(cobrado+nc)/totalEnt*100)) : (saldo<=0?100:0);
+
+  document.getElementById('cc-det-resumen').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px">
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Total facturado</div>
+        <div class="mono fw-600" style="font-size:16px">${fmt(total)}</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">entregado ${fmt(totalEnt)}</div>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Cobrado + NC</div>
+        <div class="mono fw-600 text-green" style="font-size:16px">${fmt(cobrado+nc)}</div>
+        ${nc>0?`<div style="font-size:9.5px;color:var(--info);margin-top:2px">NC ${fmt(nc)}</div>`:''}
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Entregado sin cobrar</div>
+        <div class="mono fw-600 ${pendCob>0?'text-danger':'text-green'}" style="font-size:16px">${fmt(pendCob)}</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">saldo real ya entregado</div>
+      </div>
+      ${pendEnt>0?`<div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Pendiente de entrega</div>
+        <div class="mono fw-600" style="font-size:16px;color:var(--purple)">${fmt(pendEnt)}</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">señas / no entregado</div>
+      </div>`:''}
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Saldo total</div>
+        <div class="mono fw-600 ${saldo>0?'text-danger':'text-green'}" style="font-size:16px">${fmt(saldo)}</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">incluye s/entregar</div>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
+        <span>Cobrado sobre lo entregado</span>
+        <span class="mono">${pct}%</span>
+      </div>
+      <div class="progreso-cobro"><div class="progreso-cobro-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  document.getElementById('modal-cc-subtitulo').textContent=`${(db.pedidos||[]).filter(p=>p.cliente===nombre).length} pedidos · ${today()}`;
+  renderPedidosCliente(nombre);
+  renderCobrosCliente(nombre);
+  renderNCCliente(nombre);
+  renderResumenFinal(nombre);
+  document.getElementById('form-pago-wrap').style.display='none';
+  document.getElementById('form-nc-wrap').style.display='none';
+  document.getElementById('modal-cuenta-cliente').classList.add('open');
+}
+
+function renderPedidosCliente(nombre) {
+  const pedidos=(db.pedidos||[]).filter(p=>p.cliente===nombre).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const tbody=document.getElementById('tbody-pedidos-cliente');
+  if(!pedidos.length){tbody.innerHTML='<tr class="empty-row"><td colspan="7">Sin pedidos</td></tr>';return;}
+  const colEnt={'ENTREGADO':'background:#e8f5ed;color:#1d5c3a','PENDIENTE DE ENTREGA':'background:#fef7ec;color:#8a6c0a','EN PROCESO':'background:#eff4fd;color:#2563a8'};
+  const colPago={'PAGADO':'background:#e8f5ed;color:#1d5c3a','PAGO PARCIAL':'background:#fef7ec;color:#8a6c0a','Pendiente':'background:#fdf0f0;color:#b84040'};
+  tbody.innerHTML=pedidos.map(p=>`<tr>
+    <td class="td-mono" style="font-size:11px">${p.fecha}</td>
+    <td style="font-size:12px">${p.pedido}${p.obs?`<br><span style="font-size:10px;color:var(--text3)">${p.obs}</span>`:''}</td>
+    <td class="td-mono" style="font-size:11px">${p.nroFact||'—'}</td>
+    <td><span style="padding:2px 7px;border-radius:3px;font-size:9.5px;font-weight:700;${colEnt[p.estadoEntrega]||''}">${p.estadoEntrega}</span></td>
+    <td><select style="padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;border:none;cursor:pointer;${colPago[p.estadoPago]||''}" onchange="cambiarEstadoPago('${p.id}',this.value,this)">
+      <option value="Pendiente" ${p.estadoPago==='Pendiente'?'selected':''}>⏳ Pendiente</option>
+      <option value="PAGO PARCIAL" ${p.estadoPago==='PAGO PARCIAL'?'selected':''}>🟡 Pago Parcial</option>
+      <option value="PAGADO" ${p.estadoPago==='PAGADO'?'selected':''}>✅ Pagado</option>
+    </select></td>
+    <td class="td-right td-mono fw-600" style="font-size:12px">${fmt(p.monto)}</td>
+    <td style="display:flex;gap:4px;white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" title="Editar" onclick="editarPedido('${p.id}')">✏️</button>
+      <button class="btn btn-ghost btn-sm" onclick="eliminarPedido('${p.id}')">✕</button>
+    </td>
+  </tr>`).join('');
+  const total=pedidos.reduce((a,p)=>a+p.monto,0);
+  const tf=tbody.parentElement.querySelector('tfoot');
+  if(tf) tf.remove();
+  tbody.parentElement.insertAdjacentHTML('beforeend',`<tfoot><tr style="background:var(--surface2)"><td colspan="5" style="padding:8px 11px;font-weight:700;font-size:12px">TOTAL FACTURADO</td><td class="td-right td-mono fw-600" style="padding:8px 11px;font-size:13px">${fmt(total)}</td><td></td></tr></tfoot>`);
+}
+
+function cambiarEstadoPago(id,val,sel) {
+  const p=(db.pedidos||[]).find(p=>p.id===id);
+  if(!p) return;
+  p.estadoPago=val;
+  guardarDB();
+  const c={'PAGADO':'background:#e8f5ed;color:#1d5c3a','PAGO PARCIAL':'background:#fef7ec;color:#8a6c0a','Pendiente':'background:#fdf0f0;color:#b84040'};
+  sel.style.cssText=`padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;border:none;cursor:pointer;${c[val]||''}`;
+  renderCuentasCorrientes(); renderResumenFinal(ccClienteActual);
+  toast('✅ Estado actualizado');
+}
+
+function eliminarPedido(id) {
+  if(!confirm('¿Eliminar este pedido?')) return;
+  db.pedidos=(db.pedidos||[]).filter(p=>p.id!==id);
+  guardarDB(); abrirCuentaCliente(ccClienteActual); renderCuentasCorrientes();
+  toast('🗑 Pedido eliminado');
+}
+
+function renderCobrosCliente(nombre) {
+  const cobros=(db.cobros||[]).filter(c=>c.cliente===nombre).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const tbody=document.getElementById('tbody-cobros-cliente');
+  if(!cobros.length){tbody.innerHTML='<tr class="empty-row"><td colspan="5">Sin cobros</td></tr>';return;}
+  const hoy=today();
+  tbody.innerHTML=cobros.map(c=>{
+    const esDif=c.medio==='cheque_diferido';
+    const aun=esDif&&c.fechaAcred&&c.fechaAcred>hoy;
+    const chqInfo=esDif&&c.fechaAcred?`<span class="cheque-diferido">📄 acred. ${c.fechaAcred}${c.nrochk?' · '+c.nrochk:''}</span>`:c.nrochk?`<span class="fs-11 text-muted">${c.nrochk}</span>`:'—';
+    return `<tr style="${aun?'background:var(--warning-light)':''}">
+      <td class="td-mono" style="font-size:11px">${c.fecha}</td>
+      <td style="font-size:12px">${medioLabelCC(c.medio)}${c.obs?`&nbsp;<span style="color:var(--text3);font-size:11px">${c.obs}</span>`:''}</td>
+      <td>${chqInfo}</td>
+      <td class="td-right td-mono fw-600 text-green">${fmt(c.monto)}</td>
+      <td style="display:flex;gap:4px;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" title="Editar" onclick="editarCobro('${c.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminarCobro('${c.id}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+  const total=cobros.reduce((a,c)=>a+c.monto,0);
+  const tf=tbody.parentElement.querySelector('tfoot');
+  if(tf) tf.remove();
+  tbody.parentElement.insertAdjacentHTML('beforeend',`<tfoot><tr style="background:var(--accent-light)"><td colspan="3" style="padding:8px 11px;font-weight:700;font-size:12px;color:var(--accent)">TOTAL COBRADO</td><td class="td-right td-mono fw-600 text-green" style="padding:8px 11px;font-size:13px">${fmt(total)}</td><td></td></tr></tfoot>`);
+}
+
+function renderNCCliente(nombre) {
+  const ncs=(db.notascredito||[]).filter(n=>n.cliente===nombre).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const wrap=document.getElementById('lista-nc-cliente');
+  if(!ncs.length){wrap.innerHTML='<div class="text-muted" style="font-size:12px;padding:6px 0">Sin notas de crédito.</div>';return;}
+  wrap.innerHTML=ncs.map(n=>`<div class="pago-item"><span class="td-mono" style="font-size:11px;color:var(--text3)">${n.fecha}</span><span style="font-size:12px">${n.concepto||'Nota de crédito'}</span><span class="pago-monto text-blue">${fmt(n.monto)}</span><button class="btn btn-ghost btn-sm" title="Editar" onclick="editarNC('${n.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="eliminarNC('${n.id}')">✕</button></div>`).join('');
+}
+
+function renderResumenFinal(nombre) {
+  const total=totalFacturadoCliente(nombre),cobrado=totalCobradoCliente(nombre),nc=totalNCCliente(nombre),saldo=saldoCliente(nombre);
+  const cobros=(db.cobros||[]).filter(c=>c.cliente===nombre).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const ncs=(db.notascredito||[]).filter(n=>n.cliente===nombre);
+  let rows='';
+  cobros.forEach(c=>{ rows+=`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px dashed var(--border)"><span class="text-muted">PAGADO ${c.fecha}${c.obs?' — '+c.obs:''}${c.medio==='cheque_diferido'&&c.fechaAcred?' (cheq. dif. '+c.fechaAcred+')':''}</span><span class="mono fw-600 text-green">− ${fmt(c.monto)}</span></div>`; });
+  ncs.forEach(n=>{ rows+=`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px dashed var(--border)"><span class="text-muted">${n.concepto||'Nota de crédito'}</span><span class="mono fw-600 text-blue">− ${fmt(n.monto)}</span></div>`; });
+  document.getElementById('cc-resumen-final').innerHTML=`
+    <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text2);margin-bottom:10px">Resumen de cuenta</div>
+    <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:2px solid var(--border);margin-bottom:4px"><span class="fw-600">TOTAL DEUDA</span><span class="mono fw-600">${fmt(total)}</span></div>
+    ${rows}
+    <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-size:15px;border-top:2px solid var(--border);margin-top:6px"><span class="fw-700">TOTAL SALDO</span><span class="mono fw-700 ${saldo>0?'text-danger':'text-green'}">${fmt(saldo)}</span></div>`;
+}
+
+// ── Form cobro ──
+function toggleFormPago() {
+  const w=document.getElementById('form-pago-wrap');
+  const open=w.style.display==='';
+  w.style.display=open?'none':'';
+  if(!open){ document.getElementById('pago-fecha').value=today(); document.getElementById('pago-monto').value=''; document.getElementById('pago-obs').value=''; document.getElementById('pago-medio').value='efectivo'; document.getElementById('pago-nrochk').value=''; document.getElementById('pago-fecha-acred').value=''; toggleChequeDif(); }
+}
+function toggleChequeDif() {
+  const v=document.getElementById('pago-medio').value;
+  toggleField('pago-fecha-acred-wrap',v==='cheque_diferido');
+  toggleField('pago-nrochk-wrap',v==='cheque'||v==='cheque_diferido');
+  toggleField('pago-cant-chq-wrap',v==='cheque'||v==='cheque_diferido');
+}
+// ═══════════════════════════════════════════════════════
+// PAGO FIFO — aplica el cobro a facturas ordenadas por fecha
+// ═══════════════════════════════════════════════════════
+function registrarPago() {
+  const monto     = parseFloat(document.getElementById('pago-monto').value);
+  const fecha     = document.getElementById('pago-fecha').value || today();
+  const medio     = document.getElementById('pago-medio').value;
+  const fechaAcred= document.getElementById('pago-fecha-acred').value || null;
+  const nrochk    = document.getElementById('pago-nrochk').value.trim();
+  const obs       = document.getElementById('pago-obs').value.trim();
+
+  if (!monto || monto <= 0)                         { toast('⚠ Ingresá el monto'); return; }
+  if (medio === 'cheque_diferido' && !fechaAcred)   { toast('⚠ Indicá la fecha de acreditación del cheque'); return; }
+
+  const saldoActual = saldoCliente(ccClienteActual);
+  if (monto > saldoActual + 1) { toast(`⚠ El monto (${fmt(monto)}) excede el saldo (${fmt(saldoActual)})`); return; }
+
+  // Guardar el cobro global
+  if (!db.cobros) db.cobros = [];
+  const cobroId = uid();
+  db.cobros.push({ id: cobroId, cliente: ccClienteActual, fecha, monto, medio, fechaAcred, nrochk, obs });
+
+  // ── Aplicar FIFO a pedidos pendientes (más antiguos primero) ──
+  const pedidosPendientes = (db.pedidos || [])
+    .filter(p => p.cliente === ccClienteActual && p.estadoPago !== 'PAGADO')
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  // Calcular saldo actual de cada pedido (cobros previos ya aplicados)
+  function saldoPedido(p) {
+    const cobradoPrev = (p.cobrosAplicados || []).reduce((a, c) => a + c.monto, 0);
+    return Math.max(0, p.monto - cobradoPrev);
+  }
+
+  let restante = monto;
+  const resumen = []; // para mostrar al usuario
+
+  for (const p of pedidosPendientes) {
+    if (restante <= 0) break;
+    const sP = saldoPedido(p);
+    if (sP <= 0) continue;
+
+    const aplicar = Math.min(restante, sP);
+    if (!p.cobrosAplicados) p.cobrosAplicados = [];
+    p.cobrosAplicados.push({ cobroId, monto: aplicar, fecha });
+    restante -= aplicar;
+
+    const saldoNuevo = saldoPedido(p);
+    if (saldoNuevo <= 0) {
+      p.estadoPago = 'PAGADO';
+      resumen.push({ nroFact: p.nroFact, pedido: p.pedido, aplicado: aplicar, estado: 'PAGADO', saldo: 0 });
+    } else {
+      p.estadoPago = 'PAGO PARCIAL';
+      resumen.push({ nroFact: p.nroFact, pedido: p.pedido, aplicado: aplicar, estado: 'PAGO PARCIAL', saldo: saldoNuevo });
+    }
+  }
+
+  guardarDB();
+
+  // Mostrar resultado de la aplicación
+  mostrarResultadoPago(monto, resumen, saldoCliente(ccClienteActual));
+  toggleFormPago();
+  abrirCuentaCliente(ccClienteActual);
+  renderCuentasCorrientes();
+}
+
+function mostrarResultadoPago(montoPagado, resumen, saldoFinal) {
+  // Toast detallado
+  if (resumen.length === 0) {
+    toast(`✅ Cobro registrado — Saldo: ${fmt(saldoFinal)}`);
+    return;
+  }
+  const saldadas = resumen.filter(r => r.estado === 'PAGADO').length;
+  const parciales = resumen.filter(r => r.estado === 'PAGO PARCIAL').length;
+  let msg = `✅ ${fmt(montoPagado)} aplicado`;
+  if (saldadas > 0) msg += ` · ${saldadas} factura${saldadas > 1 ? 's' : ''} saldada${saldadas > 1 ? 's' : ''}`;
+  if (parciales > 0) msg += ` · ${parciales} parcial`;
+  msg += ` · Saldo: ${fmt(saldoFinal)}`;
+  toast(msg);
+
+  // Modal de resultado si hay varias facturas afectadas
+  if (resumen.length > 1 || (resumen.length === 1 && resumen[0].estado === 'PAGO PARCIAL')) {
+    setTimeout(() => mostrarModalResultadoPago(montoPagado, resumen, saldoFinal), 400);
+  }
+}
+
+function mostrarModalResultadoPago(montoPagado, resumen, saldoFinal) {
+  const rows = resumen.map(r => {
+    const cls = r.estado === 'PAGADO' ? 'text-green' : 'text-gold';
+    const tag = r.estado === 'PAGADO'
+      ? '<span class="pill pill-green">✅ SALDADA</span>'
+      : '<span class="pill pill-gold">🟡 PARCIAL</span>';
+    return `<tr>
+      <td class="td-mono fs-11">${r.nroFact || '—'}</td>
+      <td style="font-size:12px">${r.pedido}</td>
+      <td class="td-right td-mono fw-600 text-green">− ${fmt(r.aplicado)}</td>
+      <td class="td-right td-mono ${cls}">${r.saldo > 0 ? fmt(r.saldo) : '—'}</td>
+      <td>${tag}</td>
+    </tr>`;
+  }).join('');
+
+  // Reuse modal-editar for this display
+  document.getElementById('modal-editar-titulo').textContent = `💳 Aplicación de pago — ${fmt(montoPagado)}`;
+  document.getElementById('modal-editar-body').innerHTML = `
+    <div class="alert alert-info mb-12">El pago fue aplicado automáticamente a las facturas más antiguas (FIFO).</div>
+    <div class="table-wrap" style="border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;margin-bottom:14px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Factura</th>
+          <th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Descripción</th>
+          <th style="padding:8px 11px;text-align:right;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Aplicado</th>
+          <th style="padding:8px 11px;text-align:right;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Saldo restante</th>
+          <th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Estado</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="background:var(--surface2)">
+          <td colspan="3" style="padding:8px 11px;font-weight:700;font-size:12px">Saldo total pendiente</td>
+          <td class="td-right td-mono fw-600 ${saldoFinal > 0 ? 'text-danger' : 'text-green'}" style="padding:8px 11px;font-size:13px">${fmt(saldoFinal)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+  document.getElementById('btn-guardar-edicion').style.display = 'none';
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+// Recalcular saldoPedido usando cobrosAplicados
+function saldoPedidoActual(p) {
+  const cobradoPrev = (p.cobrosAplicados || []).reduce((a, c) => a + c.monto, 0);
+  return Math.max(0, p.monto - cobradoPrev);
+}
+
+// ═══════════════════════════════════════════════════════
+// CERRAR CUENTA — archivar cliente saldado
+// ═══════════════════════════════════════════════════════
+let cuentaCerrandoId = null;
+
+function confirmarCerrarCuenta() {
+  const saldo = saldoCliente(ccClienteActual);
+  if (saldo > 0) {
+    toast(`⚠ La cuenta tiene saldo pendiente de ${fmt(saldo)}. Saldá primero antes de cerrar.`);
+    return;
+  }
+  if (!confirm(`¿Cerrar y archivar la cuenta de "${ccClienteActual}"?\n\nQuedará en el Historial de Cuentas Cerradas con todos sus registros. Podés reabrirla en cualquier momento.`)) return;
+  cerrarCuenta(ccClienteActual);
+}
+
+function cerrarCuenta(nombre) {
+  if (!db.cuentasCerradas) db.cuentasCerradas = [];
+
+  const pedidos    = (db.pedidos     || []).filter(p => p.cliente === nombre);
+  const cobros     = (db.cobros      || []).filter(c => c.cliente === nombre);
+  const ncs        = (db.notascredito|| []).filter(n => n.cliente === nombre);
+
+  // Calcular días entre primera factura y último cobro
+  const fechas = [...pedidos.map(p => p.fecha), ...cobros.map(c => c.fecha)].sort();
+  const diasCobro = fechas.length >= 2
+    ? Math.ceil((new Date(fechas[fechas.length-1]) - new Date(fechas[0])) / 86400000)
+    : 0;
+
+  db.cuentasCerradas.push({
+    id: uid(),
+    cliente: nombre,
+    fechaCierre: today(),
+    totalFacturado: totalFacturadoCliente(nombre),
+    totalCobrado:   totalCobradoCliente(nombre),
+    totalNC:        totalNCCliente(nombre),
+    diasCobro,
+    pedidos:  JSON.parse(JSON.stringify(pedidos)),
+    cobros:   JSON.parse(JSON.stringify(cobros)),
+    ncs:      JSON.parse(JSON.stringify(ncs)),
+  });
+
+  // Eliminar de activos
+  db.pedidos      = (db.pedidos     || []).filter(p => p.cliente !== nombre);
+  db.cobros       = (db.cobros      || []).filter(c => c.cliente !== nombre);
+  db.notascredito = (db.notascredito|| []).filter(n => n.cliente !== nombre);
+
+  guardarDB();
+  cerrarModal('modal-cuenta-cliente');
+  renderCuentasCorrientes();
+  renderHistorialCerrados();
+  toast(`📦 Cuenta de "${nombre}" archivada correctamente`);
+  setTimeout(() => switchTab('historial'), 600);
+}
+
+// ── Render historial cerrados ──
+function renderHistorialCerrados() {
+  const cerradas = db.cuentasCerradas || [];
+  setText('hist-count', cerradas.length);
+  const totF = cerradas.reduce((a, c) => a + c.totalFacturado, 0);
+  const totC = cerradas.reduce((a, c) => a + c.totalCobrado, 0);
+  const promDias = cerradas.length > 0
+    ? Math.round(cerradas.reduce((a, c) => a + (c.diasCobro || 0), 0) / cerradas.length)
+    : 0;
+  setText('hist-total-fact', fmt(totF));
+  setText('hist-total-cob',  fmt(totC));
+  setText('hist-dias-prom',  cerradas.length ? promDias + ' días' : '— días');
+
+  const grid = document.getElementById('historial-grid');
+  if (!grid) return;
+  if (!cerradas.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--text3);font-size:13px;">Sin cuentas cerradas aún.</div>';
+    return;
+  }
+  grid.innerHTML = [...cerradas].sort((a, b) => b.fechaCierre.localeCompare(a.fechaCierre)).map(cc => {
+    const pct = cc.totalFacturado > 0 ? Math.round(cc.totalCobrado / cc.totalFacturado * 100) : 100;
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius);padding:0;box-shadow:var(--shadow);cursor:pointer;overflow:hidden" onclick="abrirHistorialDetalle('${cc.id}')">
+      <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:3px">${cc.cliente}</div>
+          <div style="font-size:10.5px;color:var(--text3)">Cerrada ${cc.fechaCierre} · ${cc.pedidos.length} pedidos · ${cc.diasCobro} días</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--accent)">${fmt(cc.totalFacturado)}</div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:2px">total facturado</div>
+        </div>
+      </div>
+      <div style="padding:0 16px">
+        <div class="progreso-cobro"><div class="progreso-cobro-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div style="padding:9px 16px;background:var(--accent-light);border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:11px;color:var(--accent)">
+        <span>✅ Cuenta saldada</span>
+        <span class="mono">${pct}% cobrado${cc.totalNC > 0 ? ` · NC ${fmt(cc.totalNC)}` : ''}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let historialDetalleActualId = null;
+
+function abrirHistorialDetalle(id) {
+  const cc = (db.cuentasCerradas || []).find(x => x.id === id);
+  if (!cc) return;
+  historialDetalleActualId = id;
+
+  document.getElementById('hist-det-titulo').textContent = '📂 ' + cc.cliente;
+  document.getElementById('hist-det-sub').textContent = `Cerrada el ${cc.fechaCierre} · ${cc.diasCobro} días de ciclo de cobro`;
+
+  const colPago = { 'PAGADO': 'background:#e8f5ed;color:#1d5c3a', 'PAGO PARCIAL': 'background:#fef7ec;color:#8a6c0a', 'Pendiente': 'background:#fdf0f0;color:#b84040' };
+  const pedRows = cc.pedidos.map(p => `<tr>
+    <td class="td-mono" style="font-size:11px">${p.fecha}</td>
+    <td style="font-size:12px">${p.pedido}</td>
+    <td class="td-mono" style="font-size:11px">${p.nroFact || '—'}</td>
+    <td><span style="padding:2px 7px;border-radius:3px;font-size:9.5px;font-weight:700;${colPago[p.estadoPago] || ''}">${p.estadoPago}</span></td>
+    <td class="td-right td-mono fw-600">${fmt(p.monto)}</td>
+  </tr>`).join('');
+
+  const cobrRows = cc.cobros.map(c => {
+    const esDif = c.medio === 'cheque_diferido';
+    return `<tr>
+      <td class="td-mono" style="font-size:11px">${c.fecha}</td>
+      <td style="font-size:12px">${medioLabelCC(c.medio)}${c.obs ? ` — ${c.obs}` : ''}</td>
+      <td>${esDif && c.fechaAcred ? `<span class="cheque-diferido">📄 ${c.fechaAcred}</span>` : '—'}</td>
+      <td class="td-right td-mono fw-600 text-green">${fmt(c.monto)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('hist-det-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;background:var(--accent-light);border:1px solid #b0dfc0;border-radius:var(--radius2);padding:14px 16px;margin-bottom:16px">
+      <div><div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Total facturado</div><div class="mono fw-600" style="font-size:16px">${fmt(cc.totalFacturado)}</div></div>
+      <div><div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Total cobrado</div><div class="mono fw-600 text-green" style="font-size:16px">${fmt(cc.totalCobrado)}</div></div>
+      ${cc.totalNC > 0 ? `<div><div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Notas de crédito</div><div class="mono fw-600 text-blue" style="font-size:16px">${fmt(cc.totalNC)}</div></div>` : ''}
+      <div><div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Ciclo de cobro</div><div class="mono fw-600" style="font-size:16px">${cc.diasCobro} días</div></div>
+    </div>
+    <div class="card-title mb-10">📄 Pedidos y Facturas</div>
+    <div class="table-wrap mb-16" style="border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--surface2)"><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Fecha</th><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Descripción</th><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Factura</th><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Estado</th><th style="padding:8px 11px;text-align:right;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Monto</th></tr></thead>
+        <tbody>${pedRows}</tbody>
+        <tfoot><tr style="background:var(--surface2)"><td colspan="4" style="padding:8px 11px;font-weight:700;font-size:12px">TOTAL</td><td class="td-right td-mono fw-600" style="padding:8px 11px;font-size:13px">${fmt(cc.totalFacturado)}</td></tr></tfoot>
+      </table>
+    </div>
+    <div class="card-title mb-10">💳 Cobros</div>
+    <div class="table-wrap mb-16" style="border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--surface2)"><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Fecha</th><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Detalle</th><th style="padding:8px 11px;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Cheque dif.</th><th style="padding:8px 11px;text-align:right;font-size:9.5px;text-transform:uppercase;color:var(--text3)">Monto</th></tr></thead>
+        <tbody>${cobrRows}</tbody>
+        <tfoot><tr style="background:var(--accent-light)"><td colspan="3" style="padding:8px 11px;font-weight:700;font-size:12px;color:var(--accent)">TOTAL COBRADO</td><td class="td-right td-mono fw-600 text-green" style="padding:8px 11px;font-size:13px">${fmt(cc.totalCobrado)}</td></tr></tfoot>
+      </table>
+    </div>
+    ${cc.ncs && cc.ncs.length ? `<div class="card-title mb-10">📝 Notas de Crédito</div>
+    <div style="margin-bottom:16px">${cc.ncs.map(n=>`<div class="pago-item"><span class="td-mono" style="font-size:11px;color:var(--text3)">${n.fecha}</span><span style="font-size:12px">${n.concepto}</span><span class="pago-monto text-blue">${fmt(n.monto)}</span></div>`).join('')}</div>` : ''}
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px">
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:2px solid var(--border);margin-bottom:4px"><span class="fw-600">TOTAL DEUDA</span><span class="mono fw-600">${fmt(cc.totalFacturado)}</span></div>
+      ${cc.cobros.map(c=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px dashed var(--border)"><span class="text-muted">COBRADO ${c.fecha}${c.obs?' — '+c.obs:''}</span><span class="mono fw-600 text-green">− ${fmt(c.monto)}</span></div>`).join('')}
+      ${cc.ncs && cc.ncs.map(n=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px dashed var(--border)"><span class="text-muted">${n.concepto}</span><span class="mono fw-600 text-blue">− ${fmt(n.monto)}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-size:15px;border-top:2px solid var(--border);margin-top:6px"><span class="fw-700">SALDO FINAL</span><span class="mono fw-700 text-green">₲ 0</span></div>
+    </div>`;
+  document.getElementById('modal-historial-detalle').classList.add('open');
+}
+
+function reabrirCuenta() {
+  const cc = (db.cuentasCerradas || []).find(x => x.id === historialDetalleActualId);
+  if (!cc) return;
+  if (!confirm(`¿Reabrir la cuenta de "${cc.cliente}"? Volverá a Cuentas Corrientes activas.`)) return;
+
+  if (!db.pedidos)      db.pedidos = [];
+  if (!db.cobros)       db.cobros = [];
+  if (!db.notascredito) db.notascredito = [];
+
+  db.pedidos      = [...db.pedidos, ...cc.pedidos];
+  db.cobros       = [...db.cobros, ...cc.cobros];
+  db.notascredito = [...db.notascredito, ...(cc.ncs || [])];
+  db.cuentasCerradas = (db.cuentasCerradas || []).filter(x => x.id !== historialDetalleActualId);
+
+  guardarDB();
+  cerrarModal('modal-historial-detalle');
+  renderHistorialCerrados();
+  renderCuentasCorrientes();
+  toast(`↩ Cuenta de "${cc.cliente}" reabierta`);
+}
+
+// ═══════════════════════════════════════════════════════
+// VENTAS A CRÉDITO — pasan también a Cuentas Corrientes
+// ═══════════════════════════════════════════════════════
+function toggleVtCredito() {
+  const v = document.getElementById('vt-tipo-cobro').value;
+  // Si es crédito, sugerir medio "credito_cliente"; si contado, no cambiar
+  const medioSel = document.getElementById('vt-medio');
+  if (v === 'credito') {
+    medioSel.value = 'credito_cliente';
+  } else if (medioSel.value === 'credito_cliente') {
+    medioSel.value = 'efectivo';
+  }
+}
+
+// Override agregarVenta to handle credito
+function agregarVenta(data) {
+  const v = data || {
+    fecha:      document.getElementById('vt-fecha').value || today(),
+    local:      document.getElementById('vt-local').value,
+    cliente:    document.getElementById('vt-cliente').value.trim(),
+    monto:      parseFloat(document.getElementById('vt-monto').value),
+    medio:      document.getElementById('vt-medio').value,
+    factura:    document.getElementById('vt-factura').value,
+    nroFact:    document.getElementById('vt-nrofact').value.trim(),
+    cat:        document.getElementById('vt-cat').value,
+    detalle:    document.getElementById('vt-detalle').value.trim(),
+    tipoCobro:  document.getElementById('vt-tipo-cobro')?.value || 'contado',
+  };
+  if (!v.monto || v.monto <= 0) { toast('⚠ Monto inválido'); return; }
+
+  // Siempre se registra en ventas (para IVA)
+  db.ventas.push({ id: uid(), ...v });
+
+  // Si es crédito, crear también en Cuentas Corrientes
+  if (v.tipoCobro === 'credito' && v.cliente) {
+    if (!db.pedidos) db.pedidos = [];
+    db.pedidos.push({
+      id:             uid(),
+      cliente:        v.cliente,
+      fecha:          v.fecha,
+      nroFact:        v.nroFact,
+      monto:          v.monto,
+      pedido:         v.detalle || v.cat || 'Venta a crédito',
+      obs:            `Generado desde Ventas · ${v.factura === 'cf' ? 'Con factura' : 'Sin factura'}`,
+      estadoEntrega:  'ENTREGADO',
+      estadoPago:     'Pendiente',
+    });
+    toast(`✅ Venta registrada y enviada a Cuentas Corrientes de "${v.cliente}"`);
+  } else {
+    if (!data) toast('✅ Venta registrada');
+  }
+
+  guardarDB();
+  renderTodo();
+
+  if (!data) {
+    ['vt-monto', 'vt-cliente', 'vt-detalle', 'vt-nrofact'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const tc = document.getElementById('vt-tipo-cobro');
+    if (tc) tc.value = 'contado';
+    toggleVtCredito();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function eliminarCobro(id) {
+  if(!confirm('¿Eliminar este cobro?')) return;
+  db.cobros=(db.cobros||[]).filter(c=>c.id!==id);
+  guardarDB(); abrirCuentaCliente(ccClienteActual); renderCuentasCorrientes();
+  toast('🗑 Cobro eliminado');
+}
+
+// ── Notas de crédito ──
+function toggleFormNC() {
+  const w=document.getElementById('form-nc-wrap');
+  w.style.display=w.style.display===''?'none':'';
+  if(w.style.display===''){document.getElementById('nc-fecha').value=today();document.getElementById('nc-monto').value='';document.getElementById('nc-concepto').value='';}
+}
+function registrarNC() {
+  const monto=parseFloat(document.getElementById('nc-monto').value);
+  const fecha=document.getElementById('nc-fecha').value||today();
+  const concepto=document.getElementById('nc-concepto').value.trim()||'Nota de crédito';
+  if(!monto||monto<=0){toast('⚠ Ingresá el monto');return;}
+  if(!db.notascredito) db.notascredito=[];
+  db.notascredito.push({id:uid(),cliente:ccClienteActual,fecha,monto,concepto});
+  guardarDB(); toggleFormNC(); abrirCuentaCliente(ccClienteActual); renderCuentasCorrientes();
+  toast('✅ Nota de crédito registrada');
+}
+function eliminarNC(id) {
+  if(!confirm('¿Eliminar?')) return;
+  db.notascredito=(db.notascredito||[]).filter(n=>n.id!==id);
+  guardarDB(); abrirCuentaCliente(ccClienteActual); renderCuentasCorrientes();
+  toast('🗑 Eliminada');
+}
+
+// ── Exportar ──
+function exportarEstadoCuenta(nombre) {
+  const pedidos=(db.pedidos||[]).filter(p=>p.cliente===nombre).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const cobros=(db.cobros||[]).filter(c=>c.cliente===nombre);
+  const ncs=(db.notascredito||[]).filter(n=>n.cliente===nombre);
+  let csv=`Estado de Cuenta — ${nombre}\n\nFECHA,PEDIDO,FACTURA,TOTAL,ESTADO ENTREGA,ESTADO PAGO\n`;
+  pedidos.forEach(p=>{ csv+=`"${p.fecha}","${p.pedido}","${p.nroFact||''}","${Math.round(p.monto)}","${p.estadoEntrega}","${p.estadoPago}"\n`; });
+  csv+=`\n,,TOTAL FACTURADO,${Math.round(totalFacturadoCliente(nombre))}\n`;
+  cobros.forEach(c=>{ csv+=`"${c.fecha}","COBRO — ${medioLabelCC(c.medio)}${c.obs?' '+c.obs:''}",,"-${Math.round(c.monto)}"\n`; });
+  ncs.forEach(n=>{ csv+=`"${n.fecha}","${n.concepto}",,"-${Math.round(n.monto)}"\n`; });
+  csv+=`\n,,TOTAL SALDO,${Math.round(saldoCliente(nombre))}\n`;
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`EstadoCuenta_${nombre.replace(/\s/g,'_')}_${today()}.csv`; a.click();
+  toast('⬇ Exportado');
+}
+function exportarEstadoCuentaGlobal() {
+  const clientes=[...new Set((db.pedidos||[]).map(p=>p.cliente))];
+  let csv=`CLIENTE,TOTAL FACTURADO,COBRADO,NOTAS CREDITO,SALDO,ESTADO\n`;
+  [...clientes].sort((a,b)=>saldoCliente(b)-saldoCliente(a)).forEach(c=>{
+    csv+=`"${c}","${Math.round(totalFacturadoCliente(c))}","${Math.round(totalCobradoCliente(c))}","${Math.round(totalNCCliente(c))}","${Math.round(saldoCliente(c))}","${estadoGlobalCliente(c)}"\n`;
+  });
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`CuentasGlobal_${today()}.csv`; a.click();
+  toast('⬇ Exportado global');
+}
+
+// ── Compatibilidad: migrar db.facturas/pagos viejos si existen ──
+function migrarDBVieja() {
+  if(db.facturas&&db.facturas.length&&!db.pedidos?.length) {
+    db.pedidos=db.facturas.map(f=>({id:f.id,cliente:f.cliente,fecha:f.fecha,nroFact:f.nroFact,monto:f.monto,pedido:f.detalle||'',obs:'',estadoEntrega:'ENTREGADO',estadoPago:'Pendiente'}));
+    db.cobros=(db.pagos||[]).map(p=>({id:p.id,cliente:p.cliente,fecha:p.fecha,monto:p.monto,medio:p.medio,fechaAcred:p.fechaAcred||null,nrochk:p.nrochk||'',obs:p.obs||''}));
+    guardarDB();
+  }
+}
+// ═══════════════════════════════════════════════════════
+// EDICIÓN DE REGISTROS
+// ═══════════════════════════════════════════════════════
+let editandoTabla = null;
+let editandoId = null;
+
+function editarRegistro(tabla, id) {
+  const r = (db[tabla]||[]).find(x=>x.id===id);
+  if(!r) return;
+  editandoTabla = tabla;
+  editandoId = id;
+
+  const medioOpts = ['efectivo','transferencia','cheque','cheque_diferido','tarjeta_debito','tarjeta_credito','credito_proveedor','credito_cliente'].map(m=>`<option value="${m}" ${r.medio===m?'selected':''}>${medioLabelCC(m)}</option>`).join('');
+  const localOpts = ['propio','tienda_rey','one_more'].map(l=>`<option value="${l}" ${(r.local||'propio')===l?'selected':''}>${localLabel(l)}</option>`).join('');
+
+  let body = '';
+  if(tabla==='caja') {
+    document.getElementById('modal-editar-titulo').textContent = '✏️ Editar movimiento de caja';
+    body = `<div class="form-grid">
+      <div class="form-group"><label>Fecha</label><input class="form-control" type="date" id="ed-fecha" value="${r.fecha}"></div>
+      <div class="form-group"><label>Monto (₲)</label><input class="form-control" type="number" id="ed-monto" value="${r.monto}"></div>
+      ${r.tipo==='gasto'?`
+      <div class="form-group"><label>Tipo</label><select class="form-control" id="ed-factura">
+        <option value="cf" ${r.factura==='cf'?'selected':''}>✅ Con Factura</option>
+        <option value="sf" ${r.factura==='sf'?'selected':''}>❌ Sin Factura</option>
+      </select></div>
+      <div class="form-group"><label>Nº Factura</label><input class="form-control" type="text" id="ed-nrofact" value="${r.nroFact||''}"></div>
+      <div class="form-group"><label>Categoría / Área</label><input class="form-control" type="text" id="ed-cat" value="${r.cat||''}" list="cat-caja-list"></div>`:''}
+      <div class="form-group" style="grid-column:1/-1"><label>Concepto</label><input class="form-control" type="text" id="ed-concepto" value="${r.concepto||''}"></div>
+    </div>`;
+  } else if(tabla==='compras') {
+    document.getElementById('modal-editar-titulo').textContent = '✏️ Editar compra';
+    body = `<div class="form-grid">
+      <div class="form-group"><label>Fecha</label><input class="form-control" type="date" id="ed-fecha" value="${r.fecha}"></div>
+      <div class="form-group"><label>Proveedor</label><input class="form-control" type="text" id="ed-prov" value="${r.prov||''}"></div>
+      <div class="form-group"><label>Monto (₲)</label><input class="form-control" type="number" id="ed-monto" value="${r.monto}"></div>
+      <div class="form-group"><label>Medio de pago</label><select class="form-control" id="ed-medio">${medioOpts}</select></div>
+      <div class="form-group"><label>Tipo</label><select class="form-control" id="ed-factura">
+        <option value="cf" ${r.factura==='cf'?'selected':''}>✅ Con Factura</option>
+        <option value="sf" ${r.factura==='sf'?'selected':''}>❌ Sin Factura</option>
+      </select></div>
+      <div class="form-group"><label>Nº Factura</label><input class="form-control" type="text" id="ed-nrofact" value="${r.nroFact||''}"></div>
+      <div class="form-group"><label>Categoría / Área</label><input class="form-control" type="text" id="ed-cat" value="${r.cat||''}" list="cat-compras-list"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Detalle</label><input class="form-control" type="text" id="ed-detalle" value="${r.detalle||''}"></div>
+    </div>`;
+  } else if(tabla==='ventas') {
+    document.getElementById('modal-editar-titulo').textContent = '✏️ Editar venta';
+    body = `<div class="form-grid">
+      <div class="form-group"><label>Fecha</label><input class="form-control" type="date" id="ed-fecha" value="${r.fecha}"></div>
+      <div class="form-group"><label>Local</label><select class="form-control" id="ed-local">${localOpts}</select></div>
+      <div class="form-group"><label>Cliente</label><input class="form-control" type="text" id="ed-cliente" value="${r.cliente||''}"></div>
+      <div class="form-group"><label>Monto (₲)</label><input class="form-control" type="number" id="ed-monto" value="${r.monto}"></div>
+      <div class="form-group"><label>Medio de pago</label><select class="form-control" id="ed-medio">${medioOpts}</select></div>
+      <div class="form-group"><label>Tipo</label><select class="form-control" id="ed-factura">
+        <option value="cf" ${r.factura==='cf'?'selected':''}>✅ Con Factura</option>
+        <option value="sf" ${r.factura==='sf'?'selected':''}>❌ Sin Factura</option>
+      </select></div>
+      <div class="form-group"><label>Nº Factura / Ticket</label><input class="form-control" type="text" id="ed-nrofact" value="${r.nroFact||''}"></div>
+      <div class="form-group"><label>Categoría / Producto</label><input class="form-control" type="text" id="ed-cat" value="${r.cat||''}" list="cat-ventas-list"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Detalle</label><input class="form-control" type="text" id="ed-detalle" value="${r.detalle||''}"></div>
+    </div>`;
+  }
+
+  document.getElementById('modal-editar-body').innerHTML = body;
+  document.getElementById('btn-guardar-edicion').style.display = '';
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+function guardarEdicion() {
+  const tabla = editandoTabla;
+  const id = editandoId;
+  const r = (db[tabla]||[]).find(x=>x.id===id);
+  if(!r) return;
+
+  const get = (eid) => { const el=document.getElementById(eid); return el?el.value:null; };
+  r.fecha   = get('ed-fecha') || r.fecha;
+  r.monto   = parseFloat(get('ed-monto')) || r.monto;
+  if(get('ed-factura')) r.factura = get('ed-factura');
+  if(get('ed-nrofact') !== null) r.nroFact = get('ed-nrofact');
+  if(get('ed-cat') !== null) r.cat = get('ed-cat');
+  if(get('ed-concepto') !== null) r.concepto = get('ed-concepto');
+  if(get('ed-prov') !== null) r.prov = get('ed-prov');
+  if(get('ed-medio') !== null) r.medio = get('ed-medio');
+  if(get('ed-detalle') !== null) r.detalle = get('ed-detalle');
+  if(get('ed-cliente') !== null) r.cliente = get('ed-cliente');
+  if(get('ed-local') !== null) r.local = get('ed-local');
+
+  guardarDB();
+  cerrarModal('modal-editar');
+  renderTodo();
+  toast('✅ Registro actualizado');
+}
+
+// Editar pedido en Cuentas Corrientes
+function editarPedido(id) {
+  const p = (db.pedidos||[]).find(x=>x.id===id);
+  if(!p) return;
+  editandoTabla = 'pedidos';
+  editandoId = id;
+  document.getElementById('modal-editar-titulo').textContent = '✏️ Editar pedido — ' + p.cliente;
+  document.getElementById('modal-editar-body').innerHTML = `<div class="form-grid">
+    <div class="form-group"><label>Fecha</label><input class="form-control" type="date" id="ed-fecha" value="${p.fecha}"></div>
+    <div class="form-group"><label>Nº Factura</label><input class="form-control" type="text" id="ed-nrofact" value="${p.nroFact||''}"></div>
+    <div class="form-group"><label>Monto (₲)</label><input class="form-control" type="number" id="ed-monto" value="${p.monto}"></div>
+    <div class="form-group"><label>Estado entrega</label><select class="form-control" id="ed-estado-entrega">
+      <option value="ENTREGADO" ${p.estadoEntrega==='ENTREGADO'?'selected':''}>✅ ENTREGADO</option>
+      <option value="PENDIENTE DE ENTREGA" ${p.estadoEntrega==='PENDIENTE DE ENTREGA'?'selected':''}>⏳ PENDIENTE DE ENTREGA</option>
+      <option value="EN PROCESO" ${p.estadoEntrega==='EN PROCESO'?'selected':''}>🔄 EN PROCESO</option>
+    </select></div>
+    <div class="form-group"><label>Estado pago</label><select class="form-control" id="ed-estado-pago">
+      <option value="Pendiente" ${p.estadoPago==='Pendiente'?'selected':''}>⏳ Pendiente</option>
+      <option value="PAGO PARCIAL" ${p.estadoPago==='PAGO PARCIAL'?'selected':''}>🟡 Pago Parcial</option>
+      <option value="PAGADO" ${p.estadoPago==='PAGADO'?'selected':''}>✅ Pagado</option>
+    </select></div>
+    <div class="form-group" style="grid-column:1/-1"><label>Descripción del pedido</label><input class="form-control" type="text" id="ed-pedido" value="${p.pedido||''}"></div>
+    <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label><input class="form-control" type="text" id="ed-obs" value="${p.obs||''}"></div>
+  </div>`;
+  document.getElementById('btn-guardar-edicion').style.display='';
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+// Override guardarEdicion para pedidos
+const _guardarEdicionOrig = guardarEdicion;
+window.guardarEdicion = function() {
+  if(editandoTabla === 'pedidos') {
+    const p = (db.pedidos||[]).find(x=>x.id===editandoId);
+    if(!p) return;
+    const get = eid => { const el=document.getElementById(eid); return el?el.value:null; };
+    p.fecha       = get('ed-fecha') || p.fecha;
+    p.monto       = parseFloat(get('ed-monto')) || p.monto;
+    p.nroFact     = get('ed-nrofact') ?? p.nroFact;
+    p.estadoEntrega = get('ed-estado-entrega') || p.estadoEntrega;
+    p.estadoPago  = get('ed-estado-pago') || p.estadoPago;
+    p.pedido      = get('ed-pedido') ?? p.pedido;
+    p.obs         = get('ed-obs') ?? p.obs;
+    guardarDB();
+    cerrarModal('modal-editar');
+    abrirCuentaCliente(ccClienteActual);
+    renderCuentasCorrientes();
+    toast('✅ Pedido actualizado');
+  } else {
+    _guardarEdicionOrig();
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// DATOS DEMO — SPORT GROUP
+// ═══════════════════════════════════════════════════════
+// ── Editar cobro ──
+function editarCobro(id) {
+  const c=(db.cobros||[]).find(x=>x.id===id);
+  if(!c) return;
+  editandoTabla='cobros';
+  editandoId=id;
+  document.getElementById('modal-editar-titulo').textContent='✏️ Editar cobro — '+c.cliente;
+  const medioOpts=['efectivo','transferencia','cheque','cheque_diferido','tarjeta_debito','tarjeta_credito']
+    .map(m=>`<option value="${m}" ${c.medio===m?'selected':''}>${medioLabelCC(m)}</option>`).join('');
+  document.getElementById('modal-editar-body').innerHTML=`<div class="form-grid">
+    <div class="form-group"><label>Fecha cobro</label><input class="form-control" type="date" id="ed-fecha" value="${c.fecha}"></div>
+    <div class="form-group"><label>Monto (₲)</label><input class="form-control" type="number" id="ed-monto" value="${c.monto}"></div>
+    <div class="form-group"><label>Medio de pago</label><select class="form-control" id="ed-medio">${medioOpts}</select></div>
+    <div class="form-group"><label>Fecha acreditación (cheq. dif.)</label><input class="form-control" type="date" id="ed-fecha-acred" value="${c.fechaAcred||''}"></div>
+    <div class="form-group"><label>Nº Cheque / Banco</label><input class="form-control" type="text" id="ed-nrochk" value="${c.nrochk||''}"></div>
+    <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label><input class="form-control" type="text" id="ed-obs" value="${c.obs||''}"></div>
+  </div>`;
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+// ── Editar nota de crédito ──
+function editarNC(id) {
+  const n=(db.notascredito||[]).find(x=>x.id===id);
+  if(!n) return;
+  editandoTabla='notascredito';
+  editandoId=id;
+  document.getElementById('modal-editar-titulo').textContent='✏️ Editar nota de crédito — '+n.cliente;
+  document.getElementById('modal-editar-body').innerHTML=`<div class="form-grid">
+    <div class="form-group"><label>Fecha</label><input class="form-control" type="date" id="ed-fecha" value="${n.fecha}"></div>
+    <div class="form-group"><label>Monto (₲)</label><input class="form-control" type="number" id="ed-monto" value="${n.monto}"></div>
+    <div class="form-group" style="grid-column:1/-1"><label>Concepto</label><input class="form-control" type="text" id="ed-concepto" value="${n.concepto||''}"></div>
+  </div>`;
+  document.getElementById('btn-guardar-edicion').style.display='';
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+// Extend guardarEdicion for cobros and NC
+const _guardarEdicion2 = window.guardarEdicion;
+window.guardarEdicion = function() {
+  const get = eid => { const el=document.getElementById(eid); return el?el.value:null; };
+  if(editandoTabla==='cobros') {
+    const c=(db.cobros||[]).find(x=>x.id===editandoId);
+    if(!c) return;
+    c.fecha      = get('ed-fecha')||c.fecha;
+    c.monto      = parseFloat(get('ed-monto'))||c.monto;
+    c.medio      = get('ed-medio')||c.medio;
+    c.fechaAcred = get('ed-fecha-acred')||null;
+    c.nrochk     = get('ed-nrochk')??c.nrochk;
+    c.obs        = get('ed-obs')??c.obs;
+    guardarDB();
+    cerrarModal('modal-editar');
+    abrirCuentaCliente(ccClienteActual);
+    renderCuentasCorrientes();
+    toast('✅ Cobro actualizado');
+  } else if(editandoTabla==='notascredito') {
+    const n=(db.notascredito||[]).find(x=>x.id===editandoId);
+    if(!n) return;
+    n.fecha    = get('ed-fecha')||n.fecha;
+    n.monto    = parseFloat(get('ed-monto'))||n.monto;
+    n.concepto = get('ed-concepto')??n.concepto;
+    guardarDB();
+    cerrarModal('modal-editar');
+    abrirCuentaCliente(ccClienteActual);
+    renderCuentasCorrientes();
+    toast('✅ Nota actualizada');
+  } else {
+    _guardarEdicion2();
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// INIT — el login maneja la inicialización principal
+// ═══════════════════════════════════════════════════════
+function setDefaultDates() {
+  const t=today();
+  ['caj-ent-fecha','caj-gas-fecha','cp-fecha','vt-fecha'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value=t;
+  });
+}
+
+// Foco automático al campo usuario al cargar
+document.addEventListener('DOMContentLoaded', () => {
+  // Si no hay sesión activa, hacer foco en email
+  if (!firebase.auth().currentUser) {
+    setTimeout(() => {
+      const el = document.getElementById('login-email');
+      if (el) el.focus();
+    }, 200);
+  }
+});
+</script>
+</body>
+</html>
