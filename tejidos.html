@@ -2532,6 +2532,16 @@ function renderDashboard() {
   const dataAvg = provAvg.map(x => Math.round(withPrice.filter(t=>t.proveedor===x.p).reduce((s,t)=>s+t.precio_metro,0)/withPrice.filter(t=>t.proveedor===x.p).length));
   const dataMax = provAvg.map(x => Math.max(...withPrice.filter(t=>t.proveedor===x.p).map(t=>t.precio_metro)));
 
+  // ── Chart.js: cargar si hace falta y dibujar ──
+  if(typeof Chart === 'undefined') {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+    s.onload = () => buildChart(canvas, labels, dataMin, dataAvg, dataMax, COLORS, provAvg);
+    document.head.appendChild(s);
+  } else {
+    buildChart(canvas, labels, dataMin, dataAvg, dataMax, COLORS, provAvg);
+  }
+
   // ── Ranking completo ──
   window._rankingData = [...withPrice].sort((a,b) => a.precio_metro - b.precio_metro);
   renderRankingRows(window._rankingData);
@@ -2566,17 +2576,6 @@ function renderRankingRows(data) {
       <td style="font-size:12px;color:var(--text2)">${gs(t.precio_rem>0?t.precio_rem:null)}</td>
     </tr>`;
   }).join('');
-
-
-  if(typeof Chart === 'undefined') {
-    // Cargar Chart.js dinámicamente
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
-    s.onload = () => buildChart(canvas, labels, dataMin, dataAvg, dataMax, COLORS, provAvg);
-    document.head.appendChild(s);
-  } else {
-    buildChart(canvas, labels, dataMin, dataAvg, dataMax, COLORS, provAvg);
-  }
 }
 
 function buildChart(canvas, labels, dataMin, dataAvg, dataMax, COLORS, provAvg) {
