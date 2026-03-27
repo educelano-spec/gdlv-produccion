@@ -563,6 +563,23 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
   line-height: 1.4;
 }
 .card-colores span { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+.card-categoria {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  background: rgba(74,140,190,.13); color: #4a8cbe;
+  border: 1px solid rgba(74,140,190,.3);
+  border-radius: 4px; padding: 1px 7px; margin-bottom: 5px;
+}
+.ranking-filter-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;
+}
+.ranking-filter-row input {
+  flex: 1; min-width: 160px; padding: 7px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2);
+  font-family: inherit; font-size: 13px; color: var(--text);
+}
+.ranking-filter-row input:focus { outline: none; border-color: var(--accent3); }
+.ranking-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .foto-upload-wrap { position: relative; }
 .foto-upload-wrap input[type=file] { display: none; }
 .foto-preview {
@@ -772,11 +789,15 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
     </div>
 
-    <!-- Top 30 más baratos -->
+    <!-- Ranking completo -->
     <div class="dash-card dash-full">
-      <div class="dash-card-title">📋 Top 30 más baratos por metro</div>
+      <div class="dash-card-title">📋 Ranking completo por precio/metro</div>
+      <div class="ranking-filter-row">
+        <input type="text" id="dash-ranking-q" placeholder="🔍 Filtrar por nombre..." oninput="filterRanking()">
+        <span class="ranking-count" id="dash-ranking-count"></span>
+      </div>
       <table class="cheap-table">
-        <thead><tr><th>#</th><th>Tejido</th><th>Proveedor</th><th>Código</th><th>Ancho</th><th>Precio/m</th><th>Precio/remera</th></tr></thead>
+        <thead><tr><th>#</th><th>Tejido</th><th>Categoría</th><th>Proveedor</th><th>Código</th><th>Ancho</th><th>Precio/m</th><th>Precio/remera</th></tr></thead>
         <tbody id="dash-cheapest-30"></tbody>
       </table>
     </div>
@@ -795,6 +816,9 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
     </div>
     <select id="filter-prov" onchange="applyFilters()">
       <option value="">Todos los proveedores</option>
+    </select>
+    <select id="filter-cat" onchange="applyFilters()">
+      <option value="">Todas las categorías</option>
     </select>
     <select id="sort-by" onchange="applyFilters()">
       <option value="tipo">A–Z por nombre</option>
@@ -833,6 +857,24 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="form-group full">
         <label class="form-label">Tipo de Tejido *</label>
         <input class="form-input" id="f-tipo" placeholder="Ej: Dry Fit premium">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoría</label>
+        <input class="form-input" id="f-categoria" list="cat-list" placeholder="Ej: Dry Fit, Acetato, Helanca...">
+        <datalist id="cat-list">
+          <option value="Dry Fit">
+          <option value="Dry Fit Premium">
+          <option value="Acetato">
+          <option value="Helanca">
+          <option value="Spandex">
+          <option value="Microperforado">
+          <option value="Jacquard">
+          <option value="Malha">
+          <option value="Wind">
+          <option value="Ciclismo">
+          <option value="UV">
+          <option value="Rib">
+        </datalist>
       </div>
       <div class="form-group">
         <label class="form-label">Código</label>
@@ -1121,6 +1163,10 @@ canvas#sim-canvas { display: block; border: 2px dashed var(--border2); border-ra
       <div class="form-group full">
         <label class="form-label">Tipo de tejido</label>
         <input class="form-input" id="m-tipo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoría</label>
+        <input class="form-input" id="m-categoria" list="cat-list" placeholder="Ej: Dry Fit, Acetato...">
       </div>
       <div class="form-group">
         <label class="form-label">Código</label>
@@ -1666,6 +1712,7 @@ function showToast(msg, type='') {
 function init() {
   renderStats();
   populateProvSelect();
+  populateCatSelect();
   renderCards(tejidos);
   renderProveedores();
   populateProvDatalist();
@@ -1706,16 +1753,32 @@ function populateProvDatalist() {
 }
 
 function applyFilters() {
-  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  const q    = document.getElementById('search-input').value.toLowerCase().trim();
   const prov = document.getElementById('filter-prov').value;
+  const cat  = document.getElementById('filter-cat').value;
   const sort = document.getElementById('sort-by').value;
   let data = [...tejidos];
-  if(q) data = data.filter(t => t.tipo.toLowerCase().includes(q) || (t.codigo||'').toLowerCase().includes(q) || t.proveedor.toLowerCase().includes(q));
+  if(q) data = data.filter(t =>
+    t.tipo.toLowerCase().includes(q) ||
+    (t.codigo||'').toLowerCase().includes(q) ||
+    t.proveedor.toLowerCase().includes(q) ||
+    (t.categoria||'').toLowerCase().includes(q)
+  );
   if(prov) data = data.filter(t => t.proveedor===prov);
+  if(cat)  data = data.filter(t => (t.categoria||'')=== cat);
   const dir = sort.endsWith('_desc') ? -1 : 1;
   const field = sort.replace('_desc','');
   data.sort((a,b) => field==='tipo' ? a.tipo.localeCompare(b.tipo) : ((a[field]||0)-(b[field]||0))*dir);
   renderCards(data);
+}
+
+function populateCatSelect() {
+  const cats = [...new Set(tejidos.map(t=>t.categoria).filter(Boolean))].sort();
+  const sel = document.getElementById('filter-cat');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(cur) sel.value = cur;
 }
 
 function renderCards(data) {
@@ -1744,6 +1807,7 @@ function cardHTML(t, maxPm) {
     <div class="card-proveedor">${t.proveedor}</div>
     <div class="card-tipo">${t.tipo}</div>
     ${t.nombres_alt && t.nombres_alt.length ? `<div class="card-alt-nombres">${t.nombres_alt.map(n=>`<span class="card-alt-tag">${n.nombre}</span>`).join('')}</div>` : ''}
+    ${t.categoria ? `<div><span class="card-categoria">${t.categoria}</span></div>` : ''}
     <div class="card-codigo">${t.codigo||'Sin código'}</div>
     <div class="card-metrics">
       <div class="metric"><div class="metric-label">Precio x metro</div><div class="metric-val price">${gs(t.precio_metro)}</div></div>
@@ -1772,7 +1836,7 @@ function deleteTejido(idx) {
   selected.delete(id);
   tejidos.splice(idx,1);
   save();
-  renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
+  renderStats(); populateProvSelect(); populateCatSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
   document.getElementById('compare-count').textContent = selected.size;
   showToast('🗑 Tejido eliminado');
 }
@@ -1782,6 +1846,7 @@ function openEdit(idx) {
   document.getElementById('m-idx').value = idx;
   document.getElementById('m-proveedor').value = t.proveedor||'';
   document.getElementById('m-tipo').value = t.tipo||'';
+  document.getElementById('m-categoria').value = t.categoria||'';
   document.getElementById('m-codigo').value = t.codigo||'';
   document.getElementById('m-ancho').value = t.ancho||'';
   document.getElementById('m-precio-kg').value = t.precio_kg||'';
@@ -1835,6 +1900,7 @@ function saveEdit() {
   tejidos[idx] = {
     proveedor: prov, tipo,
     codigo: document.getElementById('m-codigo').value.trim()||null,
+    categoria: document.getElementById('m-categoria').value.trim()||null,
     ancho: parseFloat(document.getElementById('m-ancho').value)||null,
     precio_kg: parseFloat(document.getElementById('m-precio-kg').value)||null,
     rendim: parseFloat(document.getElementById('m-rendim').value)||null,
@@ -1858,7 +1924,7 @@ function saveEdit() {
   };
   if(selected.has(oldId)) { selected.delete(oldId); selected.add(makeId(tejidos[idx])); }
   fbSaveTejido(idx); closeModal();
-  renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
+  renderStats(); populateProvSelect(); populateCatSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
   showToast('✓ Tejido actualizado');
 }
 
@@ -1934,6 +2000,7 @@ function guardarTejido() {
   tejidos.push({
     proveedor:prov, tipo,
     codigo: document.getElementById('f-codigo').value.trim()||null,
+    categoria: document.getElementById('f-categoria').value.trim()||null,
     ancho: parseFloat(document.getElementById('f-ancho').value)||null,
     precio_kg: parseFloat(document.getElementById('f-precio-kg').value)||null,
     rendim: parseFloat(document.getElementById('f-rendim').value)||null,
@@ -1947,8 +2014,8 @@ function guardarTejido() {
   });
   fbSaveTejido(tejidos.length - 1);
   db.ref(FB_CONSUMOS).set(consumos).catch(e=>{});
-  renderStats(); populateProvSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
-  ['f-proveedor','f-tipo','f-codigo','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem','f-colores','f-consumo'].forEach(id=>document.getElementById(id).value='');
+  renderStats(); populateProvSelect(); populateCatSelect(); populateProvDatalist(); applyFilters(); renderProveedores();
+  ['f-proveedor','f-tipo','f-codigo','f-categoria','f-ancho','f-precio-kg','f-rendim','f-precio-metro','f-precio-rem','f-colores','f-consumo'].forEach(id=>document.getElementById(id).value='');
   window._newFotos = [];
   window._newNombresAlt = [];
   renderFotosGrid('f', []);
@@ -2327,7 +2394,7 @@ function openDetail(idx) {
   }
 
   // Info básica
-  document.getElementById('detail-prov').textContent = t.proveedor;
+  document.getElementById('detail-prov').textContent = t.proveedor + (t.categoria ? ' · ' + t.categoria : '');
   document.getElementById('detail-tipo').textContent = t.tipo;
   document.getElementById('detail-codigo').textContent = t.codigo ? '# ' + t.codigo : '';
 
@@ -2465,13 +2532,33 @@ function renderDashboard() {
   const dataAvg = provAvg.map(x => Math.round(withPrice.filter(t=>t.proveedor===x.p).reduce((s,t)=>s+t.precio_metro,0)/withPrice.filter(t=>t.proveedor===x.p).length));
   const dataMax = provAvg.map(x => Math.max(...withPrice.filter(t=>t.proveedor===x.p).map(t=>t.precio_metro)));
 
-  // ── Top 30 más baratos (tabla completa) ──
-  const sorted30 = [...withPrice].sort((a,b) => a.precio_metro - b.precio_metro).slice(0, 30);
-  document.getElementById('dash-cheapest-30').innerHTML = sorted30.map((t, i) => {
+  // ── Ranking completo ──
+  window._rankingData = [...withPrice].sort((a,b) => a.precio_metro - b.precio_metro);
+  renderRankingRows(window._rankingData);
+}
+
+function filterRanking() {
+  const q = (document.getElementById('dash-ranking-q').value||'').toLowerCase().trim();
+  if(!window._rankingData) return;
+  const filtered = q
+    ? window._rankingData.filter(t =>
+        t.tipo.toLowerCase().includes(q) ||
+        (t.categoria||'').toLowerCase().includes(q) ||
+        t.proveedor.toLowerCase().includes(q) ||
+        (t.codigo||'').toLowerCase().includes(q))
+    : window._rankingData;
+  renderRankingRows(filtered);
+}
+
+function renderRankingRows(data) {
+  const count = document.getElementById('dash-ranking-count');
+  if(count) count.textContent = data.length + ' tejidos';
+  document.getElementById('dash-cheapest-30').innerHTML = data.map((t, i) => {
     const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
     return `<tr onclick="openDetail(${tejidos.indexOf(t)})" style="cursor:pointer">
       <td><span class="cheap-rank ${rankClass}">${i+1}</span></td>
       <td style="font-weight:600;font-size:12px">${t.tipo}</td>
+      <td style="font-size:11px">${t.categoria ? `<span class="card-categoria">${t.categoria}</span>` : '—'}</td>
       <td style="font-size:11px;color:var(--muted)">${t.proveedor}</td>
       <td style="font-size:11px;font-family:monospace;color:var(--muted)">${t.codigo||'—'}</td>
       <td style="font-size:12px">${t.ancho ? t.ancho+'m' : '—'}</td>
@@ -2479,6 +2566,7 @@ function renderDashboard() {
       <td style="font-size:12px;color:var(--text2)">${gs(t.precio_rem>0?t.precio_rem:null)}</td>
     </tr>`;
   }).join('');
+
 
   if(typeof Chart === 'undefined') {
     // Cargar Chart.js dinámicamente
