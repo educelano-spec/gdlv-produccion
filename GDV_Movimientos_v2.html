@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- Firebase -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -121,7 +122,17 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
   display: flex; align-items: center; gap: 6px;
 }
 .tab-btn:hover { color: var(--text); background: var(--surface2); }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn.active { color: white; border-bottom-color: transparent; }
+
+/* Colores únicos por pestaña activa */
+#tab-resumen.active  { background: #1d5c3a; border-bottom-color: #1d5c3a; }
+#tab-caja.active     { background: #1a6b2f; border-bottom-color: #1a6b2f; }
+#tab-compras.active  { background: #2563a8; border-bottom-color: #2563a8; }
+#tab-ventas.active   { background: #6b3fa0; border-bottom-color: #6b3fa0; }
+#tab-sinfactura.active { background: #b84040; border-bottom-color: #b84040; }
+#tab-informes.active { background: #c47c1a; border-bottom-color: #c47c1a; }
+#tab-cuentas.active  { background: #0e7490; border-bottom-color: #0e7490; }
+#tab-historial.active { background: #4a5568; border-bottom-color: #4a5568; }
 
 /* LAYOUT */
 .main { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
@@ -655,7 +666,7 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
     <div class="card-body">
       <div class="alert alert-info">
-        📌 Arrastrá o seleccioná el PDF del reporte diario de ventas del shopping. La IA extrae automáticamente fecha, montos, medios de pago y números de ticket/factura.
+        📌 Arrastrá o seleccioná el PDF del cierre de turno del shopping. Se extraen automáticamente fecha, productos, montos y medios de pago — sin conexión a internet.
       </div>
       <div class="two-col">
         <div>
@@ -867,7 +878,7 @@ input[type=number] { -moz-appearance: textfield; }
     <div class="modal-body">
       <div id="import-ai-loading" class="ai-loading mb-12" style="display:none">
         <div class="spinner"></div>
-        <span id="import-loading-text">Procesando con IA...</span>
+        <span id="import-loading-text">Procesando PDF...</span>
       </div>
       <div id="import-result-area">
         <div class="alert alert-info mb-12">Seleccioná el archivo PDF del reporte del shopping para pre-cargar las ventas automáticamente.</div>
@@ -1922,65 +1933,170 @@ async function procesarPDF(file, local) {
   loadingText.textContent = 'Leyendo PDF...';
 
   try {
-    // Convert PDF to base64
-    const b64 = await new Promise((res,rej)=>{
-      const r=new FileReader();
-      r.onload=()=>res(r.result.split(',')[1]);
-      r.onerror=()=>rej(new Error('Error al leer'));
-      r.readAsDataURL(file);
+    // Leer el PDF como ArrayBuffer
+    const arrayBuffer = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = () => rej(new Error('Error al leer el archivo'));
+      r.readAsArrayBuffer(file);
     });
 
-    loadingText.textContent = 'Extrayendo datos con IA...';
+    // Extraer texto con pdf.js
+    loadingText.textContent = 'Extrayendo texto...';
+    const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+    if (!pdfjsLib) throw new Error('pdf.js no disponible. Recargá la página.');
 
-    const localName = local==='tienda_rey' ? 'Tienda Rey' : 'One More';
-    const prompt = `Sos un asistente de contabilidad. Analizá este reporte de ventas del shopping "${localName}" y extraé TODAS las ventas individuales.
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-Para cada venta devolvé un JSON array con objetos así:
-{
-  "fecha": "YYYY-MM-DD",
-  "descripcion": "descripción del producto/venta",
-  "medio": "efectivo|transferencia|tarjeta_debito|tarjeta_credito|cheque",
-  "nroFact": "número de factura o ticket si está disponible, sino vacío",
-  "monto": número (solo el número, sin símbolos),
-  "tieneFact": true si hay número de factura/ticket, false si no
-}
+    // Extraer tokens (items con posición) de todas las páginas
+    let allItems = [];
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const content = await page.getTextContent();
+      allItems = allItems.concat(content.items);
+    }
 
-Si hay un resumen del día en lugar de ventas individuales, creá una entrada por cada medio de pago con el monto correspondiente.
-Devolvé SOLO el JSON array, sin texto adicional ni markdown.`;
+    // Texto plano completo para extraer encabezado
+    const fullText = allItems.map(it => it.str).join(' ');
+    console.log('PDF texto completo:', fullText);
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:2000,
-        messages:[{
-          role:"user",
-          content:[
-            { type:"document", source:{ type:"base64", media_type:"application/pdf", data:b64 } },
-            { type:"text", text:prompt }
-          ]
-        }]
-      })
+    // ── Extraer fecha del encabezado ──
+    // Busca "Fecha: DD/MM/YYYY" o "Fecha: DD/MM/YY"
+    let fecha = periodoActual + '-01';
+    const fechaMatch = fullText.match(/Fecha[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i);
+    if (fechaMatch) {
+      const [,d,m,y] = fechaMatch;
+      const year = y.length === 2 ? '20'+y : y;
+      fecha = `${year}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+
+    // ── Parsear filas de la tabla ──
+    // Agrupar items por línea (mismo Y aproximado)
+    const lines = [];
+    let currentLine = [];
+    let lastY = null;
+    const Y_TOLERANCE = 3; // px de tolerancia para considerar misma línea
+
+    // Ordenar por Y desc (arriba primero), luego por X asc
+    const sorted = [...allItems].sort((a,b) => {
+      const ay = a.transform[5], by = b.transform[5];
+      if (Math.abs(ay-by) > Y_TOLERANCE) return by - ay;
+      return a.transform[4] - b.transform[4];
     });
 
-    const data = await response.json();
-    const text = data.content?.map(c=>c.text||'').join('') || '';
-    const clean = text.replace(/```json|```/g,'').trim();
-    const rows = JSON.parse(clean);
+    for (const item of sorted) {
+      const y = item.transform[5];
+      if (lastY === null || Math.abs(y - lastY) > Y_TOLERANCE) {
+        if (currentLine.length) lines.push(currentLine);
+        currentLine = [item.str.trim()];
+        lastY = y;
+      } else {
+        if (item.str.trim()) currentLine.push(item.str.trim());
+      }
+    }
+    if (currentLine.length) lines.push(currentLine);
+
+    console.log('Líneas del PDF:', lines);
+
+    // Mapeo de medios de pago
+    function mapMedio(s) {
+      const u = (s||'').toUpperCase().trim();
+      if (u.includes('EFECTIVO'))                          return 'efectivo';
+      if (u.includes('DEBITO') || u.includes('DÉBITO'))   return 'tarjeta_debito';
+      if (u.includes('TARJETA') || u.includes('CREDITO') || u.includes('CRÉDITO')) return 'tarjeta_credito';
+      if (u.includes('TRANSFER'))                          return 'transferencia';
+      if (u.includes('CHEQUE'))                            return 'cheque';
+      return 'efectivo';
+    }
+
+    // Limpiar monto: "Gs. 148.000" → 148000
+    function parseMonto(s) {
+      return parseInt((s||'').replace(/[^\d]/g,'')) || 0;
+    }
+
+    // Detectar si una línea es una fila de venta
+    // Formato: [factura_o_guion, ...producto_color_talle..., cant, "Gs.", monto, pago]
+    const rows = [];
+    const MEDIOS_VALIDOS = ['EFECTIVO','TARJETA','DÉBITO','DEBITO','CREDITO','CRÉDITO','TRANSFERENCIA','CHEQUE','TRANSFER'];
+
+    for (const line of lines) {
+      const joined = line.join(' ');
+
+      // Verificar que la línea contiene un monto tipo "Gs." y termina con medio de pago
+      if (!joined.includes('Gs.')) continue;
+
+      // El último token con texto significativo debería ser el medio de pago
+      const lastToken = line[line.length - 1].toUpperCase();
+      const esMedio = MEDIOS_VALIDOS.some(m => lastToken.includes(m));
+      if (!esMedio) continue;
+
+      // Buscar el índice donde aparece "Gs." para separar descripción de monto
+      const gsIdx = line.findIndex(t => t === 'Gs.' || t.includes('Gs.'));
+      if (gsIdx < 0) continue;
+
+      // Factura: primer token (puede ser "—" o número)
+      const factura = line[0];
+      const tieneFact = factura !== '—' && factura !== '-' && /\d/.test(factura);
+      const nroFact = tieneFact ? factura : '';
+
+      // Descripción: tokens entre factura y "Gs." (excluye el número de cantidad si es solo dígito)
+      const descTokens = line.slice(1, gsIdx).filter(t => {
+        // Excluir tokens que son solo un número corto (cantidad)
+        return !(t.match(/^\d{1,3}$/) && parseInt(t) < 100);
+      });
+      const descripcion = descTokens.join(' ').replace(/\s+/g,' ').trim();
+
+      // Monto: token después de "Gs." o el mismo "Gs. XXXXX"
+      let montoStr = '';
+      if (line[gsIdx] === 'Gs.' && line[gsIdx+1]) {
+        montoStr = line[gsIdx+1];
+      } else {
+        montoStr = line[gsIdx].replace('Gs.','');
+      }
+      const monto = parseMonto(montoStr);
+      if (monto <= 0) continue;
+
+      // Medio: último token
+      const medio = mapMedio(lastToken);
+
+      rows.push({ fecha, descripcion, medio, nroFact, monto, tieneFact });
+    }
+
+    // Fallback: si no se extrajo nada con el parser de tabla,
+    // buscar líneas que sean claramente ventas por patrón regex
+    if (rows.length === 0) {
+      console.warn('Parser de tabla falló, intentando regex...');
+      const lineTexts = lines.map(l => l.join(' '));
+      for (const lt of lineTexts) {
+        // Buscar patrón: algo con Gs. NÚMERO y un medio de pago al final
+        const m = lt.match(/(.+?)\s+Gs\.\s*([\d\.]+)\s+(EFECTIVO|TARJETA|DÉBITO|DEBITO|CREDITO|TRANSFERENCIA|CHEQUE)/i);
+        if (m) {
+          const desc = m[1].replace(/^[—\-\d]\s*/,'').trim();
+          const monto = parseMonto(m[2]);
+          const medio = mapMedio(m[3]);
+          if (monto > 0) rows.push({ fecha, descripcion: desc, medio, nroFact:'', monto, tieneFact:false });
+        }
+      }
+    }
+
+    if (rows.length === 0) {
+      throw new Error('No se encontraron ventas en el PDF. Verificá que sea un cierre de turno válido.');
+    }
 
     importRows = rows;
     renderImportPreview(rows);
     loading.style.display='none';
     document.getElementById('import-preview-area').style.display='';
     document.getElementById('btn-confirmar-import').style.display='';
-    document.getElementById('import-preview-msg').textContent = `✅ Se encontraron ${rows.length} registros en el PDF. Revisá y confirmá los que querés importar.`;
+    document.getElementById('import-preview-msg').textContent =
+      `✅ Se encontraron ${rows.length} venta(s) en el PDF. Revisá y confirmá las que querés importar.`;
 
   } catch(err) {
     loading.style.display='none';
     resultArea.style.display='';
-    toast('❌ Error al procesar PDF: '+err.message);
-    console.error(err);
+    toast('❌ Error al procesar PDF: ' + (err.message||err));
+    console.error('PDF import error:', err);
   }
 }
 
@@ -2003,6 +2119,19 @@ function renderImportPreview(rows) {
   </tr>`).join('');
 }
 
+function inferirCategoria(desc) {
+  const d = (desc||'').toUpperCase();
+  if(/POLO/.test(d))                         return 'Remeras / Camisetas';
+  if(/CAMISETA|REM |REMERA/.test(d))         return 'Remeras / Camisetas';
+  if(/BODY/.test(d))                         return 'Ropa Interior';
+  if(/BUZO|CAMPERA|ABRIGO/.test(d))          return 'Buzos / Abrigos';
+  if(/PANTALON|SHORT/.test(d))               return 'Pantalones';
+  if(/CONJUNTO/.test(d))                     return 'Conjuntos';
+  if(/GORRA|ACCESORIO/.test(d))              return 'Gorras / Accesorios';
+  if(/UNIFORME/.test(d))                     return 'Uniformes';
+  return 'Remeras / Camisetas';
+}
+
 function confirmarImport() {
   let count=0;
   importRows.forEach((r,i)=>{
@@ -2016,7 +2145,7 @@ function confirmarImport() {
       medio: r.medio || 'efectivo',
       factura: r.tieneFact ? 'cf' : 'sf',
       nroFact: r.nroFact || '',
-      cat: 'Otros',
+      cat: r.descripcion ? inferirCategoria(r.descripcion) : 'Otros',
       detalle: r.descripcion || ''
     };
     if(venta.monto>0){ db.ventas.push({id:uid(),...venta}); count++; }
