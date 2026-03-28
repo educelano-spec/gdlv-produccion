@@ -403,6 +403,23 @@ td.tot{background:var(--s2);color:var(--tx);font-weight:700}
   </div>
 </div>
 
+<!-- MODAL EMPLEADOS NO RECONOCIDOS -->
+<div class="mbg" id="nuevos-modal" style="display:none">
+  <div class="modal" style="max-width:640px">
+    <div class="mhd"><h2>⚠️ Empleados no reconocidos</h2></div>
+    <div class="mbdy">
+      <div style="background:var(--abg);border:1px solid var(--abr);border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:var(--am)">
+        Estos IDs del Excel no están configurados. Completá los datos para incluirlos en la liquidación, o ignoralos.
+      </div>
+      <div id="nuevos-list"></div>
+    </div>
+    <div class="mft">
+      <button class="btn" onclick="ignorarNuevos()">Ignorar todos</button>
+      <button class="btn btn-p" onclick="guardarNuevos()">✓ Guardar y procesar</button>
+    </div>
+  </div>
+</div>
+
 <!-- FERIADOS MODAL -->
 <div class="mbg" id="fer-modal" style="display:none" onclick="if(event.target===this)closeFer()">
   <div class="modal" style="max-width:420px">
@@ -554,8 +571,11 @@ function parse(rows){
     raw[id].dias[fe].hs.push(ho);
   }
   EMPS={};
+  var _rawDesconocidos={};
   for(var id in raw){
-    var c=CFG[id];if(!c||!c.act)continue;
+    var c=CFG[id];
+    if(!c){_rawDesconocidos[id]=raw[id];continue;}
+    if(!c.act)continue;
     var marc=[];
     for(var fe in raw[id].dias){
       var dd=raw[id].dias[fe];
@@ -607,6 +627,8 @@ function parse(rows){
     marc.sort(function(a,b){return b.fe.localeCompare(a.fe);});
     calcPago(id,c,marc);
   }
+  // Guardar raw para procesarlos después si el usuario configura nuevos
+  window._rawPendiente=_rawDesconocidos;
 }
 
 // ══════════════════════════════════════════════════════
@@ -819,10 +841,15 @@ function aplicar(fname){
   document.getElementById('sem-sel').value=skSafe;
   document.getElementById('aside-per').textContent=SEM_INI+' → '+SEM_FIN;
   updTots();renderSide();renderCfgGrid();pobFilt();renderFeriados();
-  showSt((fname?fname+' — ':'')+Object.keys(EMPS).length+' empleados cargados.','ok');
-  showSaveIndicator();
-  autoBackup();
-  selectEmp(Object.keys(EMPS)[0]);
+  var nDesc=Object.keys(window._rawPendiente||{}).length;
+  if(nDesc>0){
+    mostrarModalNuevos(window._rawPendiente,fname);
+  } else {
+    showSt((fname?fname+' — ':'')+Object.keys(EMPS).length+' empleados cargados.','ok');
+    showSaveIndicator();
+    autoBackup();
+    if(Object.keys(EMPS).length)selectEmp(Object.keys(EMPS)[0]);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1420,6 +1447,139 @@ function demo(){
   parse(rows);aplicar('Demo_2026-02-28_2026-03-06.xlsx');
 }
 
+
+
+// ══════════════════════════════════════════════════════
+//  MODAL EMPLEADOS NO RECONOCIDOS
+// ══════════════════════════════════════════════════════
+var _fnameActual='';
+
+function mostrarModalNuevos(desconocidos, fname){
+  _fnameActual=fname||'';
+  var lista=document.getElementById('nuevos-list');
+  var colors=['#4a7a9a', '#4a8a6a', '#7c6e8a', '#8a7a5a', '#4a6a8a', '#8a5a6a', '#7a5a8a', '#6a8a4a', '#8a6a4a', '#5a6a8a'];
+  var html='';
+  var ids=Object.keys(desconocidos);
+  ids.forEach(function(id,idx){
+    var emp=desconocidos[id];
+    var nm=emp.nm||'';
+    var col=colors[idx%colors.length];
+    var ini=nm.split(' ').map(function(p){return p[0]||'';}).join('').slice(0,2).toUpperCase()||'??';
+    var nDias=Object.keys(emp.dias||{}).length;
+    html+='<div style="border:1px solid var(--bor);border-radius:9px;padding:13px 15px;margin-bottom:10px;background:var(--s2)">';
+    html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:11px">';
+    html+='<div class="av" style="background:'+col+'22;color:'+col+';border:1.5px solid '+col+'55;width:34px;height:34px;font-size:11px">'+ini+'</div>';
+    html+='<div><div style="font-weight:700;font-size:13px">'+nm+'</div>';
+    html+='<div style="font-size:10px;color:var(--t3)">ID: '+id+' · '+nDias+' día'+(nDias!==1?'s':'')+' de marcaciones</div></div>';
+    html+='<label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">';
+    html+='<input type="checkbox" id="inc-'+id+'" checked style="width:15px;height:15px"> Incluir</label>';
+    html+='</div>';
+    html+='<div class="fg" style="grid-template-columns:1fr 1fr 1fr;gap:8px">';
+    html+='<div class="fld" style="grid-column:span 2"><label>Nombre completo</label><input class="fi" id="nn-nm-'+id+'" value="'+nm+'" style="font-size:12px"></div>';
+    html+='<div class="fld"><label>Tipo de pago</label><select class="fi" id="nn-tp-'+id+'" onchange="updNN(\''+id+'\')" style="font-size:12px"><option value="Hora">Por Hora</option><option value="Día">Por Día</option><option value="Mes">Mensual</option></select></div>';
+    html+='<div class="fld" id="nn-h-'+id+'"><label>Tarifa/hora (Gs.)</label><input class="fi" type="number" id="nn-ph-'+id+'" placeholder="13937" style="font-size:12px"></div>';
+    html+='<div class="fld" id="nn-d-'+id+'" style="display:none"><label>Jornal diario (Gs.)</label><input class="fi" type="number" id="nn-pd-'+id+'" style="font-size:12px"></div>';
+    html+='<div class="fld" id="nn-m-'+id+'" style="display:none"><label>Salario mensual (Gs.)</label><input class="fi" type="number" id="nn-pm-'+id+'" style="font-size:12px"></div>';
+    html+='<div class="fld"><label>Hora entrada</label><input class="fi" type="time" id="nn-ent-'+id+'" value="07:00" style="font-size:12px"></div>';
+    html+='<div class="fld"><label>Hora salida</label><input class="fi" type="time" id="nn-sal-'+id+'" value="17:00" style="font-size:12px"></div>';
+    html+='<div class="fld"><label>Tope hs/sem</label><input class="fi" type="number" id="nn-tope-'+id+'" value="48" style="font-size:12px"></div>';
+    html+='</div></div>';
+  });
+  lista.innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--t3)">No hay empleados nuevos.</div>';
+  document.getElementById('nuevos-modal').style.display='flex';
+  // Guardar IDs para procesarlos
+  document.getElementById('nuevos-modal')._ids=ids;
+  document.getElementById('nuevos-modal')._raw=desconocidos;
+}
+
+function updNN(id){
+  var tp=document.getElementById('nn-tp-'+id).value;
+  document.getElementById('nn-h-'+id).style.display=tp==='Hora'?'':'none';
+  document.getElementById('nn-d-'+id).style.display=tp==='Día'?'':'none';
+  document.getElementById('nn-m-'+id).style.display=tp==='Mes'?'':'none';
+}
+
+function ignorarNuevos(){
+  document.getElementById('nuevos-modal').style.display='none';
+  // Proceder sin los desconocidos
+  _finalizarImport();
+}
+
+function guardarNuevos(){
+  var modal=document.getElementById('nuevos-modal');
+  var ids=modal._ids||[];
+  var raw=modal._raw||{};
+  var colors=['#4a7a9a', '#4a8a6a', '#7c6e8a', '#8a7a5a', '#4a6a8a', '#8a5a6a', '#7a5a8a', '#6a8a4a', '#8a6a4a', '#5a6a8a'];
+  var guardados=0;
+  ids.forEach(function(id,idx){
+    var inc=document.getElementById('inc-'+id);
+    if(!inc||!inc.checked)return;
+    var tp=document.getElementById('nn-tp-'+id).value;
+    var nm=document.getElementById('nn-nm-'+id).value.trim()||raw[id].nm||'Empleado '+id;
+    var partes=nm.split(' ');
+    var ini=(partes[0]&&partes[0][0]||'')+(partes[1]&&partes[1][0]||'');
+    ini=ini.toUpperCase()||id.slice(0,2);
+    CFG[id]={
+      nm:nm,tp:tp,
+      ent:document.getElementById('nn-ent-'+id).value||'07:00',
+      salm:'12:00',ralm:'13:00',
+      sal:document.getElementById('nn-sal-'+id).value||'17:00',
+      tol:10,
+      ph:tp==='Hora'?(+document.getElementById('nn-ph-'+id).value||null):null,
+      pd:tp==='Día'?(+document.getElementById('nn-pd-'+id).value||null):null,
+      pm:tp==='Mes'?(+document.getElementById('nn-pm-'+id).value||null):null,
+      ips:null,ipsp:9,
+      tope:+(document.getElementById('nn-tope-'+id).value||48),
+      sab:true,
+      col:colors[idx%colors.length],
+      ini:ini,
+      act:true
+    };
+    guardados++;
+    // Procesar las marcaciones de este empleado ahora que tiene CFG
+    var marc=[];
+    var emp=raw[id];
+    for(var fe in emp.dias){
+      var dd=emp.dias[fe];
+      var seen={},sorted=[];
+      dd.hs.sort().forEach(function(h){if(!seen[h]){seen[h]=1;sorted.push(h);}});
+      var uniq=[];
+      sorted.forEach(function(h){if(!uniq.length||t2m(h)-t2m(uniq[uniq.length-1])>1)uniq.push(h);});
+      var isDom=(dd.di==='Domingo'),isFer=esFeriado(fe),esEsp=isDom||isFer;
+      var c=CFG[id];
+      var en=null,sa=null,slam=null,rlam=null;
+      if(!c.salm||uniq.length<4){en=uniq[0]||null;sa=uniq.length>1?uniq[uniq.length-1]:null;}
+      else{en=uniq[0];sa=uniq[uniq.length-1];slam=uniq[1];rlam=uniq[uniq.length-2];if(slam===rlam)rlam=null;}
+      var almHs=0;
+      if(slam&&rlam){almHs=Math.max(0,(t2m(rlam)-t2m(slam))/60);if(almHs>0&&almHs<0.5)almHs=0.5;}
+      var enM=t2m(en),saM=t2m(sa),brutMin=0;
+      if(enM!==null&&saM!==null){brutMin=saM-enM;if(brutMin<0)brutMin+=1440;brutMin-=almHs*60;}
+      var hsTotal=Math.max(0,brutMin/60);
+      var sp=splitDiaNoche(en,sa,almHs);
+      var tard=0,est='Asistió';
+      if(!esEsp&&en){var df=t2m(en)-(t2m(c.ent)||0);if(df>(c.tol||10)){tard=df;est='Tarde '+df+'min';}}
+      if(isDom)est='Domingo';if(isFer&&!isDom)est='Feriado';
+      marc.push({fe:fe,di:dd.di,isDom:isDom,isFer:isFer,esEsp:esEsp,en:en||'—',slam:slam||'—',rlam:rlam||'—',sa:sa||'—',hs:Math.round(hsTotal*100)/100,hsNorm:Math.round(sp.norm*100)/100,hsNoct:Math.round(sp.noct*100)/100,tard:tard,est:est});
+    }
+    marc.sort(function(a,b){return b.fe.localeCompare(a.fe);});
+    calcPago(id,CFG[id],marc);
+  });
+  // Guardar CFG actualizado
+  fbWrite('config_empleados',CFG,'config_empleados');
+  modal.style.display='none';
+  _finalizarImport();
+  showSt(guardados+' empleado'+(guardados!==1?'s':'')+' nuevo'+(guardados!==1?'s':'')+' agregado'+(guardados!==1?'s':'')+'.',  'ok');
+}
+
+function _finalizarImport(){
+  var fname=_fnameActual;
+  var n=Object.keys(EMPS).length;
+  if(!n){showSt('Sin empleados reconocidos.','wrn');return;}
+  showSt((fname?fname+' — ':'')+n+' empleados cargados.','ok');
+  showSaveIndicator();
+  autoBackup();
+  if(n)selectEmp(Object.keys(EMPS)[0]);
+}
 
 // ══════════════════════════════════════════════════════
 //  BACKUP AUTOMÁTICO
