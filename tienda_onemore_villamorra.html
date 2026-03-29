@@ -3078,66 +3078,56 @@ function imprimirFactura(f) {
   var maxItems = 12;
 
   function p(left, top, text, fs, fw, w, ta) {
-    var ws = w  ? 'width:'+w+'mm;'          : '';
-    var ts = ta ? 'text-align:'+ta+';'      : '';
+    var ws = w  ? 'width:'+w+'mm;'     : '';
+    var ts = ta ? 'text-align:'+ta+';' : '';
     return '<div style="position:absolute;left:'+left+'mm;top:'+top+'mm;'+ws+ts
       +'font-size:'+(fs||8.5)+'pt;font-weight:'+(fw||'normal')+';'
       +'font-family:Arial,sans-serif;white-space:nowrap;overflow:hidden;color:#000;">'
       +text+'</div>';
   }
 
-  // Build one copy. offL = left edge of that copy in mm from paper left
   function buildCopy(offL) {
     var h = '';
 
-    // FECHA
-    h += p(offL+22, 52, fechaDisplay, 8.5, 'normal', 55);
+    // FECHA  (top: 45mm)
+    h += p(offL+22, 45, fechaDisplay, 8.5, 'normal', 55);
 
-    // CONDICION DE VENTA checkboxes
-    h += p(offL+90,  51.5, xContado, 9, 'bold', 6, 'center');
-    h += p(offL+107, 51.5, xCredito, 9, 'bold', 6, 'center');
+    // CONDICION DE VENTA checkboxes (top: 44.5mm)
+    h += p(offL+90,  44.5, xContado, 9, 'bold', 6, 'center');
+    h += p(offL+107, 44.5, xCredito, 9, 'bold', 6, 'center');
 
-    // RUC
-    h += p(offL+14, 60, f.ruc||'', 8.5, 'normal', 100);
+    // RUC (top: 53mm)
+    h += p(offL+14, 53, f.ruc||'', 8.5, 'normal', 100);
 
-    // NOMBRE / RAZON SOCIAL
-    h += p(offL+14, 68, f.cliente||'', 8.5, 'normal', 100);
+    // NOMBRE / RAZON SOCIAL (top: 63mm)
+    h += p(offL+14, 63, f.cliente||'', 8.5, 'normal', 100);
 
-    // ITEMS — start 85mm, 7.5mm per line
+    // ITEMS — start at 78mm, 7.5mm spacing
     for (var i = 0; i < maxItems; i++) {
       var item = f.items[i] || null;
-      var ty = 85 + i * 7.5;
+      var ty = 78 + i * 7.5;
       if (item) {
-        // CANTIDAD
-        h += p(offL+3,  ty, String(item.cant),  8, 'normal', 10, 'center');
-        // DESCRIPCION
-        h += p(offL+14, ty, item.desc||'', 8, 'normal', 72);
-        // PRECIO UNITARIO
-        h += p(offL+86, ty, Math.round(item.precio).toLocaleString('es-PY'), 8, 'normal', 18, 'right');
-        // VALOR DE VENTAS 10%
-        h += p(offL+104, ty, Math.round(item.total).toLocaleString('es-PY'), 8, 'normal', 18, 'right');
+        h += p(offL+3,   ty, String(item.cant), 8, 'normal', 10, 'center');
+        h += p(offL+14,  ty, item.desc||'',     8, 'normal', 72);
+        h += p(offL+86,  ty, Math.round(item.precio).toLocaleString('es-PY'), 8, 'normal', 18, 'right');
+        h += p(offL+104, ty, Math.round(item.total).toLocaleString('es-PY'),  8, 'normal', 18, 'right');
       }
     }
 
-    // SUBTOTAL (col 10%)
+    // SUBTOTAL (top: 176mm)
+    h += p(offL+104, 176, Math.round(f.total).toLocaleString('es-PY'), 8.5, 'bold', 18, 'right');
+
+    // TOTAL A PAGAR Gs. (top: 183mm)
     h += p(offL+104, 183, Math.round(f.total).toLocaleString('es-PY'), 8.5, 'bold', 18, 'right');
 
-    // TOTAL A PAGAR Gs.
-    h += p(offL+104, 190, Math.round(f.total).toLocaleString('es-PY'), 8.5, 'bold', 18, 'right');
-
-    // LIQUIDACION DEL IVA
-    // 5% gravado = 0 (todo al 10%)
-    h += p(offL+30, 197, '0', 8, 'normal', 20, 'right');
-    // 10% gravado
-    h += p(offL+68, 197, liq10txt, 8, 'normal', 22, 'right');
-    // TOTAL IVA
-    h += p(offL+104, 197, ivaTotal, 8, 'normal', 18, 'right');
+    // LIQUIDACION DEL IVA (top: 190mm)
+    h += p(offL+30,  190, '0',       8, 'normal', 20, 'right');
+    h += p(offL+68,  190, liq10txt,  8, 'normal', 22, 'right');
+    h += p(offL+104, 190, ivaTotal,  8, 'normal', 18, 'right');
 
     return h;
   }
 
-  // A4 LANDSCAPE = 297mm x 210mm
-  // Copia izquierda empieza en left=8mm, derecha en left=155mm
   var printHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
     + '<style>'
     + '@page{size:A4 landscape;margin:0;}'
@@ -3145,8 +3135,8 @@ function imprimirFactura(f) {
     + 'body{width:297mm;height:210mm;overflow:hidden;position:relative;background:#fff;}'
     + '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
     + '</style></head><body>'
-    + buildCopy(8)    // Copia izquierda — ORIGINAL
-    + buildCopy(155)  // Copia derecha  — DUPLICADO
+    + buildCopy(8)    // Copia izquierda
+    + buildCopy(155)  // Copia derecha
     + '<scr'+'ipt>window.onload=function(){window.print();};</scr'+'ipt>'
     + '</body></html>';
 
